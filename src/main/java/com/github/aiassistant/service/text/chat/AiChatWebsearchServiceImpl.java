@@ -49,6 +49,15 @@ public class AiChatWebsearchServiceImpl {
 
     /**
      * 提交聊天记录
+     *
+     * @param sourceEnum           sourceEnum
+     * @param providerName         providerName
+     * @param question             question
+     * @param resultVO             resultVO
+     * @param cost                 cost
+     * @param userQueryTraceNumber userQueryTraceNumber
+     * @param user                 user
+     * @return 提交结果
      */
     public CompletableFuture<AiChatWebsearchRequest> insert(String sourceEnum, String providerName,
                                                             String question, WebSearchResultVO resultVO, long cost,

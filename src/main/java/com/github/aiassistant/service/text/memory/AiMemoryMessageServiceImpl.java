@@ -80,6 +80,8 @@ public class AiMemoryMessageServiceImpl {
 
     /**
      * 预测Token消耗数量
+     * @param text text
+     * @return Token消耗数量
      */
     public int estimateTokenCountInText(String text) {
         return tokenizer.estimateTokenCountInText(text);
@@ -87,6 +89,8 @@ public class AiMemoryMessageServiceImpl {
 
     /**
      * 预测Token消耗数量
+     * @param messages messages
+     * @return Token消耗数量
      */
     public int estimateTokenCountInMessages(Iterable<ChatMessage> messages) {
         return tokenizer.estimateTokenCountInMessages(messages);
@@ -94,6 +98,9 @@ public class AiMemoryMessageServiceImpl {
 
     /**
      * 查询记忆
+     * @param memoryId memoryId
+     * @param againUserQueryTraceNumber againUserQueryTraceNumber
+     * @return 记忆
      */
     public List<ChatMessage> selectHistoryList(Integer memoryId, String againUserQueryTraceNumber) {
         String rootAgainUserQueryTraceNumber;
@@ -109,6 +116,11 @@ public class AiMemoryMessageServiceImpl {
 
     /**
      * 提交记忆
+     * @param now now
+     * @param requestTrace requestTrace
+     * @param againUserQueryTraceNumber againUserQueryTraceNumber
+     * @param websearch websearch
+     * @return 提交成功后
      */
     public CompletableFuture<AiMemoryVO> insert(Date now, RequestTrace<MemoryIdVO, AiAccessUserVO> requestTrace,
                                                 String againUserQueryTraceNumber,
@@ -135,6 +147,7 @@ public class AiMemoryMessageServiceImpl {
 
     /**
      * 如果重新回答，将过去的回复删除
+     * @param messageVOList messageVOList
      */
     private void setDeleteTimeIfAgainQuery(List<AiMemoryMessageVO> messageVOList) {
         // 插入历史
@@ -154,6 +167,8 @@ public class AiMemoryMessageServiceImpl {
 
     /**
      * 查询原始问题编号（重新回答会复用）
+     * @param againUserQueryTraceNumberList againUserQueryTraceNumberList
+     * @return 原始问题编号
      */
     public Map<String, String> selectRootAgainUserQueryTraceNumberMap(List<String> againUserQueryTraceNumberList) {
         return againUserQueryTraceNumberList.isEmpty() ? Collections.emptyMap() : aiMemoryMessageMapper.selectRootAgainTraceNumberList(againUserQueryTraceNumberList).stream()
@@ -172,6 +187,7 @@ public class AiMemoryMessageServiceImpl {
 
     /**
      * 持久化记忆
+     * @param list list
      */
     public void insert(List<AiMemoryVO> list) {
         try {

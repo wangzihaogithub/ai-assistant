@@ -16,15 +16,20 @@ public interface AiChatMapper {
 
     int updateDeleteTimeById(Integer id, Date deleteTime);
 
-
     /**
      * 更新最近聊天时间
+     * @param idList idList
+     * @param lastChatTime lastChatTime
+     * @return 条数
      */
     int updateLastChatTime(List<Integer> idList,
                            Date lastChatTime);
 
     /**
      * 更新最近联网状态
+     * @param idList idList
+     * @param lastWebsearch lastWebsearch
+     * @return 条数
      */
     int updateLastWebsearchFlag(List<Integer> idList,
                                 Boolean lastWebsearch);

@@ -19,6 +19,8 @@ public class KnSettingWebsearchBlacklistServiceImpl {
 
     /**
      * 查询黑名单问题
+     *
+     * @return 黑名单问题
      */
     public List<ReRankModelClient.QuestionVO> selectBlackList() {
         return knSettingWebsearchBlacklistMapper.selectBlackList().stream()

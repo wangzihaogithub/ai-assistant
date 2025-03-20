@@ -39,6 +39,11 @@ public class AiChatClassifyServiceImpl {
 
     /**
      * 提交聊天分类
+     * @param classifyResultList classifyResultList
+     * @param chatId chatId
+     * @param question question
+     * @param userQueryTraceNumber userQueryTraceNumber
+     * @return 聊天分类提交结果
      */
     public CompletableFuture<AiChatClassifyRequest> insert(List<QuestionClassifyListVO.ClassifyVO> classifyResultList,
                                                            Integer chatId,

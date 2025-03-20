@@ -26,6 +26,12 @@ public class AiChatAbortServiceImpl {
 
     /**
      * 用户点击了-停止输出AI回答
+     * @param beforeText beforeText
+     * @param memoryId memoryId
+     * @param chatId chatId
+     * @param userQueryTraceNumber userQueryTraceNumber
+     * @param messageIndex messageIndex
+     * @return 成功
      */
     public boolean insert(String beforeText, Integer memoryId, Integer chatId, String userQueryTraceNumber, Integer messageIndex) {
         AiChatAbort abort = new AiChatAbort();

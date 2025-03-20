@@ -70,6 +70,9 @@ public class AiQuestionClassifyService {
 
     /**
      * 进行问题分类
+     * @param question question
+     * @param memoryIdVO memoryIdVO
+     * @return 问题分类
      */
     public CompletableFuture<QuestionClassifyListVO> classify(String question, MemoryIdVO memoryIdVO) {
         // 查询定义的问题分类

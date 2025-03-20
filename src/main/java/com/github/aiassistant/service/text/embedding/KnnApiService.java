@@ -15,7 +15,6 @@ import org.elasticsearch.client.*;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -56,11 +55,11 @@ public class KnnApiService {
                 concurrentEmbeddingModelCount, concurrentEmbeddingModelCount,
                 60, TimeUnit.SECONDS,
                 new SynchronousQueue<>(), target -> {
-                    Thread thread = new Thread(target);
-                    thread.setName("Ai-Embedding-" + thread.getId());
-                    thread.setDaemon(true);
-                    return thread;
-                }, new ThreadPoolExecutor.CallerRunsPolicy());
+            Thread thread = new Thread(target);
+            thread.setName("Ai-Embedding-" + thread.getId());
+            thread.setDaemon(true);
+            return thread;
+        }, new ThreadPoolExecutor.CallerRunsPolicy());
         poolExecutor.allowCoreThreadTimeOut(true);
         this.concurrentEmbeddingModelCount = concurrentEmbeddingModelCount;
         this.executor = poolExecutor;
@@ -115,6 +114,12 @@ public class KnnApiService {
 
     /**
      * 向量搜索知识库
+     *
+     * @param kn   kn
+     * @param type type
+     * @param body body
+     * @param <T>  知识库
+     * @return 知识库
      */
     public <T extends KnVO> CompletableFuture<List<T>> knnSearchLib(AiAssistantKn kn,
                                                                     Class<T> type,
@@ -127,6 +132,9 @@ public class KnnApiService {
 
     /**
      * 获取向量模型
+     *
+     * @param assistant assistant
+     * @return 向量模型
      */
     public EmbeddingModelClient getModel(AiAssistantKn assistant) {
         if (assistant == null) {

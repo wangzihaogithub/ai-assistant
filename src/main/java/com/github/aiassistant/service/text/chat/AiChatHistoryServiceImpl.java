@@ -83,6 +83,11 @@ public class AiChatHistoryServiceImpl {
 
     /**
      * 是否还有今日可用字数
+     *
+     * @param createUid     createUid
+     * @param uidTypeEnum   uidTypeEnum
+     * @param maxTokenCount maxTokenCount
+     * @return 是否还有今日可用字数
      */
     public boolean hasTokens(Serializable createUid, AiChatUidTypeEnum uidTypeEnum, int maxTokenCount) {
         return sumTodayCharLength(createUid, uidTypeEnum).isHasTokens(maxTokenCount);
@@ -90,6 +95,10 @@ public class AiChatHistoryServiceImpl {
 
     /**
      * 统计今日字数
+     *
+     * @param createUid   createUid
+     * @param uidTypeEnum uidTypeEnum
+     * @return 统计今日字数
      */
     public AiChatToken sumTodayCharLength(Serializable createUid, AiChatUidTypeEnum uidTypeEnum) {
         int tokenCount = aiChatHistoryMapper.sumTodayCharLength(uidTypeEnum.getCode(), createUid);
@@ -100,6 +109,9 @@ public class AiChatHistoryServiceImpl {
 
     /**
      * 查询最后一次聊天号
+     *
+     * @param chatId chatId
+     * @return 最后一次聊天号
      */
     public String selectLastUserAgainTraceNumber(Integer chatId) {
         return aiChatHistoryMapper.selectLastUserAgainTraceNumber(chatId);
@@ -107,6 +119,9 @@ public class AiChatHistoryServiceImpl {
 
     /**
      * 查询聊天记录
+     *
+     * @param aiChatId aiChatId
+     * @return 聊天记录
      */
     public List<AiUserChatHistoryResp> selectListByChatId(Integer aiChatId) {
         // 查询聊天记录
@@ -155,6 +170,13 @@ public class AiChatHistoryServiceImpl {
 
     /**
      * 提交聊天记录
+     *
+     * @param now                       now
+     * @param requestTrace              requestTrace
+     * @param againUserQueryTraceNumber againUserQueryTraceNumber
+     * @param websearch                 websearch
+     * @param user                      user
+     * @return 提交结果
      */
     public CompletableFuture<AiChatRequest> insert(Date now, RequestTrace<MemoryIdVO, AiAccessUserVO> requestTrace,
                                                    String againUserQueryTraceNumber,
@@ -180,6 +202,8 @@ public class AiChatHistoryServiceImpl {
 
     /**
      * 持久化重新回答
+     *
+     * @param againVOList againVOList
      */
     private void insertAgain(List<AiChatRequest> againVOList) {
         List<String> againUserQueryTraceNumberList = againVOList.stream().map(AiChatRequest::getAgainUserQueryTraceNumber).filter(StringUtils::hasText).collect(Collectors.toList());
@@ -196,6 +220,8 @@ public class AiChatHistoryServiceImpl {
 
     /**
      * 持久化聊天记录
+     *
+     * @param list list
      */
     public void insert(List<AiChatRequest> list) {
         try {
@@ -259,6 +285,8 @@ public class AiChatHistoryServiceImpl {
 
     /**
      * 持久化聊天记录
+     *
+     * @param list list
      */
     private void insertHistory(List<AiChatRequest> list) {
         List<AiChatHistoryVO> historyList = list.stream().flatMap(e -> e.getHistoryList().stream()).collect(Collectors.toList());
@@ -287,6 +315,8 @@ public class AiChatHistoryServiceImpl {
 
     /**
      * 回填用户和AI的聊天关系
+     *
+     * @param list list
      */
     private void updateUserChatHistoryId(List<AiChatRequest> list) {
         for (AiChatRequest request : list) {
@@ -470,6 +500,8 @@ public class AiChatHistoryServiceImpl {
 
         /**
          * 获取这次用户的问题ID
+         * @param aiChatHistoryMapper aiChatHistoryMapper
+         * @return 这次用户的问题ID
          */
         public CompletableFuture<Integer> getUserChatHistoryId(AiChatHistoryMapper aiChatHistoryMapper) {
             if (userChatHistoryId != null) {

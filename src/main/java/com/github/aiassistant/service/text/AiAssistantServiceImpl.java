@@ -22,6 +22,8 @@ public class AiAssistantServiceImpl {
 
     /**
      * 查询智能体
+     * @param statusEnum 状态
+     * @return 智能体
      */
     public List<AiAssistant> selectList(AiAssistantStatusEnum statusEnum) {
         return aiAssistantMapper.selectEnableList(statusEnum == null ? null : statusEnum.getCode());

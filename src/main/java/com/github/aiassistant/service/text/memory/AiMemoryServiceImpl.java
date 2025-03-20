@@ -18,6 +18,8 @@ public class AiMemoryServiceImpl {
 
     /**
      * 新增记忆
+     * @param now now
+     * @return 记忆
      */
     public AiMemory insert(Date now) {
         AiMemory aiMemory = new AiMemory();

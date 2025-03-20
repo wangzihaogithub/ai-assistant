@@ -52,6 +52,13 @@ public class AiChatReasoningServiceImpl {
 
     /**
      * 提交思考
+     *
+     * @param question             question
+     * @param plan                 plan
+     * @param reason               reason
+     * @param userQueryTraceNumber userQueryTraceNumber
+     * @param user                 user
+     * @return 提交思考
      */
     public CompletableFuture<AiChatReasoningRequest> insert(String question,
                                                             ActingService.Plan plan,
@@ -79,6 +86,8 @@ public class AiChatReasoningServiceImpl {
 
     /**
      * 持久化思考
+     *
+     * @param list list
      */
     private void insert(List<AiChatReasoningRequest> list) {
         JsonUtil.ObjectWriter objectWriter = JsonUtil.objectWriter();

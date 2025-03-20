@@ -75,6 +75,8 @@ public class LlmJsonSchemaApiService {
 
     /**
      * 删除JsonSchema的本地记忆
+     *
+     * @param memoryIdVO memoryIdVO
      */
     public void removeSession(MemoryIdVO memoryIdVO) {
         memoryMap.remove(memoryIdVO);
@@ -82,6 +84,9 @@ public class LlmJsonSchemaApiService {
 
     /**
      * 保存JsonSchema的本地记忆
+     *
+     * @param memoryIdVO memoryIdVO
+     * @param chatMemory chatMemory
      */
     public void putSessionMemory(MemoryIdVO memoryIdVO, JsonSchemaTokenWindowChatMemory chatMemory) {
         getSession(memoryIdVO, true).chatMemory = chatMemory;
@@ -99,8 +104,13 @@ public class LlmJsonSchemaApiService {
 
     /**
      * 提示词中是否使用了变量
+     *
+     * @param memoryIdVO     memoryIdVO
+     * @param jsonSchemaEnum jsonSchemaEnum
+     * @param varKeys        varKeys
+     * @return 使用了变量
      */
-    public <T> boolean existPromptVariableKey(MemoryIdVO memoryIdVO, String jsonSchemaEnum, String... varKeys) {
+    public boolean existPromptVariableKey(MemoryIdVO memoryIdVO, String jsonSchemaEnum, String... varKeys) {
         AiJsonschema jsonschema = memoryIdVO.getJsonschema(jsonSchemaEnum);
         if (jsonschema == null) {
             return false;
@@ -116,6 +126,12 @@ public class LlmJsonSchemaApiService {
 
     /**
      * 获取JsonSchema类型的模型
+     *
+     * @param memoryIdVO memoryIdVO
+     * @param type       type
+     * @param memory     memory
+     * @param <T>        类型
+     * @return JsonSchema类型的模型
      */
     private <T> T getSchema(MemoryIdVO memoryIdVO, Class<T> type, boolean memory) {
         return getSchema(memoryIdVO, toJsonSchemaEnum(type), type, memory);
@@ -213,6 +229,9 @@ public class LlmJsonSchemaApiService {
 
     /**
      * 获取记忆
+     *
+     * @param memoryIdVO memoryIdVO
+     * @return 记忆
      */
     public JsonSchemaTokenWindowChatMemory getChatMemory(Object memoryIdVO) {
         MemoryIdVO key = (MemoryIdVO) memoryIdVO;
@@ -231,6 +250,15 @@ public class LlmJsonSchemaApiService {
 
     /**
      * 创建JsonSchema类型的模型
+     *
+     * @param apiKey              apiKey
+     * @param baseUrl             baseUrl
+     * @param modelName           modelName
+     * @param maxCompletionTokens maxCompletionTokens
+     * @param temperature         temperature
+     * @param topP                topP
+     * @param responseFormat      responseFormat
+     * @return JsonSchema类型的模型
      */
     private AiModel createJsonSchemaModel(String apiKey,
                                           String baseUrl,

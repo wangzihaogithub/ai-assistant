@@ -3,7 +3,6 @@ package com.github.aiassistant.util;
 import java.beans.BeanInfo;
 import java.beans.Introspector;
 import java.beans.PropertyDescriptor;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Map;
@@ -16,8 +15,6 @@ public class BeanUtil {
      *
      * @param source 源对象
      * @param target 目标对象
-     * @throws IllegalAccessException    如果属性的getter或setter方法不可访问
-     * @throws InvocationTargetException 如果属性的getter或setter方法抛出异常
      */
     public static void copyProperties(Object source, Object target) {
         if (source == null || target == null) {
@@ -86,6 +83,7 @@ public class BeanUtil {
      *
      * @param map       包含属性名和值的Map
      * @param beanClass 要转换成的JavaBean类
+     * @param <T>       bean
      * @return 转换后的JavaBean对象
      */
     public static <T> T toBean(Map<String, Object> map, Class<T> beanClass) {
@@ -121,7 +119,6 @@ public class BeanUtil {
                     }
                 }
             }
-
             return bean;
         } catch (Exception e) {
             ThrowableUtil.sneakyThrows(e);

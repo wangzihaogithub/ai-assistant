@@ -16,6 +16,13 @@ public class QueryBuilderUtil {
 
     /**
      * 问答
+     * @param vectorFieldName vectorFieldName
+     * @param majorName majorName
+     * @param model model
+     * @param size size
+     * @param minScore minScore
+     * @param sourceInclude sourceInclude
+     * @return 问答Query
      */
     public static CompletableFuture<Map<String, Object>> buildQaEsQuery(String vectorFieldName, List<String> majorName, EmbeddingModelClient model,
                                                                         Integer size, Double minScore,
@@ -25,6 +32,13 @@ public class QueryBuilderUtil {
 
     /**
      * 知识库查询
+     * @param vectorFieldName vectorFieldName
+     * @param queryStringList queryStringList
+     * @param model model
+     * @param size size
+     * @param minScore minScore
+     * @param sourceInclude sourceInclude
+     * @return 知识库
      */
     private static CompletableFuture<Map<String, Object>> buildKnEsQuery(String vectorFieldName, List<String> queryStringList,
                                                                          EmbeddingModelClient model, Integer size, Double minScore,

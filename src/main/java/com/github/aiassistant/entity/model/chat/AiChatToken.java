@@ -8,6 +8,8 @@ public class AiChatToken {
 
     /**
      * 是否还有今日可用字数
+     * @param maxTokenCount maxTokenCount
+     * @return 是否还有今日可用字数
      */
     public boolean isHasTokens(int maxTokenCount) {
         return tokenCount < maxTokenCount;

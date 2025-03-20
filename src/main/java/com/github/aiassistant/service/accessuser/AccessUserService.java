@@ -61,6 +61,10 @@ public class AccessUserService {
 
     /**
      * 是否有权限
+     * @param chatId chatId
+     * @param createUid createUid
+     * @param uidTypeEnum uidTypeEnum
+     * @return 有权限
      */
     public boolean hasPermission(Serializable chatId, Serializable createUid, AiChatUidTypeEnum uidTypeEnum) {
         if (chatId == null) {
@@ -79,6 +83,10 @@ public class AccessUserService {
 
     /**
      * 获取记忆ID
+     * @param chatId chatId
+     * @param createUid createUid
+     * @param uidTypeEnum uidTypeEnum
+     * @return 记忆ID
      */
     public MemoryIdVO getMemoryId(Serializable chatId, Serializable createUid, AiChatUidTypeEnum uidTypeEnum) {
         if (chatId == null) {
@@ -110,6 +118,7 @@ public class AccessUserService {
 
     /**
      * 获取用户ID
+     * @return 用户ID
      */
     public Serializable getCurrentUserId() {
         for (AccessUserServiceIntercept intercept : interceptList.get()) {
@@ -123,6 +132,7 @@ public class AccessUserService {
 
     /**
      * 获取用户
+     * @return 用户
      */
     public AiAccessUserVO getCurrentUser() {
         for (AccessUserServiceIntercept intercept : interceptList.get()) {

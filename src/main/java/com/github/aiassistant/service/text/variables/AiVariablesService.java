@@ -25,11 +25,11 @@ import com.github.aiassistant.entity.model.chat.MStateVO;
 import com.github.aiassistant.entity.model.chat.MemoryIdVO;
 import com.github.aiassistant.entity.model.chat.QaKnVO;
 import com.github.aiassistant.entity.model.user.AiAccessUserVO;
-import com.github.aiassistant.service.text.AssistantConfig;
-import com.github.aiassistant.service.text.repository.JsonSchemaTokenWindowChatMemory;
-import com.github.aiassistant.service.text.acting.ActingService;
 import com.github.aiassistant.service.jsonschema.QuestionClassifySchema;
+import com.github.aiassistant.service.text.AssistantConfig;
+import com.github.aiassistant.service.text.acting.ActingService;
 import com.github.aiassistant.service.text.memory.AiMemoryMstateServiceImpl;
+import com.github.aiassistant.service.text.repository.JsonSchemaTokenWindowChatMemory;
 import com.github.aiassistant.serviceintercept.AiVariablesServiceIntercept;
 import com.github.aiassistant.util.AiUtil;
 import com.github.aiassistant.util.BeanUtil;
@@ -70,7 +70,9 @@ public class AiVariablesService {
      * 是否开启联网查询
      * 提示词里有用到就开启，提示词里没用到就不开启。
      *
-     * @param assistantConfig 智能体配置
+     * @param assistantConfig  智能体配置
+     * @param knPromptText     knPromptText
+     * @param mstatePromptText mstatePromptText
      * @return true=需要联网查询
      */
     public static boolean isEnableWebSearch(AssistantConfig assistantConfig, String knPromptText, String mstatePromptText) {
@@ -87,7 +89,9 @@ public class AiVariablesService {
      * 是否开启思考
      * 提示词里有用到就开启，提示词里没用到就不开启。
      *
-     * @param assistantConfig 智能体配置
+     * @param assistantConfig  智能体配置
+     * @param knPromptText     knPromptText
+     * @param mstatePromptText mstatePromptText
      * @return true=需要开启思考
      */
     public static boolean isEnableReasoning(AssistantConfig assistantConfig, String knPromptText, String mstatePromptText) {
@@ -104,7 +108,8 @@ public class AiVariablesService {
      * 是否开启知识库查询
      * 提示词里有用到就开启，提示词里没用到就不开启。
      *
-     * @param assistant 智能体配置
+     * @param assistant    智能体配置
+     * @param knPromptText knPromptText
      * @return true=需要查询知识库
      */
     public static boolean isEnableKnQuery(AssistantConfig assistant, String knPromptText) {
@@ -118,6 +123,11 @@ public class AiVariablesService {
 
     /**
      * 提示词
+     *
+     * @param promptMessage promptMessage
+     * @param currentUser   currentUser
+     * @param memoryId      memoryId
+     * @return 提示词
      */
     public String prompt(String promptMessage, AiAccessUserVO currentUser, MemoryIdVO memoryId) {
         AiVariables aiVariables = selectVariables(currentUser, new ArrayList<>(), null, memoryId, false);
@@ -126,6 +136,13 @@ public class AiVariablesService {
 
     /**
      * 查询变量
+     *
+     * @param currentUser  currentUser
+     * @param historyList  historyList
+     * @param lastQuestion lastQuestion
+     * @param memoryId     memoryId
+     * @param websearch    websearch
+     * @return 变量
      */
     public AiVariables selectVariables(AiAccessUserVO currentUser, List<ChatMessage> historyList,
                                        String lastQuestion, MemoryIdVO memoryId, Boolean websearch) {
@@ -154,6 +171,9 @@ public class AiVariablesService {
 
     /**
      * 用户请求
+     *
+     * @param target    target
+     * @param websearch websearch
      */
     private void setterRequest(AiVariables.Request target, Boolean websearch) {
         target.setWebsearch(Boolean.TRUE.equals(websearch));
@@ -161,6 +181,10 @@ public class AiVariablesService {
 
     /**
      * 聊天
+     *
+     * @param target      target
+     * @param historyList historyList
+     * @param query       query
      */
     private void setterChat(AiVariables.Chat target, List<ChatMessage> historyList, String query) {
         target.setHistoryUserMessage(JsonSchemaTokenWindowChatMemory.getUserMessageString(historyList));
@@ -171,6 +195,11 @@ public class AiVariablesService {
 
     /**
      * 知识库
+     *
+     * @param target          target
+     * @param knn             knn
+     * @param webSearchResult webSearchResult
+     * @param reasoningResult reasoningResult
      */
     public void setterKn(AiVariables.Kn target, List<List<QaKnVO>> knn, String webSearchResult, ActingService.Plan reasoningResult) {
         target.setDocuments(QaKnVO.qaToString(knn));
@@ -184,6 +213,9 @@ public class AiVariablesService {
 
     /**
      * 问题分类结果
+     *
+     * @param classify classify
+     * @param result   result
      */
     public void setterQuestionClassifyResult(AiVariables.QuestionClassify classify, QuestionClassifySchema.Result result) {
         if (result == null) {
@@ -197,6 +229,8 @@ public class AiVariablesService {
 
     /**
      * 系统
+     *
+     * @param sys sys
      */
     private void setterSys(AiVariables.Sys sys) {
         Date now = new Date();
@@ -206,6 +240,8 @@ public class AiVariablesService {
 
     /**
      * 变量
+     *
+     * @param var var
      */
     private void setterVar(Map<String, String> var) {
         List<com.github.aiassistant.entity.AiVariables> aiVariables = aiVariablesMapper.selectEnableList();
@@ -216,6 +252,9 @@ public class AiVariablesService {
 
     /**
      * 状态
+     *
+     * @param target   target
+     * @param memoryId memoryId
      */
     private void setterMstate(AiVariables.Mstate target, MemoryIdVO memoryId) {
         MStateVO mStateVO = aiMemoryMstateService.selectMstate(memoryId.getMemoryId());
@@ -237,6 +276,9 @@ public class AiVariablesService {
 
     /**
      * 智能体
+     *
+     * @param target target
+     * @param source source
      */
     private void setterAssistant(AiVariables.Assistant target, AiAssistant source) {
         BeanUtil.copyProperties(source, target);

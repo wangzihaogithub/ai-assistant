@@ -332,6 +332,8 @@ public class ToolCallStreamingResponseHandler extends CompletableFuture<Void> im
 
     /**
      * 生成AI回复
+     *
+     * @return 回复
      */
     public CompletableFuture<Void> generate() {
         if (!isDone()) {

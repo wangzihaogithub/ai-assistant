@@ -42,6 +42,9 @@ public class AiUtil {
 
     /**
      * 是否是联网工具
+     *
+     * @param tool tool
+     * @return 是否是联网工具
      */
     private static boolean isWebsearchTool(Tools tool) {
         return tool instanceof WebSearch || tool instanceof WebSearchTools;
@@ -178,10 +181,12 @@ public class AiUtil {
      * 例：让我们开始查询适合您的岗位吧：
      * 例：请您稍等片刻，我马上为您查询
      * 例：接下来，我会基于这些城市为您查找一些适合土木专业的岗位。请允许我稍后为您进行查询。
-     * <p>
-     * <p>
      * 反例：如果您对上述岗位感兴趣或者希望了解更多不同类型的岗位，请告诉我，我会继续为您提供更多选择。希望这些建议能帮助您找到心仪的岗位！
      * 反例：太好了！很高兴您对这些岗位感兴趣。接下来您可以根据自己的实际情况，选择一个或几个感兴趣的岗位进行进一步了解。如果您需要更详细的岗位信息，比如具体的岗位职责、任职要求或是申请流程等，随时可以告诉我，我会尽力为您提供帮助。
+     *
+     * @param tools    tools
+     * @param response response
+     * @return 是否存在需要用户确认工具调用
      */
     public static boolean isNeedConfirmToolCall(Response<AiMessage> response, Collection<Tools.ToolMethod> tools) {
         AiMessage message = response.content();

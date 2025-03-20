@@ -18,7 +18,7 @@ import java.util.stream.Collectors;
  * 1. 类似JQuery操作, 链式调用, 不用考虑过程中有null, 下标越界
  * 2. 扩展了jsoup不支持的功能 {@link #moveIndexByTagEq} {@link #prevByTagEq()} {@link #nextByTagEq()} {@link #breakParentByTagName(String)}
  *
- * @param <T>
+ * @param <T> Element
  * @author hao
  */
 public class HtmlQuery<T extends Element> {
@@ -74,7 +74,7 @@ public class HtmlQuery<T extends Element> {
     /**
      * css样式内联， 转行内样式
      *
-     * @param html
+     * @param html html
      * @return 内联后
      */
     public static String inlineCss(String html) {

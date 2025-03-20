@@ -23,12 +23,15 @@ public interface SessionMessageRepository {
 
     /**
      * 当吐token，会触发这个方法
+     * @param token token
      */
     default void afterToken(String token) {
     }
 
     /**
      * 插入用户的提问
+     * @param questionList questionList
+     * @return 插入成功后
      */
     default CompletableFuture<?> addUserQuestion(List<ChatMessage> questionList) {
         return CompletableFuture.completedFuture(null);
@@ -36,17 +39,21 @@ public interface SessionMessageRepository {
 
     /**
      * 插入消息
+     * @param message message
      */
     void add(ChatMessage message);
 
     /**
      * 插入问题分类
+     * @param questionClassify questionClassify
+     * @param question question
      */
     default void addQuestionClassify(QuestionClassifyListVO questionClassify, String question) {
     }
 
     /**
      * 插入知识库
+     * @param qaKnVOList qaKnVOList
      */
     default void addKnowledge(List<List<QaKnVO>> qaKnVOList) {
 
@@ -54,6 +61,10 @@ public interface SessionMessageRepository {
 
     /**
      * 插入思考
+     * @param question question
+     * @param plan plan
+     * @param reason reason
+     * @param parallel parallel
      */
     default void addReasoning(String question, ActingService.Plan plan, ReasoningJsonSchema.Result reason, boolean parallel) {
 
@@ -61,6 +72,11 @@ public interface SessionMessageRepository {
 
     /**
      * 插入联网搜索
+     * @param sourceEnum sourceEnum
+     * @param providerName providerName
+     * @param question question
+     * @param resultVO resultVO
+     * @param cost cost
      */
     default void addWebSearchRead(String sourceEnum, String providerName, String question, WebSearchResultVO resultVO, long cost) {
 
@@ -68,6 +84,10 @@ public interface SessionMessageRepository {
 
     /**
      * 插入错误
+     * @param error error
+     * @param baseMessageIndex baseMessageIndex
+     * @param addMessageCount addMessageCount
+     * @param generateCount generateCount
      */
     default void addError(Throwable error, int baseMessageIndex, int addMessageCount, int generateCount) {
 

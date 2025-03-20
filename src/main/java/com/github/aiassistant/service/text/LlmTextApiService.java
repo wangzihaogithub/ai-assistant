@@ -37,26 +37,11 @@ import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
 /**
  * Text类型的聊天模型服务
- * <pre>
- * # 知识库:
- * 如果cnwydoc标签里的内容不为空，请记住cnwydoc标签里的材料，他们可能对回答问题有帮助。
- * <cnwydoc>{{kn.documents}}</cnwydoc>
- *
- * # Memory:
- * 在回答用户问题时，请尽量忘记大部分不相关的信息。只有当用户提供的信息与当前问题或对话内容非常相关时，才记住这些信息并加以使用。请确保你的回答简洁、准确，并聚焦于用户当前的问题或对话主题。信息：
- * {{mstate.knownState}} {{mstate.unknownState}}
- *
- * # Reflection and Action
- * step1:Reflection:Before answering the question, please try to get the renponse by yourself if possible.use the tools if necessary.
- * step2:Action: Based on the selected tool (if necessary) and corresponding parameters, call the object (action) and return the result as the content of the observation, which is then fed back again.
- * step3:Repeat steps 1 and 2 until the task is completed.
- * </pre>
  */
 public class LlmTextApiService {
     public static final String WEBSEARCH_SOURCE = "LlmTextApiService";
@@ -124,11 +109,11 @@ public class LlmTextApiService {
                 threads, threads,
                 60, TimeUnit.SECONDS,
                 new SynchronousQueue<>(), target -> {
-                    Thread thread = new Thread(target);
-                    thread.setName("Ai-Question-" + thread.getId());
-                    thread.setDaemon(true);
-                    return thread;
-                }, new ThreadPoolExecutor.CallerRunsPolicy());
+            Thread thread = new Thread(target);
+            thread.setName("Ai-Question-" + thread.getId());
+            thread.setDaemon(true);
+            return thread;
+        }, new ThreadPoolExecutor.CallerRunsPolicy());
         this.llmJsonSchemaApiService = llmJsonSchemaApiService;
         this.aiQuestionClassifyService = aiQuestionClassifyService;
         this.aiVariablesService = aiVariablesService;
@@ -167,6 +152,13 @@ public class LlmTextApiService {
 
     /**
      * 是否开启思考
+     *
+     * @param reasoning        reasoning
+     * @param assistantConfig  assistantConfig
+     * @param knPromptText     knPromptText
+     * @param mstatePromptText mstatePromptText
+     * @param lastQuery        lastQuery
+     * @return 开启思考
      */
     private static boolean isEnableReasoning(Boolean reasoning, AssistantConfig assistantConfig, String knPromptText, String mstatePromptText, String lastQuery) {
         return Boolean.TRUE.equals(reasoning)
@@ -176,6 +168,13 @@ public class LlmTextApiService {
 
     /**
      * 是否开启联网
+     *
+     * @param websearch        websearch
+     * @param assistantConfig  assistantConfig
+     * @param knPromptText     knPromptText
+     * @param mstatePromptText mstatePromptText
+     * @param lastQuery        lastQuery
+     * @return 是否开启联网
      */
     private static boolean isEnableWebSearch(Boolean websearch, AssistantConfig assistantConfig, String knPromptText, String mstatePromptText, String lastQuery) {
         return Boolean.TRUE.equals(websearch)
@@ -185,6 +184,11 @@ public class LlmTextApiService {
 
     /**
      * 提问报错了
+     *
+     * @param e               异常
+     * @param memoryId        memoryId
+     * @param responseHandler responseHandler
+     * @return 持久化异常
      */
     private static CompletableFuture<ToolCallStreamingResponseHandler> questionError(Throwable e, MemoryIdVO memoryId, ChatStreamingResponseHandler responseHandler) {
         CompletableFuture<ToolCallStreamingResponseHandler> handlerFuture = new CompletableFuture<>();
@@ -194,9 +198,17 @@ public class LlmTextApiService {
         return handlerFuture;
     }
 
-
     /**
      * 提问
+     *
+     * @param user                user
+     * @param repository          repository
+     * @param question            question
+     * @param websearch           websearch
+     * @param reasoning           reasoning
+     * @param memoryId            memoryId
+     * @param userResponseHandler userResponseHandler
+     * @return 提问结果
      */
     public CompletableFuture<ToolCallStreamingResponseHandler> question(AiAccessUserVO user,
                                                                         SessionMessageRepository repository,
@@ -239,6 +251,10 @@ public class LlmTextApiService {
 
     /**
      * 完毕后删除JsonSchema的本地记忆
+     *
+     * @param handler   handler
+     * @param throwable throwable
+     * @param memoryId  memoryId
      */
     private void removeJsonSchemaSession(ToolCallStreamingResponseHandler handler, Throwable throwable, MemoryIdVO memoryId) {
         if (handler == null || throwable != null) {
@@ -250,6 +266,21 @@ public class LlmTextApiService {
 
     /**
      * 构建
+     *
+     * @param classifyListVO   classifyListVO
+     * @param user             user
+     * @param repository       repository
+     * @param question         question
+     * @param websearch        websearch
+     * @param reasoning        reasoning
+     * @param memoryId         memoryId
+     * @param responseHandler  responseHandler
+     * @param historyList      historyList
+     * @param baseMessageIndex baseMessageIndex
+     * @param addMessageCount  addMessageCount
+     * @param lastQuestion     lastQuestion
+     * @param variables        variables
+     * @return 构建结果
      */
     private CompletableFuture<ToolCallStreamingResponseHandler> buildHandler(
             QuestionClassifyListVO classifyListVO,
@@ -555,6 +586,9 @@ public class LlmTextApiService {
 
     /**
      * 获取聊天模型
+     *
+     * @param assistant assistant
+     * @return 聊天模型
      */
     private AiModel[] getModels(AssistantConfig assistant) {
         String apiKey = assistant.getChatApiKey();
@@ -574,6 +608,13 @@ public class LlmTextApiService {
 
     /**
      * 创建聊天模型
+     *
+     * @param apiKey              apiKey
+     * @param baseUrl             baseUrl
+     * @param modelName           modelName
+     * @param temperature         temperature
+     * @param maxCompletionTokens maxCompletionTokens
+     * @return 聊天模型
      */
     private OpenAiStreamingChatModel createTextModel(String apiKey,
                                                      String baseUrl,
@@ -595,6 +636,12 @@ public class LlmTextApiService {
 
     /**
      * 系统提示词，定义智能体
+     *
+     * @param promptText      promptText
+     * @param responseHandler responseHandler
+     * @param variables       variables
+     * @param create          create
+     * @return 系统提示词
      */
     private SystemMessage buildSystemMessage(String promptText,
                                              ChatStreamingResponseHandler responseHandler,
@@ -610,6 +657,12 @@ public class LlmTextApiService {
 
     /**
      * 查询知识库
+     *
+     * @param assistant       assistant
+     * @param knPromptText    knPromptText
+     * @param assistantKnList assistantKnList
+     * @param question        question
+     * @return 知识库
      */
     private CompletableFuture<List<List<QaKnVO>>> selectKnList(AssistantConfig assistant, String knPromptText, List<AiAssistantKn> assistantKnList, String question) {
         if (!StringUtils.hasText(question) || assistantKnList.isEmpty()) {
