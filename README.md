@@ -2,7 +2,7 @@
 
 #### 介绍
 
-AI助手jar包，业务复用 (基于langchain4j的java8版本开发)
+AI助手jar包，可二次开发复用 (基于langchain4j的java8版本开发)
 
 #### 模块
 
