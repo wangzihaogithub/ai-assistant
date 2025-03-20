@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.github.aiassistant.dao.AiChatHistoryMapper">
+    <insert id="insertBatchSomeColumn" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO `ai_chat_history`
+        (`again_user_query_trace_number`,`ai_chat_id`,`create_time`,`delete_time`,`id`,`message_index`,`message_text`,`message_type_enum`,`root_user_query_trace_number`,`stage_enum`,`start_time`,`text_char_length`,`user_chat_history_id`,`user_query_flag`,`user_query_trace_number`,`websearch_flag`)
+        VALUES
+        <foreach collection="arg0" item="item" open="" separator="," close="">
+            (
+            #{item.againUserQueryTraceNumber}, #{item.aiChatId}, #{item.createTime}, #{item.deleteTime}, #{item.id},
+            #{item.messageIndex}, #{item.messageText}, #{item.messageTypeEnum}, #{item.rootUserQueryTraceNumber},
+            #{item.stageEnum}, #{item.startTime}, #{item.textCharLength}, #{item.userChatHistoryId},
+            #{item.userQueryFlag}, #{item.userQueryTraceNumber}, #{item.websearchFlag}
+            )
+        </foreach>
+    </insert>
+    <update id="updateUserChatHistoryIdByIds">
+        update `ai_chat_history`
+        set `user_chat_history_id` = #{arg1}
+        where id in
+        <foreach collection="arg0" item="item" open="(" separator="," close=")">
+            #{item}
+        </foreach>
+    </update>
+
+    <update id="updateDeleteByUserQueryTraceNumber">
+        update `ai_chat_history`
+        set `delete_time` = #{arg0}
+        where user_query_trace_number in
+        <foreach collection="arg1" item="item" open="(" separator="," close=")">
+            #{item}
+        </foreach>
+        and user_query_flag = false
+    </update>
+
+    <select id="selectListByChatId" resultType="com.github.aiassistant.entity.model.chat.AiChatHistoryResp">
+        SELECT
+            ach.*,
+            acr.need_splitting_flag as 'reasoningFlag'
+        FROM ai_chat_history ach
+        LEFT JOIN ai_chat_reasoning acr ON acr.user_query_trace_number = ach.user_query_trace_number
+        WHERE ach.ai_chat_id = #{arg0}
+          AND ach.user_chat_history_id IS NOT NULL
+          AND ach.delete_time IS NULL
+        ORDER BY ach.message_index
+    </select>
+
+    <select id="sumTodayCharLength" resultType="java.lang.Integer">
+        SELECT
+            ifnull(sum(ach.text_char_length),0) 's'
+        FROM ai_chat_history ach
+        WHERE ach.ai_chat_id in (SELECT id FROM ai_chat ac WHERE ac.create_uid = #{arg1} AND ac.uid_type = #{arg0} )
+        and ach.create_time between left(now(),10) and now()
+    </select>
+
+    <select id="selectLastUserChatHistoryId" resultType="java.lang.Integer">
+        select id
+        from ai_chat_history
+        where (ai_chat_id, message_index, message_type_enum, user_query_flag, user_query_trace_number) in (
+            select ai_chat_id, max(message_index), message_type_enum, user_query_flag, user_query_trace_number
+            from ai_chat_history
+            where ai_chat_id = #{arg0}
+            and user_query_flag = true
+            <if test="againUserQueryTraceNumber != null and againUserQueryTraceNumber != ''">
+                and user_query_trace_number in
+                    (select
+                         if(root_user_query_trace_number = '', user_query_trace_number, root_user_query_trace_number)
+                     from ai_chat_history
+                     where user_query_trace_number = #{arg1}
+                     )
+            </if>
+            group by ai_chat_id, message_type_enum
+            )
+        limit 1
+    </select>
+
+    <select id="selectAgainTraceNumberList" resultType="java.lang.String">
+        select distinct again_user_query_trace_number
+        from ai_chat_history
+        where again_user_query_trace_number in
+        <foreach collection="arg0" item="item" open="(" separator="," close=")">
+            #{item}
+        </foreach>
+    </select>
+
+    <select id="selectRootAgainTraceNumberList" resultType="com.github.aiassistant.entity.AiChatHistory">
+        select
+            if(root_user_query_trace_number = '', user_query_trace_number, root_user_query_trace_number) root_user_query_trace_number,
+            user_query_trace_number
+        from ai_chat_history
+        where user_query_trace_number in
+        <foreach collection="arg0" item="item" open="(" separator="," close=")">
+            #{item}
+        </foreach>
+        group by user_query_trace_number
+    </select>
+
+    <select id="selectLastUserAgainTraceNumber" resultType="java.lang.String">
+        select user_query_trace_number
+        from ai_chat_history
+        where ai_chat_id = #{arg0}
+        order by id desc
+        limit 1
+    </select>
+    <select id="selectBatchIds" resultType="com.github.aiassistant.entity.AiChatHistory">
+        select *
+        from ai_chat_history
+        where id in
+        <foreach collection="arg0" item="item" open="(" separator="," close=")">
+            #{item}
+        </foreach>
+    </select>
+</mapper>

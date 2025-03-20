@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.github.aiassistant.dao.AiMemoryMessageKnMapper">
+
+    <insert id="insertBatchSomeColumn" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO `ai_memory_message_kn`
+        (`ai_memory_id`,`ai_memory_message_id`,`id`,`kn_answer_text`,`kn_id`,`kn_index_name`,`kn_index_updated_time`,`kn_question_text`,`kn_score`)
+        VALUES
+        <foreach collection="arg0" item="item" open="" separator="," close="">
+            (
+            #{item.aiMemoryId}, #{item.aiMemoryMessageId}, #{item.id}, #{item.knAnswerText}, #{item.knId},
+            #{item.knIndexName}, #{item.knIndexUpdatedTime}, #{item.knQuestionText}, #{item.knScore}
+            )
+        </foreach>
+    </insert>
+</mapper>

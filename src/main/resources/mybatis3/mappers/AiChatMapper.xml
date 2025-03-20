@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.github.aiassistant.dao.AiChatMapper">
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO `ai_chat`
+        (`ai_memory_id`,`assistant_id`,`create_time`,`create_uid`,`delete_time`,`id`,`last_chat_time`,`last_websearch_flag`,`name`,`uid_type`,`update_time`)
+        VALUES
+            (
+                #{aiMemoryId},  #{assistantId},  #{createTime},  #{createUid},  #{deleteTime},  #{id},  #{lastChatTime},  #{lastWebsearchFlag},  #{name},  #{uidType},  #{updateTime}
+            )
+    </insert>
+
+    <update id="updateLastChatTime">
+        update `ai_chat`
+        set `last_chat_time` = #{arg1}
+        where id in
+        <foreach collection="arg0" item="item" open="(" separator="," close=")">
+            #{item}
+        </foreach>
+    </update>
+    <update id="updateLastWebsearchFlag">
+        update `ai_chat`
+        set `last_websearch_flag` = #{arg1}
+        where id in
+        <foreach collection="arg0" item="item" open="(" separator="," close=")">
+            #{item}
+        </foreach>
+    </update>
+
+    <update id="updateNameById">
+        update `ai_chat`
+        set `name` = #{arg1}, `update_time` = #{arg2}
+        where id = #{arg0}
+    </update>
+
+    <update id="updateDeleteTimeById">
+        update `ai_chat`
+        set `delete_time` = #{arg1}
+        where id = #{arg0}
+    </update>
+
+    <select id="selectListByUid" resultType="com.github.aiassistant.entity.model.chat.AiChatListResp">
+        SELECT
+            ac.* ,
+            aa.logo_url logoUrl,
+            max(ach.id) aiChatHistoryId
+        FROM ai_chat ac
+        LEFT JOIN ai_chat_history ach ON ach.ai_chat_id = ac.id and ach.delete_time is null
+        LEFT JOIN ai_assistant aa ON aa.id = ac.assistant_id
+        where ac.create_uid = #{arg4}
+          and ac.uid_type = #{arg3}
+          and ac.delete_time is null
+          <if test="arg0 != null and arg0 != ''">
+              and ( ac.`name` LIKE concat('%',#{arg0},'%')
+                        OR ach.`message_text` LIKE concat('%',#{arg0},'%') )
+          </if>
+        GROUP BY ac.id
+        ORDER BY ac.last_chat_time DESC, ac.id DESC
+        limit #{arg1}, #{arg2}
+    </select>
+
+    <select id="selectById" resultType="com.github.aiassistant.entity.AiChat">
+        select *
+        from ai_chat
+        where id = #{arg0}
+    </select>
+</mapper>

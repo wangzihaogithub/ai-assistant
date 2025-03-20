@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.github.aiassistant.dao.AiChatClassifyMapper">
+
+    <insert id="insertBatchSomeColumn" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO `ai_chat_classify`
+        (`ai_chat_id`,`ai_question_classify_assistant_id`,`classify_group_code`,`classify_group_name`,`classify_id`,`classify_name`,`create_time`,`id`,`question`,`user_query_trace_number`)
+        VALUES
+        <foreach collection="arg0" item="item" open="" separator="," close="">
+            (
+            #{item.aiChatId}, #{item.aiQuestionClassifyAssistantId}, #{item.classifyGroupCode},
+            #{item.classifyGroupName}, #{item.classifyId}, #{item.classifyName}, #{item.createTime}, #{item.id},
+            #{item.question}, #{item.userQueryTraceNumber}
+            )
+        </foreach>
+    </insert>
+</mapper>

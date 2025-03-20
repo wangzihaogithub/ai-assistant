@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.github.aiassistant.dao.AiChatWebsearchResultMapper">
+
+    <insert id="insertBatchSomeColumn" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO `ai_chat_websearch_result`
+        (`ai_chat_id`,`ai_chat_websearch_id`,`id`,`page_content`,`page_source`,`page_time`,`page_title`,`page_url`,`url_read_proxy`,`url_read_time_cost`,`user_chat_history_id`)
+        VALUES
+        <foreach collection="arg0" item="item" open="" separator="," close="">
+            (
+            #{item.aiChatId}, #{item.aiChatWebsearchId}, #{item.id}, #{item.pageContent}, #{item.pageSource},
+            #{item.pageTime}, #{item.pageTitle}, #{item.pageUrl}, #{item.urlReadProxy}, #{item.urlReadTimeCost},
+            #{item.userChatHistoryId}
+            )
+        </foreach>
+    </insert>
+</mapper>

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.github.aiassistant.dao.AiChatWebsearchMapper">
+    <insert id="insertBatchSomeColumn" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO `ai_chat_websearch`
+        (`ai_chat_id`,`create_time`,`id`,`provider_name`,`question`,`search_proxy`,`search_time_ms`,`source_enum`,`user_chat_history_id`,`user_query_trace_number`)
+        VALUES
+        <foreach collection="arg0" item="item" open="" separator="," close="">
+            (
+            #{item.aiChatId}, #{item.createTime}, #{item.id}, #{item.providerName}, #{item.question},
+            #{item.searchProxy}, #{item.searchTimeMs}, #{item.sourceEnum}, #{item.userChatHistoryId},
+            #{item.userQueryTraceNumber}
+            )
+        </foreach>
+    </insert>
+    <select id="selectListByChatId" resultType="com.github.aiassistant.entity.model.chat.AiChatWebsearchResp">
+        SELECT
+            acw.* ,
+            count(acwr.id) as 'resultCount'
+        FROM ai_chat_websearch acw
+        LEFT JOIN ai_chat_websearch_result acwr ON acwr.ai_chat_websearch_id = acw.id
+        WHERE acw.ai_chat_id = #{arg0}
+        GROUP BY acw.id
+        ORDER BY acw.create_time ASC, acw.id ASC
+    </select>
+</mapper>

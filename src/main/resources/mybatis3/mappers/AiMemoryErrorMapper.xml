@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.github.aiassistant.dao.AiMemoryErrorMapper">
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO `ai_memory_error`
+        (`add_message_count`,`ai_chat_id`,`attachment_json`,`base_message_index`,`create_time`,`error_class_name`,`error_message`,`error_type`,`generate_count`,`id`,`memory_id`,`message_count`,`message_text`,`root_again_user_query_trace_number`,`session_time`,`user_query_trace_number`)
+        VALUES
+            (
+            #{addMessageCount},  #{aiChatId},  #{attachmentJson},  #{baseMessageIndex},   #{createTime},  #{errorClassName},  #{errorMessage},  #{errorType},  #{generateCount},  #{id},  #{memoryId},  #{messageCount},  #{messageText},  #{rootAgainUserQueryTraceNumber},  #{sessionTime},  #{userQueryTraceNumber}
+        )
+    </insert>
+
+    <select id="selectListByChatId" resultType="com.github.aiassistant.entity.AiMemoryError">
+        select ame.*
+        from ai_memory_error ame
+        where ame.memory_id in
+        (
+            select ai_memory_id from ai_chat where id = #{arg0}
+        )
+    </select>
+</mapper>

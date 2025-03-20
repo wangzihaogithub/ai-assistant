@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.github.aiassistant.dao.AiMemoryMstateMapper">
+    <insert id="insertIgnoreBatchSomeColumn" useGeneratedKeys="true" keyProperty="id">
+        INSERT IGNORE INTO `ai_memory_mstate`
+        (`ai_memory_id`,`create_time`,`id`,`known_flag`,`state_key`,`state_value`,`user_ai_memory_message_id`,`user_message_index`,`user_query_trace_number`)
+        VALUES
+        <foreach collection="arg0" item="item" open="" separator="," close="">
+            (
+            #{item.aiMemoryId}, #{item.createTime}, #{item.id}, #{item.knownFlag}, #{item.stateKey}, #{item.stateValue},
+            #{item.userAiMemoryMessageId}, #{item.userMessageIndex}, #{item.userQueryTraceNumber}
+            )
+        </foreach>
+    </insert>
+
+    <select id="selectLastByAiMemoryId" resultType="com.github.aiassistant.entity.AiMemoryMstate">
+        select *
+        from ai_memory_mstate
+        where (user_message_index , ai_memory_id) in (
+            select max(user_message_index) , ai_memory_id
+            from ai_memory_mstate
+            where ai_memory_id = #{arg0}
+        )
+    </select>
+</mapper>

@@ -1,0 +1,285 @@
+package com.github.aiassistant.service.jsonschema;
+
+import com.github.aiassistant.entity.AiJsonschema;
+import com.github.aiassistant.entity.model.chat.AiModel;
+import com.github.aiassistant.entity.model.chat.AiVariables;
+import com.github.aiassistant.entity.model.chat.MemoryIdVO;
+import com.github.aiassistant.entity.model.user.AiAccessUserVO;
+import com.github.aiassistant.service.text.ChatStreamingResponseHandler;
+import com.github.aiassistant.service.text.repository.JsonSchemaTokenWindowChatMemory;
+import com.github.aiassistant.service.text.tools.AiToolServiceImpl;
+import com.github.aiassistant.service.text.tools.Tools;
+import com.github.aiassistant.util.AiUtil;
+import dev.ai4j.openai4j.chat.ResponseFormatType;
+import dev.langchain4j.model.openai.OpenAiChatModel;
+import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
+import dev.langchain4j.model.openai.OpenAiTokenizer;
+import dev.langchain4j.service.AiServiceContext;
+import dev.langchain4j.service.AiServices;
+import dev.langchain4j.service.FunctionalInterfaceAiServices;
+
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import static java.time.Duration.ofSeconds;
+
+/**
+ * JsonSchema类型的模型
+ */
+// @Component
+public class LlmJsonSchemaApiService {
+    /**
+     * JsonSchema的实例
+     */
+    private final Map<String, Map<Class, AiModel[]>> jsonSchemaInstanceMap = new ConcurrentHashMap<>();
+    /**
+     * JsonSchema的本地记忆
+     */
+    private final Map<Object, Session> memoryMap = Collections.synchronizedMap(new IdentityHashMap<>());
+    private final int schemaInstanceCount;
+    private final Map<Class, AtomicInteger> schemasIndexMap = new ConcurrentHashMap<>();
+    // @Autowired
+    private final AiToolServiceImpl aiToolService;
+
+    public LlmJsonSchemaApiService(AiToolServiceImpl aiToolService) {
+        this(aiToolService, 3);
+    }
+
+    public LlmJsonSchemaApiService(AiToolServiceImpl aiToolService, int schemaInstanceCount) {
+        this.aiToolService = aiToolService;
+        this.schemaInstanceCount = schemaInstanceCount;
+    }
+
+    private static String uniqueKey(String apiKey,
+                                    String baseUrl,
+                                    String modelName,
+                                    String responseFormat,
+                                    Integer maxCompletionTokens,
+                                    Double temperature,
+                                    Double topP,
+                                    Class<?> type) {
+        return apiKey
+                + ":" + baseUrl
+                + ":" + modelName
+                + ":" + responseFormat
+                + ":" + maxCompletionTokens
+                + ":" + temperature
+                + ":" + topP
+                + ":" + type.getName();
+    }
+
+    public static String toJsonSchemaEnum(Class<?> jsonSchemaType) {
+        return jsonSchemaType.getSimpleName();
+    }
+
+    /**
+     * 删除JsonSchema的本地记忆
+     */
+    public void removeSession(MemoryIdVO memoryIdVO) {
+        memoryMap.remove(memoryIdVO);
+    }
+
+    /**
+     * 保存JsonSchema的本地记忆
+     */
+    public void putSessionMemory(MemoryIdVO memoryIdVO, JsonSchemaTokenWindowChatMemory chatMemory) {
+        getSession(memoryIdVO, true).chatMemory = chatMemory;
+    }
+
+    public void putSessionHandler(MemoryIdVO memoryIdVO,
+                                  ChatStreamingResponseHandler responseHandler,
+                                  AiVariables variables,
+                                  AiAccessUserVO userVO) {
+        Session session = getSession(memoryIdVO, true);
+        session.responseHandler = responseHandler;
+        session.variables = variables;
+        session.user = userVO;
+    }
+
+    /**
+     * 提示词中是否使用了变量
+     */
+    public <T> boolean existPromptVariableKey(MemoryIdVO memoryIdVO, String jsonSchemaEnum, String... varKeys) {
+        AiJsonschema jsonschema = memoryIdVO.getJsonschema(jsonSchemaEnum);
+        if (jsonschema == null) {
+            return false;
+        }
+        String[] ps = {jsonschema.getSystemPromptText(), jsonschema.getUserPromptText(), jsonschema.getKnPromptText()};
+        for (String p : ps) {
+            if (AiUtil.existPromptVariable(p, Arrays.asList(varKeys))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 获取JsonSchema类型的模型
+     */
+    private <T> T getSchema(MemoryIdVO memoryIdVO, Class<T> type, boolean memory) {
+        return getSchema(memoryIdVO, toJsonSchemaEnum(type), type, memory);
+    }
+
+    private <T> T getSchema(MemoryIdVO memoryIdVO, String jsonSchemaEnum, Class<T> type, boolean memory) {
+        AiJsonschema jsonschema = memoryIdVO.getJsonschema(jsonSchemaEnum);
+        if (jsonschema == null) {
+            return null;
+        }
+        String apiKey = jsonschema.getApiKey();
+        String baseUrl = jsonschema.getBaseUrl();
+        String modelName = jsonschema.getModelName();
+        String responseFormat = jsonschema.getResponseFormat();
+        Double topP = jsonschema.getTopP();
+        Double temperature = jsonschema.getTemperature();
+        Integer maxCompletionTokens = jsonschema.getMaxCompletionTokens();
+        AiModel[] aiModels = jsonSchemaInstanceMap
+                .computeIfAbsent(uniqueKey(apiKey, baseUrl, modelName, responseFormat, maxCompletionTokens, temperature, topP, type), k -> new ConcurrentHashMap<>())
+                .computeIfAbsent(type, k -> {
+                    AiModel[] arrays = new AiModel[schemaInstanceCount];
+                    for (int i = 0; i < arrays.length; i++) {
+                        AiModel aiModel = createJsonSchemaModel(apiKey, baseUrl, modelName, maxCompletionTokens, temperature, topP, responseFormat);
+                        arrays[i] = aiModel;
+                    }
+                    return arrays;
+                });
+        AtomicInteger index = schemasIndexMap.computeIfAbsent(type, e -> new AtomicInteger());
+        AiModel aiModel = aiModels[index.getAndIncrement() % aiModels.length];
+        return newInstance(aiModel, type, memory, memoryIdVO, jsonschema, jsonSchemaEnum);
+    }
+
+    private <T> T newInstance(AiModel aiModel, Class<T> type, boolean memory,
+                              MemoryIdVO memoryIdVO, AiJsonschema jsonschema,
+                              String jsonSchemaEnum) {
+        Session session = getSession(memoryIdVO, false);
+        ChatStreamingResponseHandler responseHandler = null;
+        AiAccessUserVO user = null;
+        AiVariables variables = null;
+        Map<String, Object> variablesMap = new HashMap<>();
+        if (session != null) {
+            user = session.user;
+            variables = session.variables;
+            responseHandler = session.responseHandler;
+            variablesMap = AiUtil.toMap(variables);
+        }
+
+        List<Tools.ToolMethod> toolMethodList = new ArrayList<>();
+        String systemPromptText = null;
+        String userPromptText = null;
+        String knPromptText = null;
+        if (jsonschema != null) {
+            systemPromptText = jsonschema.getSystemPromptText();
+            userPromptText = jsonschema.getUserPromptText();
+            knPromptText = jsonschema.getKnPromptText();
+            toolMethodList = AiUtil.initTool(aiToolService.selectToolMethodList(AiUtil.splitString(jsonschema.getAiToolIds())), variables, user);
+        }
+        AiServices<T> aiServices = new FunctionalInterfaceAiServices<>(new AiServiceContext(type), systemPromptText, userPromptText,
+                knPromptText, variablesMap, responseHandler, toolMethodList, aiModel.isSupportChineseToolName(), aiModel.modelName, memoryIdVO);
+        aiServices.chatLanguageModel(aiModel.model);
+        aiServices.streamingChatLanguageModel(aiModel.streaming);
+        if (memory) {
+            aiServices.chatMemoryProvider(this::getChatMemory);
+        }
+        return aiServices.build();
+    }
+
+    public MStateUnknownJsonSchema getMStateUnknownJsonSchema(MemoryIdVO memoryIdVO) {
+        return getSchema(memoryIdVO, MStateUnknownJsonSchema.class, false);
+    }
+
+    public ReasoningJsonSchema getReasoningJsonSchema(MemoryIdVO memoryIdVO) {
+        return getSchema(memoryIdVO, ReasoningJsonSchema.class, false);
+    }
+
+    public ActingJsonSchema getActingJsonSchema(MemoryIdVO memoryIdVO) {
+        return getSchema(memoryIdVO, ActingJsonSchema.class, false);
+    }
+
+    public WebsearchReduceJsonSchema getWebsearchReduceJsonSchema(MemoryIdVO memoryIdVO) {
+        return getSchema(memoryIdVO, WebsearchReduceJsonSchema.class, false);
+    }
+
+    public MStateKnownJsonSchema getMStateknownJsonSchema(MemoryIdVO memoryIdVO) {
+        return getSchema(memoryIdVO, MStateKnownJsonSchema.class, false);
+    }
+
+    public WhetherWaitingForAiJsonSchema getWhetherWaitingForAiJsonSchema(MemoryIdVO memoryIdVO) {
+        return getSchema(memoryIdVO, WhetherWaitingForAiJsonSchema.class, false);
+    }
+
+    public QuestionClassifySchema getQuestionClassifySchema(MemoryIdVO memoryIdVO) {
+        return getSchema(memoryIdVO, QuestionClassifySchema.class, false);
+    }
+
+    /**
+     * 获取记忆
+     */
+    public JsonSchemaTokenWindowChatMemory getChatMemory(Object memoryIdVO) {
+        MemoryIdVO key = (MemoryIdVO) memoryIdVO;
+        Session session = memoryMap.get(key);
+        return session == null ? null : session.chatMemory;
+    }
+
+    private Session getSession(Object memoryIdVO, boolean create) {
+        MemoryIdVO key = (MemoryIdVO) memoryIdVO;
+        if (create) {
+            return memoryMap.computeIfAbsent(key, k -> new Session());
+        } else {
+            return memoryMap.get(key);
+        }
+    }
+
+    /**
+     * 创建JsonSchema类型的模型
+     */
+    private AiModel createJsonSchemaModel(String apiKey,
+                                          String baseUrl,
+                                          String modelName,
+                                          Integer maxCompletionTokens,
+                                          Double temperature,
+                                          Double topP,
+                                          String responseFormat) {
+        ResponseFormatType responseFormatType = ResponseFormatType.valueOf(responseFormat);
+        if (topP == null || topP <= 0) {
+            topP = 0.1;
+        }
+        if (temperature == null || temperature <= 0) {
+            temperature = 0.1;
+        }
+        if (maxCompletionTokens != null && maxCompletionTokens <= 0) {
+            maxCompletionTokens = null;
+        }
+        // https://docs.langchain4j.dev/integrations/language-models/open-ai#structured-outputs-for-json-mode
+        OpenAiChatModel model = OpenAiChatModel.builder()
+                .topP(topP)
+                .temperature(temperature)
+                .maxCompletionTokens(maxCompletionTokens)
+                .apiKey(apiKey)
+                .baseUrl(baseUrl)
+                .modelName(modelName)
+                .responseFormat(responseFormatType.name())
+                .strictJsonSchema(true)
+                .timeout(ofSeconds(60))
+                .tokenizer(new OpenAiTokenizer())
+                .build();
+        OpenAiStreamingChatModel streaming = OpenAiStreamingChatModel.builder()
+                .topP(topP)
+                .temperature(temperature)
+                .maxCompletionTokens(maxCompletionTokens)
+                .apiKey(apiKey)
+                .baseUrl(baseUrl)
+                .modelName(modelName)
+                .responseFormat(responseFormatType == ResponseFormatType.JSON_SCHEMA ? ResponseFormatType.JSON_OBJECT.name() : responseFormatType.name())
+                .timeout(ofSeconds(60))
+                .tokenizer(new OpenAiTokenizer())
+                .build();
+        return new AiModel(baseUrl, modelName, model, streaming);
+    }
+
+    public static class Session {
+        AiAccessUserVO user;
+        AiVariables variables;
+        ChatStreamingResponseHandler responseHandler;
+        JsonSchemaTokenWindowChatMemory chatMemory;
+    }
+}

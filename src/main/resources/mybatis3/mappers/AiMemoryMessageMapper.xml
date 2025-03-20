@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.github.aiassistant.dao.AiMemoryMessageMapper">
+    <insert id="insertBatchSomeColumn" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO `ai_memory_message`
+        (`again_user_query_trace_number`,`ai_char_length`,`ai_memory_id`,`ai_token_count`,`char_length`,`commit_time`,`create_time`,`delete_time`,`first_token_time`,`id`,`knowledge_char_length`,`knowledge_token_count`,`message_index`,`message_text`,`message_type_enum`,`open_ai_request_id`,`reply_tool_name`,`reply_tool_request_id`,`root_user_query_trace_number`,`stage_enum`,`start_time`,`token_count`,`use_knowledge_flag`,`use_tool_flag`,`user_char_length`,`user_query_flag`,`user_query_trace_number`,`user_token_count`,`websearch_flag`)
+        VALUES
+        <foreach collection="arg0" item="item" open="" separator="," close="">
+            (
+            #{item.againUserQueryTraceNumber},  #{item.aiCharLength},  #{item.aiMemoryId},  #{item.aiTokenCount},  #{item.charLength},  #{item.commitTime},  #{item.createTime},  #{item.deleteTime},  #{item.firstTokenTime},  #{item.id},  #{item.knowledgeCharLength},  #{item.knowledgeTokenCount},  #{item.messageIndex},  #{item.messageText},  #{item.messageTypeEnum},  #{item.openAiRequestId},  #{item.replyToolName},  #{item.replyToolRequestId},  #{item.rootUserQueryTraceNumber},  #{item.stageEnum},  #{item.startTime},  #{item.tokenCount},  #{item.useKnowledgeFlag},  #{item.useToolFlag},  #{item.userCharLength},  #{item.userQueryFlag},  #{item.userQueryTraceNumber},  #{item.userTokenCount},  #{item.websearchFlag}
+            )
+        </foreach>
+    </insert>
+
+    <update id="updateDeleteByUserQueryTraceNumber">
+        update `ai_memory_message`
+        set `delete_time` = #{arg0}
+        where user_query_trace_number in
+        <foreach collection="arg1" item="item" open="(" separator="," close=")">
+            #{item}
+        </foreach>
+        and stage_enum = 'Response'
+    </update>
+
+    <select id="selectListByMemoryId" resultType="com.github.aiassistant.entity.AiMemoryMessage">
+        select
+        ifnull(aca.before_text,amm.message_text) message_text,
+        amm.message_type_enum,
+        amm.stage_enum
+        from ai_memory_message amm
+        LEFT JOIN ai_chat_abort aca on aca.user_query_trace_number = amm.user_query_trace_number and amm.message_type_enum = 'Ai' and amm.use_tool_flag = false
+        where amm.ai_memory_id = #{arg0}
+        and amm.delete_time is null
+        AND (
+            NOT EXISTS ( SELECT * FROM ai_chat_abort aca2 WHERE (aca2.user_query_trace_number = amm.user_query_trace_number or aca2.`root_again_user_query_trace_number` = amm.user_query_trace_number ) and aca2.before_text = '')
+            <if test="arg1 != null and arg1 !=''">
+                OR ( amm.id = ( SELECT max( id )  FROM ai_memory_message inneramm WHERE inneramm.ai_memory_id = #{arg0} and user_query_flag = true) )
+            </if>
+        )
+        AND (
+            NOT EXISTS ( SELECT * FROM ai_memory_error ame WHERE ame.user_query_trace_number = amm.user_query_trace_number )
+            OR ( amm.id = ( SELECT max( id )  FROM ai_memory_message inneramm WHERE inneramm.ai_memory_id = #{arg0} and user_query_flag = true) )
+        )
+        <if test="arg1 != null and arg1 !=''">
+            AND ( amm.user_query_trace_number, amm.stage_enum ) != (#{arg1}, 'Response' )
+            AND ( amm.root_user_query_trace_number, amm.stage_enum ) != (#{arg1}, 'Response' )
+        </if>
+        order by amm.user_query_trace_number,amm.message_index
+    </select>
+    <select id="selectAgainTraceNumberList" resultType="java.lang.String">
+        select distinct again_user_query_trace_number
+        from ai_memory_message
+        where again_user_query_trace_number in
+        <foreach collection="arg0" item="item" open="(" separator="," close=")">
+            #{item}
+        </foreach>
+    </select>
+
+    <select id="selectRootAgainTraceNumberList" resultType="com.github.aiassistant.entity.AiMemoryMessage">
+        select
+        if(root_user_query_trace_number = '', user_query_trace_number, root_user_query_trace_number) root_user_query_trace_number,
+        user_query_trace_number
+        from ai_memory_message
+        where user_query_trace_number in
+        <foreach collection="arg0" item="item" open="(" separator="," close=")">
+            #{item}
+        </foreach>
+        group by user_query_trace_number
+    </select>
+</mapper>

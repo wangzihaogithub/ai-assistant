@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.github.aiassistant.dao.AiEmbeddingMapper">
+
+    <insert id="insertIgnoreBatchSomeColumn" useGeneratedKeys="true" keyProperty="id">
+        INSERT IGNORE INTO `ai_embedding`
+        (`create_time`,`dimensions`,`id`,`keyword`,`md5`,`model_name`,`vector`)
+        VALUES
+        <foreach collection="arg0" item="item" open="" separator="," close="">
+            (
+            #{item.createTime},  #{ item.dimensions},  #{ item.id},  #{ item.keyword},  #{ item.md5}, #{item.modelName},
+            #{item.vector}
+            )
+        </foreach>
+    </insert>
+    <select id="selectListByMd5" resultType="com.github.aiassistant.entity.AiEmbedding">
+        select `vector`,md5
+        from ai_embedding
+        where md5 in
+        <foreach collection="arg0" item="item" open="(" separator="," close=")">
+            #{item}
+        </foreach>
+        and model_name = #{arg1}
+        and dimensions = #{arg2}
+    </select>
+</mapper>

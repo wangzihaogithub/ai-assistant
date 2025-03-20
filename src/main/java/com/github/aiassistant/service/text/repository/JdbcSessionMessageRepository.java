@@ -1,0 +1,241 @@
+package com.github.aiassistant.service.text.repository;
+
+import com.github.aiassistant.entity.model.chat.*;
+import com.github.aiassistant.entity.model.user.AiAccessUserVO;
+import com.github.aiassistant.service.text.acting.ActingService;
+import com.github.aiassistant.service.jsonschema.LlmJsonSchemaApiService;
+import com.github.aiassistant.service.jsonschema.MStateKnownJsonSchema;
+import com.github.aiassistant.service.jsonschema.MStateUnknownJsonSchema;
+import com.github.aiassistant.service.jsonschema.ReasoningJsonSchema;
+import com.github.aiassistant.service.text.chat.AiChatClassifyServiceImpl;
+import com.github.aiassistant.service.text.chat.AiChatHistoryServiceImpl;
+import com.github.aiassistant.service.text.chat.AiChatReasoningServiceImpl;
+import com.github.aiassistant.service.text.chat.AiChatWebsearchServiceImpl;
+import com.github.aiassistant.service.text.memory.AiMemoryErrorServiceImpl;
+import com.github.aiassistant.service.text.memory.AiMemoryMessageServiceImpl;
+import com.github.aiassistant.service.text.memory.AiMemoryMstateServiceImpl;
+import com.github.aiassistant.util.AiUtil;
+import com.github.aiassistant.util.FutureUtil;
+import com.github.aiassistant.util.StringUtils;
+import dev.langchain4j.data.message.ChatMessage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+
+/**
+ * 数据库持久化
+ */
+//// @Component
+//@Scope("prototype")
+public class JdbcSessionMessageRepository extends AbstractSessionMessageRepository<MemoryIdVO, AiAccessUserVO> {
+    private static final Logger log = LoggerFactory.getLogger(JdbcSessionMessageRepository.class);
+    private final ChatQueryRequest chatQueryRequest;
+    private final CompletableFuture<AiChatHistoryServiceImpl.AiChatRequest> userChat = new CompletableFuture<>();
+    //    // @Resource
+    private final AiMemoryMessageServiceImpl aiMemoryMessageService;
+    //    // @Resource
+    private final AiChatHistoryServiceImpl aiChatHistoryService;
+    //    // @Resource
+    private final LlmJsonSchemaApiService llmJsonSchemaApiService;
+    //    // @Autowired
+    private final AiMemoryMstateServiceImpl aiMemoryMstateService;
+    // @Autowired
+    private final AiChatReasoningServiceImpl aiChatReasoningService;
+    // @Autowired
+    private final AiChatWebsearchServiceImpl aiChatWebsearchService;
+    // @Resource
+    private final AiMemoryErrorServiceImpl aiMemoryErrorService;
+    // @Resource
+    private final AiChatClassifyServiceImpl aiChatClassifyService;
+    private MStateAiParseVO mStateAiParseVO;
+    private boolean mock;
+    private CompletableFuture<AiMemoryMessageServiceImpl.AiMemoryVO> userMemory;
+
+    // @Autowired(required = false)
+    public JdbcSessionMessageRepository(ChatQueryRequest chatQueryRequest, MemoryIdVO memoryId, AiAccessUserVO user,
+                                        AiMemoryMessageServiceImpl aiMemoryMessageService,
+                                        AiChatHistoryServiceImpl aiChatHistoryService,
+                                        LlmJsonSchemaApiService llmJsonSchemaApiService,
+                                        AiMemoryMstateServiceImpl aiMemoryMstateService,
+                                        AiChatReasoningServiceImpl aiChatReasoningService,
+                                        AiChatWebsearchServiceImpl aiChatWebsearchService,
+                                        AiMemoryErrorServiceImpl aiMemoryErrorService,
+                                        AiChatClassifyServiceImpl aiChatClassifyService) {
+        super(memoryId, user, chatQueryRequest.userQueryTraceNumber(), chatQueryRequest.timestamp());
+        this.chatQueryRequest = chatQueryRequest;
+        this.aiMemoryMessageService = aiMemoryMessageService;
+        this.aiChatHistoryService = aiChatHistoryService;
+        this.llmJsonSchemaApiService = llmJsonSchemaApiService;
+        this.aiMemoryMstateService = aiMemoryMstateService;
+        this.aiChatReasoningService = aiChatReasoningService;
+        this.aiChatWebsearchService = aiChatWebsearchService;
+        this.aiMemoryErrorService = aiMemoryErrorService;
+        this.aiChatClassifyService = aiChatClassifyService;
+    }
+
+    /**
+     * 当jsonSchema都生成好了，会触发这个方法
+     */
+    @Override
+    public void afterJsonSchemaBuild() {
+        String query = chatQueryRequest.getQuestion();
+        if (!StringUtils.hasText(query)) {
+            return;
+        }
+        MemoryIdVO memoryId = requestTrace.getMemoryId();
+        MStateKnownJsonSchema knownJsonSchema = llmJsonSchemaApiService.getMStateknownJsonSchema(memoryId);
+        MStateUnknownJsonSchema unknownJsonSchema = llmJsonSchemaApiService.getMStateUnknownJsonSchema(memoryId);
+        if (knownJsonSchema == null && unknownJsonSchema == null) {
+            return;
+        }
+        this.mStateAiParseVO = parseState(memoryId, knownJsonSchema, unknownJsonSchema);
+    }
+
+    /**
+     * 插入用户的提问
+     */
+    @Override
+    public CompletableFuture<?> addUserQuestion(List<ChatMessage> messageList) {
+        if (mock) {
+            return CompletableFuture.completedFuture(null);
+        }
+        Date now = new Date();
+        String againUserQueryTraceNumber = chatQueryRequest.getAgainUserQueryTraceNumber();
+        Boolean websearch = chatQueryRequest.getWebsearch();
+
+        // 插入记忆
+        CompletableFuture<AiMemoryMessageServiceImpl.AiMemoryVO> memory = userMemory = aiMemoryMessageService.insert(now, requestTrace, againUserQueryTraceNumber, websearch);
+        // 插入聊天
+        CompletableFuture<AiChatHistoryServiceImpl.AiChatRequest> chat = aiChatHistoryService.insert(now, requestTrace, againUserQueryTraceNumber, websearch, null);
+        chat.thenAccept(userChat::complete)
+                .exceptionally(throwable -> {
+                    userChat.completeExceptionally(throwable);
+                    return null;
+                });
+        // 切换至AI消息List
+        requestTrace.changeToResponse();
+        return FutureUtil.allOf(memory, chat);
+    }
+
+    /**
+     * 查询记忆
+     */
+    @Override
+    protected List<ChatMessage> getHistoryList(MemoryIdVO memoryId, AiAccessUserVO user) {
+        return aiMemoryMessageService.selectHistoryList(memoryId.getMemoryId(), chatQueryRequest.getAgainUserQueryTraceNumber());
+    }
+
+    /**
+     * 插入知识库
+     */
+    @Override
+    public void addKnowledge(List<List<QaKnVO>> qaKnVOList) {
+        requestTrace.setRequestKnowledgeList(qaKnVOList == null ? new ArrayList<>() : qaKnVOList);
+    }
+
+    /**
+     * 插入问题分类
+     */
+    @Override
+    public void addQuestionClassify(QuestionClassifyListVO questionClassify, String question) {
+        if (!mock) {
+            String userQueryTraceNumber = getUserQueryTraceNumber();
+            Integer chatId = chatQueryRequest.getChatId();
+            aiChatClassifyService.insert(questionClassify.getClassifyResultList(), chatId, question, userQueryTraceNumber);
+        }
+    }
+
+    /**
+     * 插入思考
+     */
+    @Override
+    public void addReasoning(String question, ActingService.Plan plan, ReasoningJsonSchema.Result reason, boolean parallel) {
+        if (!mock) {
+            String userQueryTraceNumber = getUserQueryTraceNumber();
+            aiChatReasoningService.insert(question, plan, reason, userQueryTraceNumber, userChat).exceptionally(throwable -> {
+                log.error("addReasoning error {}, question = {}", throwable.toString(), question, throwable);
+                return null;
+            });
+        }
+    }
+
+    /**
+     * 插入联网搜索
+     */
+    @Override
+    public void addWebSearchRead(String sourceEnum, String providerName, String question, WebSearchResultVO resultVO, long cost) {
+        if (!mock) {
+            String userQueryTraceNumber = getUserQueryTraceNumber();
+            aiChatWebsearchService.insert(sourceEnum, providerName, question, resultVO, cost, userQueryTraceNumber, userChat)
+                    .exceptionally(throwable -> {
+                        log.error("addWebSearchRead error {}, question = {}", throwable.toString(), question, throwable);
+                        return null;
+                    });
+        }
+    }
+
+    public void setMock(boolean mock) {
+        this.mock = mock;
+    }
+
+    /**
+     * 提交记忆和聊天记录
+     */
+    @Override
+    public CompletableFuture<?> commit() {
+        if (mock) {
+            return CompletableFuture.completedFuture(null);
+        }
+        Date now = new Date();
+        String againUserQueryTraceNumber = chatQueryRequest.getAgainUserQueryTraceNumber();
+        Boolean websearch = chatQueryRequest.getWebsearch();
+
+        // 插入记忆
+        CompletableFuture<?> memory = aiMemoryMessageService.insert(now, requestTrace, againUserQueryTraceNumber, websearch);
+        // 插入聊天
+        CompletableFuture<?> chat = aiChatHistoryService.insert(now, requestTrace, againUserQueryTraceNumber, websearch, userChat);
+        // 如果该智能体开启了记忆状态，就插入状态
+        if (mStateAiParseVO != null) {
+            userMemory.thenAccept(e -> aiMemoryMstateService.insert(e, mStateAiParseVO));
+        }
+        // 持久化完成后就可以恢复前端的提问按钮了
+        return FutureUtil.allOf(memory, chat);
+    }
+
+    public MStateAiParseVO parseState(MemoryIdVO memoryId,
+                                      MStateKnownJsonSchema knownJsonSchema,
+                                      MStateUnknownJsonSchema unknownJsonSchema) {
+        String mstateJsonPrompt = memoryId.getMstateJsonPrompt();
+        MStateVO mStateVO = aiMemoryMstateService.selectMstate(memoryId.getMemoryId());
+        if (mStateVO == null) {
+            mStateVO = MStateVO.empty();
+        }
+        CompletableFuture<Map<String, Object>> known;
+        if (knownJsonSchema != null && StringUtils.hasText(mstateJsonPrompt)) {
+            known = knownJsonSchema.future(mstateJsonPrompt, AiUtil.toJsonString(mStateVO.getKnownState()));
+        } else {
+            known = CompletableFuture.completedFuture(null);
+        }
+        CompletableFuture<Map<String, Object>> unknown;
+        if (unknownJsonSchema != null) {
+            unknown = unknownJsonSchema.future(AiUtil.toJsonString(mStateVO.getUnknownState()));
+        } else {
+            unknown = CompletableFuture.completedFuture(null);
+        }
+        return new MStateAiParseVO(known, unknown);
+    }
+
+    @Override
+    public void addError(Throwable throwable, int baseMessageIndex, int addMessageCount, int generateCount) {
+        if (mock) {
+            return;
+        }
+        aiMemoryErrorService.insertByInner(throwable, baseMessageIndex, addMessageCount, generateCount, requestTrace);
+    }
+
+}

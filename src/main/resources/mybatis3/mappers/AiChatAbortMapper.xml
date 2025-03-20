@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.github.aiassistant.dao.AiChatAbortMapper">
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO `ai_chat_abort`
+        (`ai_chat_id`,`ai_memory_id`,`before_text`,`create_time`,`id`,`message_index`,`root_again_user_query_trace_number`,`user_query_trace_number`)
+        VALUES
+            (
+                #{aiChatId},  #{aiMemoryId},  #{beforeText},  #{createTime},  #{id},  #{messageIndex},  #{rootAgainUserQueryTraceNumber},  #{userQueryTraceNumber}
+            )
+    </insert>
+    <update id="updateRootAgainUserQueryTraceNumber">
+        update ai_chat_abort
+        set root_again_user_query_trace_number = #{arg1}
+        where user_query_trace_number = #{arg0}
+    </update>
+
+    <select id="selectListByChatId" resultType="com.github.aiassistant.entity.AiChatAbort">
+        select *
+        from ai_chat_abort
+        where ai_chat_id = #{arg0}
+    </select>
+
+</mapper>

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.github.aiassistant.dao.AiChatReasoningMapper">
+
+    <insert id="insertBatchSomeColumn" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO `ai_chat_reasoning`
+        (`ai_chat_id`,`create_time`,`id`,`need_splitting_flag`,`question`,`user_chat_history_id`,`user_query_trace_number`)
+        VALUES
+        <foreach collection="arg0" item="item" open="" separator="," close="">
+            (
+            #{item.aiChatId}, #{item.createTime}, #{item.id}, #{item.needSplittingFlag}, #{item.question},
+            #{item.userChatHistoryId}, #{item.userQueryTraceNumber}
+            )
+        </foreach>
+    </insert>
+</mapper>

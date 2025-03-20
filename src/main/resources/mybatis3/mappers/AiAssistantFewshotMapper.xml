@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.github.aiassistant.dao.AiAssistantFewshotMapper">
+
+    <select id="selectListByAssistantId" resultType="com.github.aiassistant.entity.AiAssistantFewshot">
+        select *
+        from ai_assistant_fewshot
+        where ai_assistant_id = #{arg0}
+    </select>
+</mapper>
