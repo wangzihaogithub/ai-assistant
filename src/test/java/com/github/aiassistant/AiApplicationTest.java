@@ -30,15 +30,15 @@ public class AiApplicationTest {
 
     private static DataSource dataSource() throws Exception {
         MysqlDataSource dataSource = new MysqlDataSource();
-        dataSource.setUrl("jdbc:mysql://rm-xxx.mysql.rds.aliyuncs.com:3306/cnwy?allowMultiQueries=true&useUnicode=true&characterEncoding=UTF-8&useSSL=false&serverTimezone=Asia/Shanghai");
-        dataSource.setUser("xxx");
-        dataSource.setPassword("xxx");
+        dataSource.setUrl("jdbc:mysql://rm-2ze3p58061s26ev8i1o.mysql.rds.aliyuncs.com:3306/cnwy?allowMultiQueries=true&useUnicode=true&characterEncoding=UTF-8&useSSL=false&serverTimezone=Asia/Shanghai");
+        dataSource.setUser("test_cnwy");
+        dataSource.setPassword("ZnC+7PVvGXG4");
         dataSource.setZeroDateTimeBehavior("CONVERT_TO_NULL");
         return dataSource;
     }
 
     private static RestClient embeddingStore() {
-        return RestClient.builder(HttpHost.create("http://elasticsearch8.xxx.com"))
+        return RestClient.builder(HttpHost.create("http://elasticsearch8.cnwyjob.com"))
                 .build();
     }
 
@@ -78,7 +78,7 @@ public class AiApplicationTest {
     }
 
     public static void main(String[] args) throws Exception {
-        AiChatUidTypeEnum uidTypeEnum = AiChatUidTypeEnum.valueOf("student");
+        AiChatUidTypeEnum uidTypeEnum = AiChatUidTypeEnum.create("student");
         AiApplication aiApplication = application();
 
         // 智能体

@@ -67,6 +67,9 @@ public class BeanUtil {
     }
 
     public static <T> T toBean(Object source, Class<T> beanClass) {
+        if (source instanceof Map) {
+            return toBean((Map<String, Object>) source, beanClass);
+        }
         T instance;
         try {
             instance = beanClass.getDeclaredConstructor().newInstance();

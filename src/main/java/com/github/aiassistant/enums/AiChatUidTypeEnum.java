@@ -16,7 +16,6 @@ public class AiChatUidTypeEnum {
 
     private AiChatUidTypeEnum(String code) {
         this.code = code;
-        CODE_VALUES.put(code, this);
     }
 
     public static AiChatUidTypeEnum valueOf(String code) {
@@ -26,7 +25,9 @@ public class AiChatUidTypeEnum {
 
     public static AiChatUidTypeEnum create(String code) {
         Objects.requireNonNull(code, "AiChatUidTypeEnum#valueOf code cannot be null");
-        return new AiChatUidTypeEnum(code);
+        AiChatUidTypeEnum value = new AiChatUidTypeEnum(code);
+        CODE_VALUES.put(code, value);
+        return value;
     }
 
     public static AiChatUidTypeEnum[] values() {

@@ -782,8 +782,8 @@ public class TypeUtil {
                 return (T) toLocale(strVal);
             }
         }
-//        return BeanUtil.transform(obj, clazz, BeanUtil.EMPTY_IDENTITY_HASH_MAP);
-        throw new IllegalArgumentException("can not cast to : " + clazz.getName());
+        return BeanUtil.toBean(obj, clazz);
+//        throw new IllegalArgumentException("can not cast to : " + clazz.getName());
     }
 
     public static Locale toLocale(String strVal) {

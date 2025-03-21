@@ -20,7 +20,6 @@ public class UserTriggerEventEnum<T> {
     private UserTriggerEventEnum(String code, Class<T> payloadClass) {
         this.code = code;
         this.payloadClass = payloadClass;
-        CODE_VALUES.put(code, this);
     }
 
     public static <T> UserTriggerEventEnum<T> valueOf(String code) {
@@ -31,7 +30,9 @@ public class UserTriggerEventEnum<T> {
 
     public static <T> UserTriggerEventEnum<T> create(String code, Class<T> payloadClass) {
         Objects.requireNonNull(code, "UserTriggerEventEnum#valueOf code cannot be null");
-        return new UserTriggerEventEnum<>(code, payloadClass);
+        UserTriggerEventEnum<T> value = new UserTriggerEventEnum<>(code, payloadClass);
+        CODE_VALUES.put(code, value);
+        return value;
     }
 
     public static UserTriggerEventEnum<?>[] values() {
