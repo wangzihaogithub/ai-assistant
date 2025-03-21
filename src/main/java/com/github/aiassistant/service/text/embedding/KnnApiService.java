@@ -182,8 +182,15 @@ public class KnnApiService {
     /**
      * 知识库向量搜索
      * https://www.elastic.co/guide/en/elasticsearch/reference/current/knn-search-api.html
+     *
+     * @param minScore           minScore
+     * @param knTop1Score        knTop1Score
+     * @param indexName          indexName
+     * @param queryBuilderFuture queryBuilderFuture
+     * @param <T>                知识库
+     * @return 知识库
      */
-    private <T extends KnVO> CompletableFuture<List<T>> knnSearch(
+    public <T extends KnVO> CompletableFuture<List<T>> knnSearch(
             double minScore,
             Double knTop1Score,
             String indexName,

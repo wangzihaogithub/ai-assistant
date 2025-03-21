@@ -6,6 +6,7 @@ package com.github.aiassistant.service.text;
 import com.github.aiassistant.dao.AiAssistantMapper;
 import com.github.aiassistant.entity.AiAssistant;
 import com.github.aiassistant.enums.AiAssistantStatusEnum;
+import com.github.aiassistant.util.StringUtils;
 
 import java.util.List;
 
@@ -22,6 +23,7 @@ public class AiAssistantServiceImpl {
 
     /**
      * 查询智能体
+     *
      * @param statusEnum 状态
      * @return 智能体
      */
@@ -29,4 +31,17 @@ public class AiAssistantServiceImpl {
         return aiAssistantMapper.selectEnableList(statusEnum == null ? null : statusEnum.getCode());
     }
 
+    /**
+     * 查询智能体
+     *
+     * @param id id
+     * @return 智能体
+     */
+    public AiAssistant selectById(String id) {
+        if (StringUtils.hasText(id)) {
+            return aiAssistantMapper.selectById(id);
+        } else {
+            return null;
+        }
+    }
 }

@@ -16,11 +16,17 @@ public class AiChatUidTypeEnum {
 
     private AiChatUidTypeEnum(String code) {
         this.code = code;
+        CODE_VALUES.put(code, this);
     }
 
     public static AiChatUidTypeEnum valueOf(String code) {
         Objects.requireNonNull(code, "AiChatUidTypeEnum#valueOf code cannot be null");
-        return CODE_VALUES.computeIfAbsent(code, AiChatUidTypeEnum::new);
+        return CODE_VALUES.get(code);
+    }
+
+    public static AiChatUidTypeEnum create(String code) {
+        Objects.requireNonNull(code, "AiChatUidTypeEnum#valueOf code cannot be null");
+        return new AiChatUidTypeEnum(code);
     }
 
     public static AiChatUidTypeEnum[] values() {

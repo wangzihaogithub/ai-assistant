@@ -138,6 +138,30 @@
             <optional>true</optional>
         </dependency>
         <!-- 大模型用的联网插件  必应，百度，搜狗等联网搜索 -->
+
+        <!-- test 抖音 asr 语音 -->
+        <dependency>
+            <groupId>org.java-websocket</groupId>
+            <artifactId>Java-WebSocket</artifactId>
+            <version>1.5.1</version>
+            <scope>test</scope>
+        </dependency>
+        <!-- test 抖音 asr 语音 -->
+
+        <!-- test 阿里云 asr 语音 -->
+        <dependency>
+            <groupId>com.alibaba.nls</groupId>
+            <artifactId>nls-sdk-recognizer</artifactId>
+            <version>2.2.1</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.alibaba.nls</groupId>
+            <artifactId>nls-sdk-tts</artifactId>
+            <version>2.2.14</version>
+            <scope>test</scope>
+        </dependency>
+        <!-- test 阿里云 asr 语音 -->
     </dependencies>
 
 

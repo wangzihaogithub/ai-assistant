@@ -4,9 +4,13 @@ import com.github.aiassistant.dao.*;
 import com.github.aiassistant.entity.AiAssistant;
 import com.github.aiassistant.entity.AiAssistantKn;
 import com.github.aiassistant.entity.AiChat;
+import com.github.aiassistant.entity.model.chat.AiChatQuestionPermissionResp;
+import com.github.aiassistant.entity.model.chat.AiChatToken;
+import com.github.aiassistant.entity.model.chat.ChatQueryRequest;
 import com.github.aiassistant.entity.model.chat.MemoryIdVO;
 import com.github.aiassistant.entity.model.user.AiAccessUserVO;
 import com.github.aiassistant.enums.AiChatUidTypeEnum;
+import com.github.aiassistant.service.text.chat.AiChatHistoryServiceImpl;
 import com.github.aiassistant.service.text.tools.AiToolServiceImpl;
 import com.github.aiassistant.serviceintercept.AccessUserServiceIntercept;
 import com.github.aiassistant.util.AiUtil;
@@ -38,7 +42,7 @@ public class AccessUserService {
     private final AiAssistantFewshotMapper aiAssistantFewshotMapper;
     // @Autowired
     private final AiToolServiceImpl aiToolService;
-
+    private final AiChatHistoryServiceImpl aiChatHistoryService;
     private final Supplier<Collection<AccessUserServiceIntercept>> interceptList;
 
     public AccessUserService(AiChatMapper aiChatMapper,
@@ -48,6 +52,7 @@ public class AccessUserService {
                              AiAssistantKnMapper aiAssistantKnMapper,
                              AiAssistantFewshotMapper aiAssistantFewshotMapper,
                              AiToolServiceImpl aiToolService,
+                             AiChatHistoryServiceImpl aiChatHistoryService,
                              Supplier<Collection<AccessUserServiceIntercept>> interceptList) {
         this.aiChatMapper = aiChatMapper;
         this.aiAssistantJsonschemaMapper = aiAssistantJsonschemaMapper;
@@ -55,18 +60,20 @@ public class AccessUserService {
         this.aiAssistantMapper = aiAssistantMapper;
         this.aiAssistantKnMapper = aiAssistantKnMapper;
         this.aiAssistantFewshotMapper = aiAssistantFewshotMapper;
+        this.aiChatHistoryService = aiChatHistoryService;
         this.aiToolService = aiToolService;
         this.interceptList = interceptList;
     }
 
     /**
      * 是否有权限
-     * @param chatId chatId
-     * @param createUid createUid
+     *
+     * @param chatId      chatId
+     * @param createUid   createUid
      * @param uidTypeEnum uidTypeEnum
      * @return 有权限
      */
-    public boolean hasPermission(Serializable chatId, Serializable createUid, AiChatUidTypeEnum uidTypeEnum) {
+    public boolean hasPermission(Integer chatId, Serializable createUid, AiChatUidTypeEnum uidTypeEnum) {
         if (chatId == null) {
             return false;
         }
@@ -82,9 +89,31 @@ public class AccessUserService {
     }
 
     /**
+     * 获取下次提问权限
+     *
+     * @param chatId        chatId
+     * @param createUid     createUid
+     * @param uidTypeEnum   uidTypeEnum
+     * @param maxTokenCount maxTokenCount
+     * @return 提问权限
+     */
+    public AiChatQuestionPermissionResp getQuestionPermission(Integer chatId, Serializable createUid, AiChatUidTypeEnum uidTypeEnum, int maxTokenCount) {
+        AiChatToken token = aiChatHistoryService.sumTodayCharLength(createUid, uidTypeEnum);
+
+        AiChatQuestionPermissionResp resp = new AiChatQuestionPermissionResp();
+        resp.setTokenCount(token.getTokenCount());
+        resp.setHasTokens(token.isHasTokens(maxTokenCount));
+        resp.setHasPermission(chatId == null || hasPermission(chatId, createUid, uidTypeEnum));
+        resp.setUserQueryTraceNumber(ChatQueryRequest.newUserQueryTraceNumber());
+        resp.setTimestamp(System.currentTimeMillis());
+        return resp;
+    }
+
+    /**
      * 获取记忆ID
-     * @param chatId chatId
-     * @param createUid createUid
+     *
+     * @param chatId      chatId
+     * @param createUid   createUid
      * @param uidTypeEnum uidTypeEnum
      * @return 记忆ID
      */
@@ -118,6 +147,7 @@ public class AccessUserService {
 
     /**
      * 获取用户ID
+     *
      * @return 用户ID
      */
     public Serializable getCurrentUserId() {
@@ -132,6 +162,7 @@ public class AccessUserService {
 
     /**
      * 获取用户
+     *
      * @return 用户
      */
     public AiAccessUserVO getCurrentUser() {

@@ -500,6 +500,7 @@ public class AiChatHistoryServiceImpl {
 
         /**
          * 获取这次用户的问题ID
+         *
          * @param aiChatHistoryMapper aiChatHistoryMapper
          * @return 这次用户的问题ID
          */

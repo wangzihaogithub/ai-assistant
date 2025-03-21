@@ -5,10 +5,10 @@ import com.github.aiassistant.entity.model.chat.QaKnVO;
 import com.github.aiassistant.entity.model.chat.QuestionClassifyListVO;
 import com.github.aiassistant.entity.model.chat.WebSearchResultVO;
 import com.github.aiassistant.enums.UserTriggerEventEnum;
-import com.github.aiassistant.service.text.acting.ActingService;
-import com.github.aiassistant.service.text.tools.functioncall.UrlReadTools;
-import com.github.aiassistant.service.text.tools.WebSearchService;
 import com.github.aiassistant.service.jsonschema.ReasoningJsonSchema;
+import com.github.aiassistant.service.text.acting.ActingService;
+import com.github.aiassistant.service.text.tools.WebSearchService;
+import com.github.aiassistant.service.text.tools.functioncall.UrlReadTools;
 import dev.langchain4j.agent.tool.ToolExecutionRequest;
 import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.data.message.SystemMessage;
@@ -105,7 +105,7 @@ public interface ChatStreamingResponseHandler {
             }
 
             @Override
-            public void onUserTrigger(UserTriggerEventEnum eventName, Object payload, long timestamp) {
+            public <T> void onUserTrigger(UserTriggerEventEnum<T> eventName, T payload, long timestamp) {
                 for (ChatStreamingResponseHandler h : list) {
                     h.onUserTrigger(eventName, payload, timestamp);
                 }
@@ -272,7 +272,7 @@ public interface ChatStreamingResponseHandler {
     default void onToolCalls(Response<AiMessage> response) {
     }
 
-    default void onUserTrigger(UserTriggerEventEnum eventName, Object payload, long timestamp) {
+    default <T> void onUserTrigger(UserTriggerEventEnum<T> eventName, T payload, long timestamp) {
 //            @Override
 //            public void onFindJob(KnJobResp knJobResp, AiJobQuery query) {
 //                for (ChatStreamingResponseHandler h : list) {

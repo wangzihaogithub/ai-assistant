@@ -32,6 +32,7 @@ public class AiChatServiceImpl {
     private final AiChatHistoryMapper aiChatHistoryMapper;
     // @Resource
     private final AiMemoryServiceImpl aiMemoryService;
+    private int nameLimit = 100;
 
     public AiChatServiceImpl(AiChatMapper aiChatMapper, AiChatHistoryMapper aiChatHistoryMapper,
                              AiMemoryServiceImpl aiMemoryService) {
@@ -40,8 +41,16 @@ public class AiChatServiceImpl {
         this.aiMemoryService = aiMemoryService;
     }
 
-    private static String nameLimit(String name) {
-        return AiUtil.limit(name, 100, true);
+    public int getNameLimit() {
+        return nameLimit;
+    }
+
+    public void setNameLimit(int nameLimit) {
+        this.nameLimit = nameLimit;
+    }
+
+    private String nameLimit(String name) {
+        return AiUtil.limit(name, nameLimit, true);
     }
 
     public AiChatResp insert(String assistantId, String name, Serializable createUid, AiChatUidTypeEnum uidTypeEnum) {
@@ -95,5 +104,9 @@ public class AiChatServiceImpl {
 
     public boolean updateNameById(Integer chatId, String name) {
         return aiChatMapper.updateNameById(chatId, nameLimit(name), new Date()) > 0;
+    }
+
+    public AiChat selectById(Integer chatId) {
+        return chatId != null ? aiChatMapper.selectById(chatId) : null;
     }
 }

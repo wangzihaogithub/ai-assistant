@@ -133,11 +133,15 @@ public class LlmJsonSchemaApiService {
      * @param <T>        类型
      * @return JsonSchema类型的模型
      */
-    private <T> T getSchema(MemoryIdVO memoryIdVO, Class<T> type, boolean memory) {
+    public <T> T getSchema(MemoryIdVO memoryIdVO, Class<T> type, boolean memory) {
         return getSchema(memoryIdVO, toJsonSchemaEnum(type), type, memory);
     }
 
-    private <T> T getSchema(MemoryIdVO memoryIdVO, String jsonSchemaEnum, Class<T> type, boolean memory) {
+    public <T> T getSchema(MemoryIdVO memoryIdVO, Class<T> type) {
+        return getSchema(memoryIdVO, type, false);
+    }
+
+    public <T> T getSchema(MemoryIdVO memoryIdVO, String jsonSchemaEnum, Class<T> type, boolean memory) {
         AiJsonschema jsonschema = memoryIdVO.getJsonschema(jsonSchemaEnum);
         if (jsonschema == null) {
             return null;

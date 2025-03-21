@@ -268,6 +268,54 @@ public class AiUtil {
         return false;
     }
 
+    public static <T> CompletableFuture<List<T>> toFutureJsonList(TokenStream tokenStream, Class<T> type) {
+        CompletableFuture<List<T>> future = new CompletableFuture<>();
+        tokenStream.onComplete(response -> {
+                    if (NULL == response.content()) {
+                        // 思考模型会进入这里，这里没有解析思考模型的思考过程。
+                        // 如果不是思考模型进入了这里，就是模型供应商的bug
+                        log.warn("toFutureJsonList NULL_RESPONSE ");
+                    } else {
+                        String text = response.content().text();
+                        try {
+                            List<T> json = toListBean(text, type);
+                            future.complete(json);
+                        } catch (Exception e) {
+                            future.completeExceptionally(e);
+                        }
+                    }
+                })
+                .onError(future::completeExceptionally)
+                .onNext(string -> {
+
+                })
+                .start();
+        return future;
+    }
+
+    public static <T> List<T> toListBean(String aiJson, Class<T> type) throws IOException {
+        if (aiJson == null || aiJson.isEmpty()) {
+            return new ArrayList<>();
+        }
+        JsonUtil.ObjectReader objectReader = JsonUtil.objectReader();
+        try {
+            String json = removeTrailingComma(aiJson);
+            return objectReader.readValueList(json, type);
+        } catch (Exception e) {
+            String errorClassName = e.getClass().getSimpleName();
+            if (errorClassName.toLowerCase().contains("json")) {
+                String[] endWiths = new String[]{"\"]", "\"]", "]"};
+                for (String end : endWiths) {
+                    try {
+                        return objectReader.readValueList(aiJson + end, type);
+                    } catch (Exception ignored) {
+                    }
+                }
+            }
+            throw e;
+        }
+    }
+
     /**
      * 是否可以命中所有命中词
      *

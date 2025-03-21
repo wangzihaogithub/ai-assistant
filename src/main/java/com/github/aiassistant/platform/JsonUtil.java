@@ -3,9 +3,11 @@ package com.github.aiassistant.platform;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.type.CollectionType;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.List;
 
 public class JsonUtil {
     private static final ObjectMapper objectMapper;
@@ -44,6 +46,12 @@ public class JsonUtil {
             public <T> T readValue(String src, Class<T> valueType) throws IOException {
                 return objectMapper.readValue(src, valueType);
             }
+
+            @Override
+            public <T> List<T> readValueList(String src, Class<T> valueType) throws IOException {
+                CollectionType collectionType = objectMapper.getTypeFactory().constructCollectionType(List.class, valueType);
+                return objectMapper.readValue(src, collectionType);
+            }
         };
     }
 
@@ -57,5 +65,7 @@ public class JsonUtil {
         <T> T readValue(InputStream src, Class<T> valueType) throws IOException;
 
         <T> T readValue(String src, Class<T> valueType) throws IOException;
+
+        <T> List<T> readValueList(String src, Class<T> valueType) throws IOException;
     }
 }

@@ -3,28 +3,47 @@ package com.github.aiassistant.service.text.tools.functioncall;
 import com.github.aiassistant.entity.model.chat.MemoryIdVO;
 import com.github.aiassistant.entity.model.chat.WebSearchResultVO;
 import com.github.aiassistant.entity.model.chat.WebSearchToolExecutionResultMessage;
+import com.github.aiassistant.enums.AiAssistantKnTypeEnum;
 import com.github.aiassistant.service.text.ChatStreamingResponseHandler;
+import com.github.aiassistant.service.text.embedding.KnnApiService;
+import com.github.aiassistant.service.text.embedding.ReRankModelClient;
 import com.github.aiassistant.service.text.tools.Tools;
 import com.github.aiassistant.service.text.tools.WebSearchService;
 import com.github.aiassistant.util.FutureUtil;
-import com.github.aiassistant.service.text.embedding.ReRankModelClient;
 import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
 import dev.langchain4j.agent.tool.ToolExecutionRequest;
 import dev.langchain4j.agent.tool.ToolMemoryId;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 public class WebSearchTools extends Tools {
     private static final WebSearchService webSearchService =
             new WebSearchService(Arrays.asList(UrlReadTools.PROXY1, UrlReadTools.PROXY2));
     // @Autowired
     private final Function<MemoryIdVO, ReRankModelClient> reRankModelGetter;
+
+    public WebSearchTools() {
+        this.reRankModelGetter = null;
+    }
+
+    public WebSearchTools(Supplier<KnnApiService> knnApiServiceSupplier) {
+        if (knnApiServiceSupplier == null) {
+            this.reRankModelGetter = null;
+        } else {
+            this.reRankModelGetter = memoryIdVO -> Optional.of(memoryIdVO)
+                    .map(e -> e.getAssistantKn(AiAssistantKnTypeEnum.rerank))
+                    .map(e -> {
+                        KnnApiService knnApiService = knnApiServiceSupplier.get();
+                        return knnApiService == null ? null : knnApiService.getModel(e);
+                    })
+                    .map(ReRankModelClient::new)
+                    .orElse(null);
+        }
+    }
 
     public WebSearchTools(Function<MemoryIdVO, ReRankModelClient> reRankModelGetter) {
         this.reRankModelGetter = reRankModelGetter;

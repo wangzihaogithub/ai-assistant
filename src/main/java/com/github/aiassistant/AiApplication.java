@@ -140,16 +140,19 @@ public class AiApplication {
         this.aiMemoryMessageService = new AiMemoryMessageServiceImpl(aiMemoryMapper, aiMemoryMessageKnMapper, aiMemoryMessageMapper, aiMemoryMessageToolMapper, getServiceInterceptSupplier(AiMemoryMessageServiceIntercept.class, interceptMap));
         this.aiAssistantService = new AiAssistantServiceImpl(aiAssistantMapper);
         this.aiChatClassifyService = new AiChatClassifyServiceImpl(aiChatClassifyMapper);
-        this.accessUserService = new AccessUserService(aiChatMapper, aiAssistantJsonschemaMapper, aiAssistantMstateMapper, aiAssistantMapper, aiAssistantKnMapper, aiAssistantFewshotMapper, aiToolService, getServiceInterceptSupplier(AccessUserServiceIntercept.class, interceptMap));
         this.aiChatService = new AiChatServiceImpl(aiChatMapper, aiChatHistoryMapper, aiMemoryService);
+        this.aiChatHistoryService = new AiChatHistoryServiceImpl(aiMemoryMessageMapper, aiChatHistoryMapper, aiMemoryErrorMapper, aiChatWebsearchMapper, aiChatMapper, aiChatAbortMapper, getServiceInterceptSupplier(AiChatHistoryServiceIntercept.class, interceptMap));
+
         this.aiChatReasoningService = new AiChatReasoningServiceImpl(aiChatReasoningMapper, aiChatReasoningPlanMapper, aiChatHistoryMapper);
         this.aiChatWebsearchService = new AiChatWebsearchServiceImpl(aiChatWebsearchMapper, aiChatWebsearchResultMapper, aiChatHistoryMapper);
-        this.aiChatHistoryService = new AiChatHistoryServiceImpl(aiMemoryMessageMapper, aiChatHistoryMapper, aiMemoryErrorMapper, aiChatWebsearchMapper, aiChatMapper, aiChatAbortMapper, getServiceInterceptSupplier(AiChatHistoryServiceIntercept.class, interceptMap));
         this.aiMemoryErrorService = new AiMemoryErrorServiceImpl(aiMemoryErrorMapper, aiChatHistoryService);
         this.aiChatAbortService = new AiChatAbortServiceImpl(aiChatAbortMapper, aiChatHistoryService);
         this.aiMemoryMstateService = new AiMemoryMstateServiceImpl(aiMemoryMstateMapper);
+        this.accessUserService = new AccessUserService(aiChatMapper, aiAssistantJsonschemaMapper, aiAssistantMstateMapper, aiAssistantMapper, aiAssistantKnMapper, aiAssistantFewshotMapper, aiToolService, aiChatHistoryService, getServiceInterceptSupplier(AccessUserServiceIntercept.class, interceptMap));
+
         this.aiVariablesService = new AiVariablesService(aiMemoryMstateService, aiVariablesMapper, getServiceInterceptSupplier(AiVariablesServiceIntercept.class, interceptMap));
         this.llmTextApiService = new LlmTextApiService(llmJsonSchemaApiService, aiQuestionClassifyService, aiVariablesService, knnApiService, actingService, reasoningService, knSettingWebsearchBlacklistServiceImpl);
+
     }
 
     private static <T extends ServiceIntercept> Supplier<Collection<T>> getServiceInterceptSupplier(Class<T> clazz, Function<Class<? extends ServiceIntercept>, Collection<ServiceIntercept>> interceptMap) {

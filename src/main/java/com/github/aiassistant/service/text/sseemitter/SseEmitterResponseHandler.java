@@ -405,7 +405,7 @@ public class SseEmitterResponseHandler implements ChatStreamingResponseHandler {
     }
 
     @Override
-    public void onUserTrigger(UserTriggerEventEnum eventName, Object payload, long timestamp) {
+    public <T> void onUserTrigger(UserTriggerEventEnum<T> eventName, T payload, long timestamp) {
         Objects.requireNonNull(eventName, "onUserTrigger#eventName");
         if (debug) {
             sendToClient(emitter, eventName.getCode(), "timestamp", timestamp);
@@ -445,6 +445,10 @@ public class SseEmitterResponseHandler implements ChatStreamingResponseHandler {
 
     protected void afterSendToClient(Emitter emitter, String name, Object... data) {
 
+    }
+
+    public void sendToClient(String name, Object... data) {
+        sendToClient(emitter, name, data);
     }
 
     private void sendToClient(Emitter emitter, String name, Object... data) {

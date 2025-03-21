@@ -3,15 +3,22 @@ package com.github.aiassistant.entity.model.chat;
 // import lombok.Data;
 
 // @Data
-public class AiChatTokenResp {
+public class AiChatQuestionPermissionResp {
+    /**
+     * 今日字数
+     */
     private Integer tokenCount;
-
     /**
      * 是否还有今日可用字数
      */
     private boolean hasTokens;
+    /**
+     * 针对该会话是否有权限
+     */
     private boolean hasPermission;
-
+    /**
+     * 新的问题编号
+     */
     private String userQueryTraceNumber;
     /**
      * 提问时间
