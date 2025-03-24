@@ -31,15 +31,15 @@ public class AiApplicationTest {
 
     private static DataSource dataSource() throws Exception {
         MysqlDataSource dataSource = new MysqlDataSource();
-        dataSource.setUrl("jdbc:mysql://rm-2ze3p58061s26ev8i1o.mysql.rds.aliyuncs.com:3306/cnwy?allowMultiQueries=true&useUnicode=true&characterEncoding=UTF-8&useSSL=false&serverTimezone=Asia/Shanghai");
-        dataSource.setUser("test_cnwy");
-        dataSource.setPassword("ZnC+7PVvGXG4");
+        dataSource.setUrl("jdbc:mysql://rm-xx.mysql.rds.aliyuncs.com:3306/xxx?allowMultiQueries=true&useUnicode=true&characterEncoding=UTF-8&useSSL=false&serverTimezone=Asia/Shanghai");
+        dataSource.setUser("xxx");
+        dataSource.setPassword("xxx");
         dataSource.setZeroDateTimeBehavior("CONVERT_TO_NULL");
         return dataSource;
     }
 
     private static RestClient embeddingStore() {
-        return RestClient.builder(HttpHost.create("http://elasticsearch8.cnwyjob.com"))
+        return RestClient.builder(HttpHost.create("http://elasticsearch8.xxx.com"))
                 .build();
     }
 
