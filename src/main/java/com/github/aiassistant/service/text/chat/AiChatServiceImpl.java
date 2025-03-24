@@ -10,7 +10,6 @@ import com.github.aiassistant.entity.model.chat.AiChatResp;
 import com.github.aiassistant.enums.AiChatUidTypeEnum;
 import com.github.aiassistant.service.text.memory.AiMemoryServiceImpl;
 import com.github.aiassistant.util.AiUtil;
-import com.github.aiassistant.util.CollUtil;
 import com.github.aiassistant.util.StringUtils;
 
 import java.io.Serializable;
@@ -91,7 +90,7 @@ public class AiChatServiceImpl {
         int offset = Math.max(0, (pageNum - 1) * pageSize);
         List<AiChatListResp> list = aiChatMapper.selectListByUid(keyword, offset, pageSize, uidTypeEnum.getCode(), createUid);
 
-        List<Integer> historyIdList = CollUtil.map(list, AiChatListResp::getAiChatHistoryId, true);
+        List<Integer> historyIdList = list.stream().map(AiChatListResp::getAiChatHistoryId).collect(Collectors.toList());
         if (!historyIdList.isEmpty()) {
             Map<Integer, AiChatHistory> historyMap = aiChatHistoryMapper.selectBatchIds(historyIdList).stream()
                     .collect(Collectors.toMap(AiChatHistory::getId, Function.identity()));

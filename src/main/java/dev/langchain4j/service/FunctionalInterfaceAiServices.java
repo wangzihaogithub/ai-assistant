@@ -785,7 +785,7 @@ public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
             ThreadPoolExecutor executor = getExecutor(context.aiServiceClass);
             ChatMemory chatMemory = MessageWindowChatMemory.builder().id(memoryId).maxMessages(Integer.MAX_VALUE).build();
             messages.forEach(chatMemory::add);
-            JsonschemaToolCallStreamingResponseHandler handler = new JsonschemaToolCallStreamingResponseHandler(
+            JsonschemaFunctionCallStreamingResponseHandler handler = new JsonschemaFunctionCallStreamingResponseHandler(
                     modelName,
                     context.streamingChatModel,
                     chatMemory,

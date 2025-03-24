@@ -8,7 +8,7 @@ import com.github.aiassistant.entity.model.user.AiAccessUserVO;
 import com.github.aiassistant.enums.AiAssistantStatusEnum;
 import com.github.aiassistant.enums.AiChatUidTypeEnum;
 import com.github.aiassistant.platform.SpringWebSseEmitterResponseHandler;
-import com.github.aiassistant.service.text.ToolCallStreamingResponseHandler;
+import com.github.aiassistant.service.text.FunctionCallStreamingResponseHandler;
 import com.github.aiassistant.service.text.repository.JdbcSessionMessageRepository;
 import com.github.aiassistant.service.text.tools.Tools;
 import com.github.aiassistant.serviceintercept.AccessUserServiceIntercept;
@@ -125,7 +125,7 @@ public class AiApplicationTest {
             }
         };
         // 提问
-        CompletableFuture<ToolCallStreamingResponseHandler> question = aiApplication.getLlmTextApiService().question(currentUser, messageRepository,
+        CompletableFuture<FunctionCallStreamingResponseHandler> question = aiApplication.getLlmTextApiService().question(currentUser, messageRepository,
                 chatQueryRequest.getQuestion(),
                 chatQueryRequest.getWebsearch(),
                 chatQueryRequest.getReasoning(),

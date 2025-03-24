@@ -190,8 +190,8 @@ public class LlmTextApiService {
      * @param responseHandler responseHandler
      * @return 持久化异常
      */
-    private static CompletableFuture<ToolCallStreamingResponseHandler> questionError(Throwable e, MemoryIdVO memoryId, ChatStreamingResponseHandler responseHandler) {
-        CompletableFuture<ToolCallStreamingResponseHandler> handlerFuture = new CompletableFuture<>();
+    private static CompletableFuture<FunctionCallStreamingResponseHandler> questionError(Throwable e, MemoryIdVO memoryId, ChatStreamingResponseHandler responseHandler) {
+        CompletableFuture<FunctionCallStreamingResponseHandler> handlerFuture = new CompletableFuture<>();
         handlerFuture.completeExceptionally(e);
         responseHandler.onError(e, 0, 0, 0);
         log.error("llm questionError chatId {}, error {}", memoryId.getChatId(), e.toString(), e);
@@ -210,13 +210,13 @@ public class LlmTextApiService {
      * @param userResponseHandler userResponseHandler
      * @return 提问结果
      */
-    public CompletableFuture<ToolCallStreamingResponseHandler> question(AiAccessUserVO user,
-                                                                        SessionMessageRepository repository,
-                                                                        String question,
-                                                                        Boolean websearch,
-                                                                        Boolean reasoning,
-                                                                        MemoryIdVO memoryId,
-                                                                        ChatStreamingResponseHandler userResponseHandler) {
+    public CompletableFuture<FunctionCallStreamingResponseHandler> question(AiAccessUserVO user,
+                                                                            SessionMessageRepository repository,
+                                                                            String question,
+                                                                            Boolean websearch,
+                                                                            Boolean reasoning,
+                                                                            MemoryIdVO memoryId,
+                                                                            ChatStreamingResponseHandler userResponseHandler) {
         try {
             ChatStreamingResponseHandler responseHandler = ChatStreamingResponseHandler.merge(Arrays.asList(userResponseHandler, new RepositoryChatStreamingResponseHandler(repository)), userResponseHandler);
             // 历史记录
@@ -236,7 +236,7 @@ public class LlmTextApiService {
             // 进行问题分类
             CompletableFuture<QuestionClassifyListVO> classifyFuture = aiQuestionClassifyService.classify(lastQuestion, memoryId);
             // 构建
-            CompletableFuture<CompletableFuture<ToolCallStreamingResponseHandler>> f = classifyFuture
+            CompletableFuture<CompletableFuture<FunctionCallStreamingResponseHandler>> f = classifyFuture
                     .thenApply(c -> buildHandler(c, user, repository, question, websearch,
                             reasoning, memoryId, responseHandler, historyList, baseMessageIndex, addMessageCount, lastQuestion, variables));
             // 等待完毕
@@ -256,7 +256,7 @@ public class LlmTextApiService {
      * @param throwable throwable
      * @param memoryId  memoryId
      */
-    private void removeJsonSchemaSession(ToolCallStreamingResponseHandler handler, Throwable throwable, MemoryIdVO memoryId) {
+    private void removeJsonSchemaSession(FunctionCallStreamingResponseHandler handler, Throwable throwable, MemoryIdVO memoryId) {
         if (handler == null || throwable != null) {
             llmJsonSchemaApiService.removeSession(memoryId);
         } else {
@@ -282,7 +282,7 @@ public class LlmTextApiService {
      * @param variables        variables
      * @return 构建结果
      */
-    private CompletableFuture<ToolCallStreamingResponseHandler> buildHandler(
+    private CompletableFuture<FunctionCallStreamingResponseHandler> buildHandler(
             QuestionClassifyListVO classifyListVO,
             AiAccessUserVO user,
             SessionMessageRepository repository,
@@ -296,7 +296,7 @@ public class LlmTextApiService {
             int addMessageCount,
             String lastQuestion,
             AiVariables variables) {
-        CompletableFuture<ToolCallStreamingResponseHandler> handlerFuture = new CompletableFuture<>();
+        CompletableFuture<FunctionCallStreamingResponseHandler> handlerFuture = new CompletableFuture<>();
         try {
             String knPromptText = memoryId.getAiAssistant().getKnPromptText();
             String mstatePromptText = memoryId.getAiAssistant().getMstatePromptText();
@@ -344,7 +344,7 @@ public class LlmTextApiService {
                         responseHandler.onKnowledge(qaKnVOList, lastQuestion);
 
                         // ToolCallStreamingResponseHandler
-                        ToolCallStreamingResponseHandler handler = newToolCallStreamingResponseHandler(
+                        FunctionCallStreamingResponseHandler handler = newFunctionCallStreamingResponseHandler(
                                 classifyListVO,
                                 assistantConfig,
                                 mstatePromptText,
@@ -390,7 +390,7 @@ public class LlmTextApiService {
         return handlerFuture;
     }
 
-    private ToolCallStreamingResponseHandler newToolCallStreamingResponseHandler(
+    private FunctionCallStreamingResponseHandler newFunctionCallStreamingResponseHandler(
             QuestionClassifyListVO classifyListVO,
             AssistantConfig assistantConfig,
             String mstatePromptText,
@@ -446,7 +446,7 @@ public class LlmTextApiService {
 
         List<Tools.ToolMethod> toolMethodList = AiUtil.initTool(memoryId.getToolMethodList(), variables, user);
         // 处理异步回调
-        return new ToolCallStreamingResponseHandler(aiModel.modelName, aiModel.streaming, chatMemory, responseHandler,
+        return new FunctionCallStreamingResponseHandler(aiModel.modelName, aiModel.streaming, chatMemory, responseHandler,
                 llmJsonSchemaApiService, toolMethodList, aiModel.isSupportChineseToolName(),
                 baseMessageIndex, addMessageCount, readTimeoutMs, threadPoolTaskExecutor);
     }

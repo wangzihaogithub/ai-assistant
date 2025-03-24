@@ -30,7 +30,7 @@ public class EmbeddingModelClient {
     private final int dimensions;
     private final JsonUtil.ObjectWriter objectWriter = JsonUtil.objectWriter();
     private final JsonUtil.ObjectReader objectReader = JsonUtil.objectReader();
-    public long cost;
+    private long cost;
     private int insertPartitionSize = 100;
 
     public EmbeddingModelClient(EmbeddingModel model, String modelName, int dimensions, Integer maxRequestSize, AiEmbeddingMapper aiEmbeddingMapper, Executor executor) {
@@ -44,6 +44,10 @@ public class EmbeddingModelClient {
 
     private static String md5(String keyword) {
         return DigestUtils.md5DigestAsHex(keyword.getBytes(StandardCharsets.UTF_8));
+    }
+
+    public long getCost() {
+        return cost;
     }
 
     public CompletableFuture<List<float[]>> addEmbedList(Collection<String> keywordList) {
@@ -80,14 +84,16 @@ public class EmbeddingModelClient {
     }
 
     private Map<String, float[]> getCacheMap(Collection<String> keywordList) {
+        Set<String> queryKeywordList = new HashSet<>(keywordList);
         Map<String, float[]> vectorMap = new HashMap<>();
         GLOABL_CACHE_VECTOR_MAP.forEach((key, value) -> {
             if (key == null || value == null) {
                 return;
             }
-            vectorMap.put(value, key);
+            if (!queryKeywordList.isEmpty() && queryKeywordList.remove(value)) {
+                vectorMap.put(value, key);
+            }
         });
-        List<String> queryKeywordList = keywordList.stream().filter(vectorMap::containsKey).collect(Collectors.toList());
 
         if (aiEmbeddingMapper != null && !queryKeywordList.isEmpty()) {
             Map<String, String> keywordMd5Map = new LinkedHashMap<>();

@@ -4,7 +4,6 @@ import com.github.aiassistant.dao.AiToolMapper;
 import com.github.aiassistant.dao.AiToolParameterMapper;
 import com.github.aiassistant.entity.AiTool;
 import com.github.aiassistant.entity.AiToolParameter;
-import com.github.aiassistant.util.CollUtil;
 import com.github.aiassistant.util.ParameterNamesUtil;
 import com.github.aiassistant.util.StringUtils;
 import dev.langchain4j.agent.tool.Tool;
@@ -58,20 +57,18 @@ public class AiToolServiceImpl {
         if (ids == null || ids.isEmpty()) {
             return Collections.emptyList();
         }
-        List<AiTool> toolList = aiToolMapper.selectBatchIds(ids);
         Map<String, Tools.ToolMethod> result = new HashMap<>();
-        Map<Integer, Map<String, AiToolParameter>> parameters = toolList.isEmpty() ? Collections.emptyMap()
-                : aiToolParameterMapper.selectListByToolId(CollUtil.map(toolList, AiTool::getId, true)).stream()
-                .collect(Collectors.groupingBy(AiToolParameter::getAiToolId, Collectors.toMap(AiToolParameter::getParameterEnum, e -> e, (o1, o2) -> o2)));
+        Map<Integer, Map<String, AiToolParameter>> parameters = new LinkedHashMap<>();
+        List<AiTool> toolList = selectToolList(ids, parameters);
         for (AiTool aiTool : toolList) {
             String toolEnum = aiTool.getToolEnum();
-            String toolFunctionName = aiTool.getToolFunctionName();
-            String toolFunctionEnum = aiTool.getToolFunctionEnum();
-            String englishName = toolEnum + "-" + toolFunctionEnum + "_" + aiTool.getId();
             Tools tool = getTools(toolEnum);
             if (tool == null) {
                 continue;
             }
+            String toolFunctionName = aiTool.getToolFunctionName();
+            String toolFunctionEnum = aiTool.getToolFunctionEnum();
+            String englishName = toolEnum + "-" + toolFunctionEnum + "_" + aiTool.getId();
             Method functionMethod = getToolFunctionMethod(tool.getClass(), toolFunctionEnum);
             if (functionMethod == null) {
                 log.warn("tool {} name {} not exist!", toolEnum, aiTool.getToolFunctionEnum());
@@ -96,6 +93,21 @@ public class AiToolServiceImpl {
             }
         }
         return new ArrayList<>(result.values());
+    }
+
+    private List<AiTool> selectToolList(Collection<? extends Serializable> ids, Map<Integer, Map<String, AiToolParameter>> parameterMap) {
+        if (ids == null || ids.isEmpty()) {
+            return new ArrayList<>();
+        }
+        List<AiTool> toolList = aiToolMapper.selectBatchIds(ids);
+        if (!toolList.isEmpty()) {
+            List<Integer> toolIdList = toolList.stream().map(AiTool::getId).collect(Collectors.toList());
+            for (AiToolParameter parameter : aiToolParameterMapper.selectListByToolId(toolIdList)) {
+                parameterMap.computeIfAbsent(parameter.getAiToolId(), e -> new LinkedHashMap<>())
+                        .put(parameter.getParameterEnum(), parameter);
+            }
+        }
+        return toolList;
     }
 
     private ToolParameters convert(Map<String, AiToolParameter> parameterMap, Method method, String[] parameterNames) {

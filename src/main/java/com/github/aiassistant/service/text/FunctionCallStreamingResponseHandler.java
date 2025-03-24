@@ -35,7 +35,7 @@ import java.util.stream.Collectors;
 /**
  * 流式处理AI结果（同时调用工具库）
  */
-public class ToolCallStreamingResponseHandler extends CompletableFuture<Void> implements StreamingResponseHandler<AiMessage> {
+public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void> implements StreamingResponseHandler<AiMessage> {
     public static final int MAX_GENERATE_COUNT = 10;
     public static final long READ_DONE = -1L;
     private static final ScheduledThreadPoolExecutor READ_TIMEOUT_SCHEDULED = new ScheduledThreadPoolExecutor(1, new ThreadFactory() {
@@ -54,7 +54,7 @@ public class ToolCallStreamingResponseHandler extends CompletableFuture<Void> im
     private final StreamingChatLanguageModel chatModel;
     private final List<Tools> tools;
     private final List<Tools.ToolMethod> toolMethodList;
-    private final ToolCallStreamingResponseHandler parent;
+    private final FunctionCallStreamingResponseHandler parent;
     private final ChatStreamingResponseHandler bizHandler;
     private final int baseMessageIndex;
     private final AtomicInteger addMessageCount;
@@ -72,16 +72,16 @@ public class ToolCallStreamingResponseHandler extends CompletableFuture<Void> im
     private volatile long lastReadTimestamp;
     private volatile ScheduledFuture<?> readTimeoutFuture;
 
-    public ToolCallStreamingResponseHandler(String modelName, StreamingChatLanguageModel chatModel,
-                                            ChatMemory chatMemory,
-                                            ChatStreamingResponseHandler handler,
-                                            LlmJsonSchemaApiService llmJsonSchemaApiService,
-                                            List<Tools.ToolMethod> toolMethodList,
-                                            boolean isSupportChineseToolName,
-                                            int baseMessageIndex,
-                                            int addMessageCount,
-                                            Long readTimeoutMs,
-                                            Executor executor) {
+    public FunctionCallStreamingResponseHandler(String modelName, StreamingChatLanguageModel chatModel,
+                                                ChatMemory chatMemory,
+                                                ChatStreamingResponseHandler handler,
+                                                LlmJsonSchemaApiService llmJsonSchemaApiService,
+                                                List<Tools.ToolMethod> toolMethodList,
+                                                boolean isSupportChineseToolName,
+                                                int baseMessageIndex,
+                                                int addMessageCount,
+                                                Long readTimeoutMs,
+                                                Executor executor) {
         this.readTimeoutMs = readTimeoutMs;
         this.modelName = modelName;
         this.tools = toolMethodList.stream().map(Tools.ToolMethod::tool).collect(Collectors.toList());
@@ -102,7 +102,7 @@ public class ToolCallStreamingResponseHandler extends CompletableFuture<Void> im
         this.generateRemaining = MAX_GENERATE_COUNT;
     }
 
-    protected ToolCallStreamingResponseHandler(ToolCallStreamingResponseHandler parent) {
+    protected FunctionCallStreamingResponseHandler(FunctionCallStreamingResponseHandler parent) {
         this.readTimeoutMs = parent.readTimeoutMs;
         this.modelName = parent.modelName;
         this.memoryId = parent.memoryId;
@@ -122,8 +122,8 @@ public class ToolCallStreamingResponseHandler extends CompletableFuture<Void> im
         this.lastResponse = parent.lastResponse;
     }
 
-    protected ToolCallStreamingResponseHandler fork(ToolCallStreamingResponseHandler parent) {
-        return new ToolCallStreamingResponseHandler(parent);
+    protected FunctionCallStreamingResponseHandler fork(FunctionCallStreamingResponseHandler parent) {
+        return new FunctionCallStreamingResponseHandler(parent);
     }
 
     @Override
@@ -313,7 +313,7 @@ public class ToolCallStreamingResponseHandler extends CompletableFuture<Void> im
 
     private void done(Response<AiMessage> response) {
         bizHandler.onComplete(response, baseMessageIndex, addMessageCount.get(), generateCount());
-        ToolCallStreamingResponseHandler handler = this;
+        FunctionCallStreamingResponseHandler handler = this;
         while (handler != null) {
             handler.complete(null);
             handler = handler.parent;
@@ -342,7 +342,7 @@ public class ToolCallStreamingResponseHandler extends CompletableFuture<Void> im
                 list.add(wrapper.toRequest(isSupportChineseToolName));
             }
             List<ChatMessage> messageList = AiUtil.beforeGenerate(chatMemory.messages());
-            ToolCallStreamingResponseHandler fork = fork(this);
+            FunctionCallStreamingResponseHandler fork = fork(this);
             executor.execute(() -> chatModel.generate(messageList, list, fork));
         }
         return this;
@@ -405,7 +405,7 @@ public class ToolCallStreamingResponseHandler extends CompletableFuture<Void> im
         }
         this.lastReadTimestamp = READ_DONE;
         bizHandler.onError(exception, baseMessageIndex, addMessageCount.get(), generateCount());
-        ToolCallStreamingResponseHandler handler = this;
+        FunctionCallStreamingResponseHandler handler = this;
         while (handler != null) {
             handler.completeExceptionally(exception);
             handler = handler.parent;
@@ -426,7 +426,7 @@ public class ToolCallStreamingResponseHandler extends CompletableFuture<Void> im
     }
 
     public static class SseHttpResponseImpl implements SseHttpResponse {
-        private final ToolCallStreamingResponseHandler handler;
+        private final FunctionCallStreamingResponseHandler handler;
         private final Response<AiMessage> lastResponse;
         private final StringBuilder builder = new StringBuilder();
         private final AtomicBoolean toolMessageReady = new AtomicBoolean();
@@ -434,12 +434,12 @@ public class ToolCallStreamingResponseHandler extends CompletableFuture<Void> im
         private volatile Response<AiMessage> tokenEnd;
         private volatile boolean empty = true;
 
-        public SseHttpResponseImpl(ToolCallStreamingResponseHandler handler, Response<AiMessage> lastResponse) {
+        public SseHttpResponseImpl(FunctionCallStreamingResponseHandler handler, Response<AiMessage> lastResponse) {
             this.handler = handler;
             this.lastResponse = lastResponse;
         }
 
-        public SseHttpResponseImpl(ToolCallStreamingResponseHandler handler) {
+        public SseHttpResponseImpl(FunctionCallStreamingResponseHandler handler) {
             this.handler = handler;
             this.lastResponse = new Response<>(AiUtil.NULL, new TokenUsage(0, 0, 0), FinishReason.STOP);
             toolMessageReady.set(true);

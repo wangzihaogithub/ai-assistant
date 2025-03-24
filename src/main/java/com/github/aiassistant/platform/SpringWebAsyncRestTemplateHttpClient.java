@@ -1,6 +1,6 @@
 package com.github.aiassistant.platform;
 
-import com.github.aiassistant.service.text.util.HttpClient;
+import com.github.aiassistant.util.HttpClient;
 import org.apache.http.HttpHost;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;

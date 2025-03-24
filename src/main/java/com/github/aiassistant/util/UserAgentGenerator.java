@@ -1,4 +1,4 @@
-package com.github.aiassistant.service.text.util;
+package com.github.aiassistant.util;
 
 import java.util.ArrayList;
 import java.util.List;

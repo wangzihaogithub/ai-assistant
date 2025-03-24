@@ -10,7 +10,6 @@ import com.github.aiassistant.enums.AiChatUidTypeEnum;
 import com.github.aiassistant.enums.MessageTypeEnum;
 import com.github.aiassistant.serviceintercept.AiChatHistoryServiceIntercept;
 import com.github.aiassistant.util.AiUtil;
-import com.github.aiassistant.util.CollUtil;
 import com.github.aiassistant.util.Lists;
 import com.github.aiassistant.util.StringUtils;
 import org.slf4j.Logger;
@@ -320,7 +319,7 @@ public class AiChatHistoryServiceImpl {
      */
     private void updateUserChatHistoryId(List<AiChatRequest> list) {
         for (AiChatRequest request : list) {
-            List<Integer> historyIdList = CollUtil.map(request.getHistoryList(), AiChatHistory::getId, true);
+            List<Integer> historyIdList = request.getHistoryList().stream().map(AiChatHistory::getId).collect(Collectors.toList());
             if (historyIdList.isEmpty()) {
                 continue;
             }

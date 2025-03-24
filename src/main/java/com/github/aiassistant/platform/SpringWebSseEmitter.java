@@ -16,7 +16,7 @@ public class SpringWebSseEmitter implements SseEmitterResponseHandler.Emitter {
     public void send(String id, String name, Object data) throws IOException, IllegalStateException {
         SseEmitter.SseEventBuilder event = SseEmitter.event();
         if (id != null) {
-            event.id(id);
+            event = event.id(id);
         }
         sseEmitter.send(event.name(name).data(data));
     }

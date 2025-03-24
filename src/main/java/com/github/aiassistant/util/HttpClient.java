@@ -1,4 +1,4 @@
-package com.github.aiassistant.service.text.util;
+package com.github.aiassistant.util;
 
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.X509TrustManager;

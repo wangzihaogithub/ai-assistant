@@ -24,13 +24,6 @@ public abstract class Tools {
 
     private String beanName;
 
-    public void setProperties(Tools tools) {
-        this.aiAccessUserVO = tools.aiAccessUserVO;
-        this.variables = tools.variables;
-        this.streamingResponseHandler = tools.streamingResponseHandler;
-        this.beanName = tools.beanName;
-    }
-
     public AiAccessUserVO getAiAccessUserVO() {
         return aiAccessUserVO;
     }
