@@ -19,10 +19,10 @@ public class Lists {
         int numPartitions = (int) Math.ceil((double) totalSize / size);
 
         return IntStream.range(0, numPartitions)
-                .mapToObj(i -> list.stream()
+                .mapToObj(i -> new ArrayList<>(list.stream()
                         .skip(i * size)
                         .limit(size)
-                        .collect(Collectors.toList()))
+                        .collect(Collectors.toList())))
                 .collect(Collectors.toList());
     }
 
