@@ -132,10 +132,19 @@ public class AiApplicationTest {
                 memoryId,
                 responseHandler
         );
-        // 提问完成
-        question.thenAccept(h -> h.generate()
-                .thenAccept(unused -> messageRepository.commit()
-                        .whenComplete((o, throwable) -> responseHandler.sendComplete(throwable))));
+        // 提问
+        question.thenAccept(
+                        // 生成内容
+                        h -> h.generate().thenAccept(
+                                // 持久化
+                                unused -> messageRepository.commit().whenComplete(
+                                        // 告诉前端结束
+                                        (o, throwable) -> responseHandler.sendComplete(throwable))))
+                .exceptionally(throwable -> {
+                    // 提问错误
+                    responseHandler.onError(throwable, 0, 0, 0);
+                    return null;
+                });
 
         // 查看结果
         while (true) {
