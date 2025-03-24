@@ -32,13 +32,15 @@ public class AiMemoryErrorServiceImpl {
 
     /**
      * 内部异常
-     * @param throwable 异常
+     *
+     * @param throwable        异常
      * @param baseMessageIndex 消息下标
-     * @param addMessageCount 本次多少
-     * @param generateCount 生成数量
-     * @param requestTrace 请求
+     * @param addMessageCount  本次多少
+     * @param generateCount    生成数量
+     * @param requestTrace     请求
+     * @return AiMemoryError
      */
-    public void insertByInner(Throwable throwable, int baseMessageIndex, int addMessageCount, int generateCount, RequestTrace<MemoryIdVO, AiAccessUserVO> requestTrace) {
+    public AiMemoryError insertByInner(Throwable throwable, int baseMessageIndex, int addMessageCount, int generateCount, RequestTrace<MemoryIdVO, AiAccessUserVO> requestTrace) {
         StringWriter buf = new StringWriter();
         throwable.printStackTrace(new PrintWriter(buf));
 
@@ -68,29 +70,31 @@ public class AiMemoryErrorServiceImpl {
             error.setRootAgainUserQueryTraceNumber("");
         }
         aiMemoryErrorMapper.insert(error);
+        return error;
     }
 
     /**
      * 前端异常
-     * @param memoryId 记忆ID
+     *
+     * @param memoryId             记忆ID
      * @param userQueryTraceNumber 问题编号
-     * @param messageIndex 消息下标
-     * @param errorClassName 错误
-     * @param errorMessage 错误
-     * @param timestamp 时间
-     * @param errorType 错误类型
-     * @param messageText 消息
-     * @param attachmentJson 附加
-     * @return 是否成功
+     * @param messageIndex         消息下标
+     * @param errorClassName       错误
+     * @param errorMessage         错误
+     * @param timestamp            时间
+     * @param errorType            错误类型
+     * @param messageText          消息
+     * @param attachmentJson       附加
+     * @return AiMemoryError
      */
-    public boolean insertByOnerror(MemoryIdVO memoryId,
-                                   String userQueryTraceNumber, Integer messageIndex,
-                                   String errorClassName,
-                                   String errorMessage,
-                                   Long timestamp,
-                                   String errorType,
-                                   String messageText,
-                                   String attachmentJson) {
+    public AiMemoryError insertByOnerror(MemoryIdVO memoryId,
+                                         String userQueryTraceNumber, Integer messageIndex,
+                                         String errorClassName,
+                                         String errorMessage,
+                                         Long timestamp,
+                                         String errorType,
+                                         String messageText,
+                                         String attachmentJson) {
         Date now = new Date();
 
         AiMemoryError error = new AiMemoryError();
@@ -117,7 +121,7 @@ public class AiMemoryErrorServiceImpl {
             error.setRootAgainUserQueryTraceNumber("");
         }
         aiMemoryErrorMapper.insert(error);
-        return true;
+        return error;
     }
 
 }
