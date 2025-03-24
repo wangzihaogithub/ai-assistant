@@ -1,12 +1,5 @@
 package com.github.aiassistant.entity;
 
-// import com.baomidou.mybatisplus.annotation.IdType;
-// import com.baomidou.mybatisplus.annotation.TableId;
-// import com.baomidou.mybatisplus.annotation.TableName;
-//import com.cnwy.pc.service.ai.chat.AssistantConfig;
-// import io.swagger.annotations.ApiModelProperty;
-// import lombok.Data;
-
 import com.github.aiassistant.service.text.AssistantConfig;
 
 // @Data

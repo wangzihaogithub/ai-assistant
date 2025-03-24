@@ -1,12 +1,5 @@
 package com.github.aiassistant.entity;
 
-// import com.baomidou.mybatisplus.annotation.TableId;
-// import com.baomidou.mybatisplus.annotation.TableName;
-// import io.swagger.annotations.ApiModel;
-// import io.swagger.annotations.ApiModelProperty;
-// import lombok.Data;
-
-// import com.baomidou.mybatisplus.annotation.IdType;
 // @Data
 // @ApiModel(value = "AiMemoryMessageTool", description = "记忆消息中借助了工具")
 // @TableName("ai_memory_message_tool")

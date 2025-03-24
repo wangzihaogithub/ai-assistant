@@ -1,8 +1,6 @@
 package com.github.aiassistant.entity.model.chat;
 
 import com.github.aiassistant.util.UniqueKeyGenerator;
-// import io.swagger.annotations.ApiModelProperty;
-// import lombok.Data;
 
 // @Data
 public class ChatQueryRequest {

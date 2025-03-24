@@ -1,10 +1,5 @@
 package com.github.aiassistant.entity;
 
-// import com.baomidou.mybatisplus.annotation.IdType;
-// import com.baomidou.mybatisplus.annotation.TableId;
-// import com.baomidou.mybatisplus.annotation.TableName;
-// import lombok.Data;
-
 /**
  * AI工具参数提示词
  * UNIQUE INDEX `uniq_tool_parameter_enum`(`ai_tool_id`, `parameter_enum`) USING BTREE

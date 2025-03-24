@@ -1,7 +1,5 @@
 package com.github.aiassistant.enums;
 
-// import lombok.AllArgsConstructor;
-
 import java.util.*;
 import java.util.stream.Collectors;
 

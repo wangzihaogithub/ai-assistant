@@ -1,9 +1,5 @@
 package com.github.aiassistant.service.text.embedding;
 
-// import lombok.AllArgsConstructor;
-// import lombok.Data;
-// import lombok.NoArgsConstructor;
-
 import com.github.aiassistant.util.FutureUtil;
 
 import java.util.*;

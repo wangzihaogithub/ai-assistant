@@ -1,8 +1,5 @@
 package com.github.aiassistant.entity.model.chat;
 
-// import io.swagger.annotations.ApiModelProperty;
-// import lombok.Data;
-
 import java.util.Date;
 
 // @Data

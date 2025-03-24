@@ -1,7 +1,5 @@
 package com.github.aiassistant.entity.model.chat;
 
-// import lombok.Data;
-
 // @Data
 public class AiChatToken {
     private Integer tokenCount;

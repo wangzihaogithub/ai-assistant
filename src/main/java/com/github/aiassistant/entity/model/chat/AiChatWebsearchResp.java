@@ -1,7 +1,5 @@
 package com.github.aiassistant.entity.model.chat;
 
-// import lombok.Data;
-
 import java.util.Date;
 
 // @Data

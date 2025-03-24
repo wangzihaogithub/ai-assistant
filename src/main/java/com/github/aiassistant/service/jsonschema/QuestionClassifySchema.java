@@ -11,7 +11,6 @@ import dev.langchain4j.service.TokenStream;
 import dev.langchain4j.service.UserMessage;
 import dev.langchain4j.service.V;
 import dev.langchain4j.service.output.JsonSchemas;
-//// import lombok.Data;
 
 import java.util.List;
 import java.util.Map;

@@ -1,8 +1,5 @@
 package com.github.aiassistant.service.text;
 
-// import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-// import com.baomidou.mybatisplus.core.toolkit.Wrappers;
-
 import com.github.aiassistant.dao.AiAssistantMapper;
 import com.github.aiassistant.entity.AiAssistant;
 import com.github.aiassistant.enums.AiAssistantStatusEnum;

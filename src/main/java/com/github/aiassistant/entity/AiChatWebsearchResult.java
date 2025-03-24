@@ -1,11 +1,5 @@
 package com.github.aiassistant.entity;
 
-// import com.baomidou.mybatisplus.annotation.IdType;
-// import com.baomidou.mybatisplus.annotation.TableId;
-// import com.baomidou.mybatisplus.annotation.TableName;
-// import io.swagger.annotations.ApiModel;
-// import lombok.Data;
-
 // @ApiModel(value = "AiChatWebsearchResult", description = "联网结果")
 // @Data
 // @TableName("ai_chat_websearch_result")

@@ -1,8 +1,5 @@
 package com.github.aiassistant.enums;
 
-// import lombok.AllArgsConstructor;
-// import lombok.Getter;
-
 import java.util.Arrays;
 
 public enum MessageTypeEnum {

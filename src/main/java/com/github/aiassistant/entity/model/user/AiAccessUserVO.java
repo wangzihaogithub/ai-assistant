@@ -1,7 +1,5 @@
 package com.github.aiassistant.entity.model.user;
 
-// import lombok.Data;
-
 import java.io.Serializable;
 
 // @Data

@@ -2,7 +2,6 @@ package com.github.aiassistant.entity.model.chat;
 
 import dev.langchain4j.model.chat.ChatLanguageModel;
 import dev.langchain4j.model.chat.StreamingChatLanguageModel;
-// import lombok.AllArgsConstructor;
 
 public class AiModel {
     public final String baseUrl;

@@ -14,7 +14,7 @@ public class AiChatUidTypeEnum {
 //    sys_user("sys_user", "员工");
     private final String code;
 
-    private AiChatUidTypeEnum(String code) {
+    protected AiChatUidTypeEnum(String code) {
         this.code = code;
     }
 
@@ -28,6 +28,12 @@ public class AiChatUidTypeEnum {
         AiChatUidTypeEnum value = new AiChatUidTypeEnum(code);
         CODE_VALUES.put(code, value);
         return value;
+    }
+
+    public static AiChatUidTypeEnum create(AiChatUidTypeEnum code) {
+        Objects.requireNonNull(code, "AiChatUidTypeEnum#valueOf code cannot be null");
+        CODE_VALUES.put(code.code, code);
+        return code;
     }
 
     public static AiChatUidTypeEnum[] values() {
