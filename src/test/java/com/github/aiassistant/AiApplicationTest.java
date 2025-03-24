@@ -16,6 +16,7 @@ import com.github.aiassistant.serviceintercept.ServiceIntercept;
 import com.mysql.cj.jdbc.MysqlDataSource;
 import org.apache.http.HttpHost;
 import org.elasticsearch.client.RestClient;
+import org.junit.jupiter.api.Test;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import javax.sql.DataSource;
@@ -78,12 +79,16 @@ public class AiApplicationTest {
     }
 
     public static void main(String[] args) throws Exception {
+        new AiApplicationTest().run();
+    }
+
+    @Test
+    public void run() throws Exception {
         AiChatUidTypeEnum uidTypeEnum = AiChatUidTypeEnum.create("student");
         AiApplication aiApplication = application();
 
         // 智能体
         Collection<AiAssistant> assistantList = aiApplication.getAiAssistantService().selectList(AiAssistantStatusEnum.enable);
-        Collection<AiAssistant> assistantLis1t = aiApplication.getAiAssistantService().selectList(AiAssistantStatusEnum.enable);
 
         AiAssistant assistant = assistantList.iterator().next();
 

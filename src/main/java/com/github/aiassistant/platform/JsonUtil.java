@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.type.CollectionType;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.List;
 
 public class JsonUtil {
@@ -23,6 +24,11 @@ public class JsonUtil {
 
     public static ObjectWriter objectWriter() {
         return new ObjectWriter() {
+            @Override
+            public void writeValue(OutputStream outputStream, Object value) throws IOException {
+                objectMapper.writeValue(outputStream, value);
+            }
+
             @Override
             public byte[] writeValueAsBytes(Object value) throws IOException {
                 return objectMapper.writeValueAsBytes(value);
@@ -56,6 +62,8 @@ public class JsonUtil {
     }
 
     public interface ObjectWriter {
+        void writeValue(OutputStream outputStream, Object value) throws IOException;
+
         byte[] writeValueAsBytes(Object value) throws IOException;
 
         String writeValueAsString(Object value) throws IOException;

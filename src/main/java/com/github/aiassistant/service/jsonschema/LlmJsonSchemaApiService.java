@@ -11,7 +11,6 @@ import com.github.aiassistant.service.text.tools.AiToolServiceImpl;
 import com.github.aiassistant.service.text.tools.Tools;
 import com.github.aiassistant.util.AiUtil;
 import dev.ai4j.openai4j.chat.ResponseFormatType;
-import dev.langchain4j.model.openai.OpenAiChatModel;
 import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
 import dev.langchain4j.model.openai.OpenAiTokenizer;
 import dev.langchain4j.service.AiServiceContext;
@@ -282,18 +281,20 @@ public class LlmJsonSchemaApiService {
             maxCompletionTokens = null;
         }
         // https://docs.langchain4j.dev/integrations/language-models/open-ai#structured-outputs-for-json-mode
-        OpenAiChatModel model = OpenAiChatModel.builder()
-                .topP(topP)
-                .temperature(temperature)
-                .maxCompletionTokens(maxCompletionTokens)
-                .apiKey(apiKey)
-                .baseUrl(baseUrl)
-                .modelName(modelName)
-                .responseFormat(responseFormatType.name())
-                .strictJsonSchema(true)
-                .timeout(ofSeconds(60))
-                .tokenizer(new OpenAiTokenizer())
-                .build();
+        // 大模型stream需要4.12.0, 大模型非stream需要okhttp3，这里舍弃非stream，保持整个项目全用stream
+//        OpenAiChatModel model = OpenAiChatModel.builder()
+//                .topP(topP)
+//                .temperature(temperature)
+//                .maxCompletionTokens(maxCompletionTokens)
+//                .apiKey(apiKey)
+//                .baseUrl(baseUrl)
+//                .modelName(modelName)
+//                .responseFormat(responseFormatType.name())
+//                .strictJsonSchema(true)
+//                .timeout(ofSeconds(60))
+//                .tokenizer(new OpenAiTokenizer())
+//                .build();
+        // 大模型stream需要4.12.0, 大模型非stream需要okhttp3，这里舍弃非stream，保持整个项目全用stream
         OpenAiStreamingChatModel streaming = OpenAiStreamingChatModel.builder()
                 .topP(topP)
                 .temperature(temperature)
@@ -305,7 +306,7 @@ public class LlmJsonSchemaApiService {
                 .timeout(ofSeconds(60))
                 .tokenizer(new OpenAiTokenizer())
                 .build();
-        return new AiModel(baseUrl, modelName, model, streaming);
+        return new AiModel(baseUrl, modelName, null, streaming);
     }
 
     public static class Session {
