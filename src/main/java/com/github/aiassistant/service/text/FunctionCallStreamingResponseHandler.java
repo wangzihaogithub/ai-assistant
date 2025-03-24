@@ -22,7 +22,6 @@ import dev.langchain4j.model.chat.StreamingChatLanguageModel;
 import dev.langchain4j.model.output.FinishReason;
 import dev.langchain4j.model.output.Response;
 import dev.langchain4j.model.output.TokenUsage;
-import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -42,7 +41,7 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
         private final AtomicInteger threadCount = new AtomicInteger(0);
 
         @Override
-        public Thread newThread(@NotNull Runnable r) {
+        public Thread newThread(Runnable r) {
             Thread thread = new Thread(r, "ai-readTimeout" + threadCount.getAndIncrement());
             thread.setDaemon(true);
             return thread;
