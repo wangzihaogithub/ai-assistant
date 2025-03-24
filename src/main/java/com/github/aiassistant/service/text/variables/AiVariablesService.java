@@ -1,23 +1,5 @@
 package com.github.aiassistant.service.text.variables;
 
-//import cn.hutool.core.bean.BeanUtil;
-//import com.github.aiassistant.entity.AiAssistant;
-//import com.github.aiassistant.entity.AiRivalCompany;
-//import com.github.aiassistant.entity.KnEmployees;
-//import com.cnwy.pc.mapper.ai.AiRivalCompanyMapper;
-//import com.cnwy.pc.mapper.ai.AiVariablesMapper;
-//import com.cnwy.pc.mapper.ai.KnEmployeesMapper;
-//import com.cnwy.pc.mapper.student.StudentJobDeliveryMapper;
-//import com.cnwy.pc.mapper.student.StudentWholeProcessMapper;
-//import com.cnwy.pc.model.ai.chat.AiVariables;
-//import com.cnwy.pc.model.ai.chat.MStateVO;
-//import com.cnwy.pc.model.ai.chat.MemoryIdVO;
-//import com.cnwy.pc.model.ai.chat.QaKnVO;
-//import com.cnwy.pc.model.ai.user.AiAccessUserVO;
-//import com.cnwy.pc.model.delivery.StudentJobDeliveryDescVO;
-//import com.cnwy.pc.service.ai.chat.acting.ActingService;
-//import com.cnwy.pc.service.ai.jsonschema.QuestionClassifySchema;
-
 import com.github.aiassistant.dao.AiVariablesMapper;
 import com.github.aiassistant.entity.AiAssistant;
 import com.github.aiassistant.entity.model.chat.AiVariables;
@@ -46,12 +28,6 @@ import java.util.function.Supplier;
  */
 // @Component
 public class AiVariablesService {
-    // @Resource
-//    private StudentWholeProcessMapper studentWholeProcessMapper;
-    // @Resource
-//    private StudentJobDeliveryMapper studentJobDeliveryMapper;
-    // @Resource
-//    private AiRivalCompanyMapper aiRivalCompanyMapper;
     // @Autowired
     private final AiMemoryMstateServiceImpl aiMemoryMstateService;
     // @Resource

@@ -1,6 +1,5 @@
 package com.github.aiassistant.service.jsonschema;
 
-//import com.cnwy.pc.service.ai.chat.AiUtil;
 import com.github.aiassistant.util.AiUtil;
 import dev.langchain4j.model.chat.request.json.JsonObjectSchema;
 import dev.langchain4j.model.chat.request.json.JsonSchema;
