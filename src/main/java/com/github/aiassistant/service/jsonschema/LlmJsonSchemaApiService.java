@@ -10,6 +10,8 @@ import com.github.aiassistant.service.text.repository.JsonSchemaTokenWindowChatM
 import com.github.aiassistant.service.text.tools.AiToolServiceImpl;
 import com.github.aiassistant.service.text.tools.Tools;
 import com.github.aiassistant.util.AiUtil;
+import com.github.aiassistant.util.BeanUtil;
+import com.github.aiassistant.util.StringUtils;
 import dev.ai4j.openai4j.chat.ResponseFormatType;
 import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
 import dev.langchain4j.model.openai.OpenAiTokenizer;
@@ -179,7 +181,7 @@ public class LlmJsonSchemaApiService {
             user = session.user;
             variables = session.variables;
             responseHandler = session.responseHandler;
-            variablesMap = AiUtil.toMap(variables);
+            variablesMap = BeanUtil.toMap(variables);
         }
 
         List<Tools.ToolMethod> toolMethodList = new ArrayList<>();
@@ -190,7 +192,7 @@ public class LlmJsonSchemaApiService {
             systemPromptText = jsonschema.getSystemPromptText();
             userPromptText = jsonschema.getUserPromptText();
             knPromptText = jsonschema.getKnPromptText();
-            toolMethodList = AiUtil.initTool(aiToolService.selectToolMethodList(AiUtil.splitString(jsonschema.getAiToolIds())), variables, user);
+            toolMethodList = AiUtil.initTool(aiToolService.selectToolMethodList(StringUtils.splitString(jsonschema.getAiToolIds(), ",")), variables, user);
         }
         AiServices<T> aiServices = new FunctionalInterfaceAiServices<>(new AiServiceContext(type), systemPromptText, userPromptText,
                 knPromptText, variablesMap, responseHandler, toolMethodList, aiModel.isSupportChineseToolName(), aiModel.modelName, memoryIdVO);

@@ -3,12 +3,12 @@ package com.github.aiassistant.service.text.tools.functioncall;
 import com.github.aiassistant.entity.model.chat.MemoryIdVO;
 import com.github.aiassistant.entity.model.chat.WebSearchResultVO;
 import com.github.aiassistant.entity.model.chat.WebSearchToolExecutionResultMessage;
+import com.github.aiassistant.enums.AiWebSearchSourceEnum;
+import com.github.aiassistant.platform.HtmlQuery;
+import com.github.aiassistant.service.text.ChatStreamingResponseHandler;
 import com.github.aiassistant.service.text.tools.Tools;
 import com.github.aiassistant.service.text.tools.WebSearch;
-import com.github.aiassistant.util.AiUtil;
-import com.github.aiassistant.service.text.ChatStreamingResponseHandler;
 import com.github.aiassistant.util.FutureUtil;
-import com.github.aiassistant.platform.HtmlQuery;
 import com.github.aiassistant.util.StringUtils;
 import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
@@ -87,7 +87,7 @@ public class SogouWebSearchTools extends Tools implements WebSearch {
             return CompletableFuture.completedFuture(WebSearchResultVO.empty());
         }
         String domain = "https://weixin.sogou.com";
-        String qLimit = AiUtil.limit(q, 20, true);
+        String qLimit = StringUtils.substring(q, 20, true);
         String urlString = domain + "/weixin?oq=&query={q}&_sug_type_=1&sut=0&s_from=input&ri=4&_sug_=n&type=2&page={pn}&ie=utf8";
         int pageSize = 10;
 
@@ -156,6 +156,12 @@ public class SogouWebSearchTools extends Tools implements WebSearch {
         return "搜狗";
     }
 
+    @Override
+    public void setBeanName(String beanName) {
+        super.setBeanName(beanName);
+        AiWebSearchSourceEnum.create(beanName);
+    }
+
     @Tool(name = "菜鸟无忧搜狗搜索", value = {"# 插件功能\n" +
             "此工具可用于使用谷歌等搜索引擎进行全网搜索。特别是新闻相关\n" +
             "# 返回字段名单\n" +
@@ -171,11 +177,12 @@ public class SogouWebSearchTools extends Tools implements WebSearch {
         ChatStreamingResponseHandler handler = getStreamingResponseHandler();
         String beanName = getBeanName();
         String providerName = getProviderName();
+        AiWebSearchSourceEnum sourceEnum = AiWebSearchSourceEnum.valueOf(beanName);
         for (String s : q) {
-            handler.beforeWebSearch(beanName, providerName, s);
+            handler.beforeWebSearch(sourceEnum, providerName, s);
             long start = System.currentTimeMillis();
             CompletableFuture<WebSearchResultVO> vo = webSearch(s, 10);
-            vo.thenAccept(resultVO -> handler.afterWebSearch(beanName, providerName, s, resultVO, System.currentTimeMillis() - start));
+            vo.thenAccept(resultVO -> handler.afterWebSearch(sourceEnum, providerName, s, resultVO, System.currentTimeMillis() - start));
             voList.add(vo);
         }
         return FutureUtil.allOf(voList).thenApply(list -> {

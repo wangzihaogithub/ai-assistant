@@ -23,9 +23,9 @@ public interface AiMemoryMessageServiceIntercept extends ServiceIntercept {
 //                    jobVO.setJobId(Integer.valueOf(knJobVO.getId()));
 //                    jobVO.setJobScore(knJobVO.scoreLong());
 //                    jobVO.setJobIndexUpdatedTime(knJobVO.getIndexUpdatedTime());
-//                    jobVO.setJobName(AiUtil.limit(knJobVO.getName(), 512, true));
+//                    jobVO.setJobName(StringUtils.limit(knJobVO.getName(), 512, true));
 //                    jobVO.setAiMemoryId(memoryId);
-//                    jobVO.setJobIndexName(AiUtil.limit(knJobVO.getIndexName(), 128, true));
+//                    jobVO.setJobIndexName(StringUtils.limit(knJobVO.getIndexName(), 128, true));
 //                    vo.getJobList().add(jobVO);
 //                }
 //            }

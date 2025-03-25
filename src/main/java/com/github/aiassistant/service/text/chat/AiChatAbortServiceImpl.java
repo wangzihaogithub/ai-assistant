@@ -2,7 +2,6 @@ package com.github.aiassistant.service.text.chat;
 
 import com.github.aiassistant.dao.AiChatAbortMapper;
 import com.github.aiassistant.entity.AiChatAbort;
-import com.github.aiassistant.util.AiUtil;
 import com.github.aiassistant.util.StringUtils;
 
 import java.util.Collections;
@@ -36,10 +35,10 @@ public class AiChatAbortServiceImpl {
     public boolean insert(String beforeText, Integer memoryId, Integer chatId, String userQueryTraceNumber, Integer messageIndex) {
         AiChatAbort abort = new AiChatAbort();
         abort.setCreateTime(new Date());
-        abort.setBeforeText(AiUtil.limit(beforeText, 65000, true));
+        abort.setBeforeText(StringUtils.substring(beforeText, 65000, true));
         abort.setAiMemoryId(memoryId);
         abort.setAiChatId(chatId);
-        abort.setUserQueryTraceNumber(AiUtil.limit(userQueryTraceNumber, 32, true));
+        abort.setUserQueryTraceNumber(StringUtils.substring(userQueryTraceNumber, 32, true));
         abort.setMessageIndex(messageIndex);
         if (StringUtils.hasText(userQueryTraceNumber)) {
             String rootAgainUserQueryTraceNumber = aiChatHistoryService.selectRootAgainUserQueryTraceNumberMap(Collections.singletonList(userQueryTraceNumber)).get(userQueryTraceNumber);

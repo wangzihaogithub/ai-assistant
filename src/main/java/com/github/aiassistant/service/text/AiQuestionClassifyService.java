@@ -10,6 +10,7 @@ import com.github.aiassistant.enums.AiQuestionClassifyActionEnum;
 import com.github.aiassistant.service.jsonschema.LlmJsonSchemaApiService;
 import com.github.aiassistant.service.jsonschema.QuestionClassifySchema;
 import com.github.aiassistant.util.AiUtil;
+import com.github.aiassistant.util.BeanUtil;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -56,7 +57,7 @@ public class AiQuestionClassifyService {
     private static String toXml(List<AiQuestionClassify> classifyList) {
         StringJoiner joiner = new StringJoiner("\n\n");
         for (AiQuestionClassify classify : classifyList) {
-            Map<String, Object> map = new LinkedHashMap<>(AiUtil.toMap(classify));
+            Map<String, Object> map = new LinkedHashMap<>(BeanUtil.toMap(classify));
             map.remove("id");
             map.remove("readTimeoutSecond");
             map.remove("groupCode");

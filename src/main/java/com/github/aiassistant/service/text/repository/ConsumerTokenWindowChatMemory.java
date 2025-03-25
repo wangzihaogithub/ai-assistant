@@ -65,10 +65,10 @@ public class ConsumerTokenWindowChatMemory implements ChatMemory {
         LinkedList<ChatMessage> roundList = new LinkedList<>();
         while (iterator.hasNext()) {
             ChatMessage next = iterator.next();
-            if (AiUtil.isFewshot(next)) {
+            if (AiUtil.isTypeFewshot(next)) {
                 continue;
             }
-            if (AiUtil.isUser(next)) {
+            if (AiUtil.isTypeUser(next)) {
                 rounds++;
                 if (rounds > maxMemoryRounds) {
                     removeMap.put(next, new ArrayList<>(roundList));

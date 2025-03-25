@@ -31,54 +31,61 @@ public class QuestionClassifyListVO {
 
     /**
      * 是否需要问答库
+     *
      * @return 是否需要问答库
      */
     public boolean isQa() {
-        return isEnable(AiQuestionClassifyActionEnum.qa, true);
+        return isEnable(AiQuestionClassifyActionEnum.qa);
     }
 
     /**
      * 是否需要简单联网
+     *
      * @return 是否需要简单联网
      */
     public boolean isJdlw() {
-        return isEnable(AiQuestionClassifyActionEnum.jdlw, true);
+        return isEnable(AiQuestionClassifyActionEnum.jdlw);
     }
 
     /**
      * 是否需要问题拆解
+     *
      * @return 是否需要问题拆解
      */
     public boolean isWtcj() {
-        return isEnable(AiQuestionClassifyActionEnum.wtcj, true);
+        return isEnable(AiQuestionClassifyActionEnum.wtcj);
     }
 
     /**
      * 是否需要多层联网
+     *
      * @return 是否需要多层联网
      */
     public boolean isDclw() {
-        return isEnable(AiQuestionClassifyActionEnum.dclw, true);
+        return isEnable(AiQuestionClassifyActionEnum.dclw);
     }
 
     /**
      * 是否需要联网兜底
+     *
      * @return 是否需要联网兜底
      */
     public boolean isLwdd() {
-        return isEnable(AiQuestionClassifyActionEnum.lwdd, true);
+        return isEnable(AiQuestionClassifyActionEnum.lwdd);
     }
 
     /**
      * 是否无法回答
+     *
      * @return 是否无法回答
      */
     public boolean isWfhd() {
-        return isEnable(AiQuestionClassifyActionEnum.wfhd, false);
+        return isEnable(AiQuestionClassifyActionEnum.wfhd);
     }
 
     /**
      * 请求超时毫秒数
+     *
      * @return 请求超时毫秒数
      */
     public Long getReadTimeoutMs() {
@@ -138,10 +145,10 @@ public class QuestionClassifyListVO {
         return list;
     }
 
-    private boolean isEnable(AiQuestionClassifyActionEnum actionEnum, boolean defaultValue) {
+    public boolean isEnable(AiQuestionClassifyActionEnum actionEnum) {
         Collection<ClassifyVO> classifyResultList = getClassifyResultList();
         if (classifyResultList.isEmpty()) {
-            return defaultValue;
+            return actionEnum.isDefaultEnable();
         }
         for (ClassifyVO classifyVO : classifyResultList) {
             if (classifyVO.actionEnums != null

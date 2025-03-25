@@ -2,11 +2,12 @@ package com.github.aiassistant.service.text.repository;
 
 import com.github.aiassistant.entity.model.chat.*;
 import com.github.aiassistant.entity.model.user.AiAccessUserVO;
-import com.github.aiassistant.service.text.acting.ActingService;
+import com.github.aiassistant.enums.AiWebSearchSourceEnum;
 import com.github.aiassistant.service.jsonschema.LlmJsonSchemaApiService;
 import com.github.aiassistant.service.jsonschema.MStateKnownJsonSchema;
 import com.github.aiassistant.service.jsonschema.MStateUnknownJsonSchema;
 import com.github.aiassistant.service.jsonschema.ReasoningJsonSchema;
+import com.github.aiassistant.service.text.acting.ActingService;
 import com.github.aiassistant.service.text.chat.AiChatClassifyServiceImpl;
 import com.github.aiassistant.service.text.chat.AiChatHistoryServiceImpl;
 import com.github.aiassistant.service.text.chat.AiChatReasoningServiceImpl;
@@ -168,10 +169,10 @@ public class JdbcSessionMessageRepository extends AbstractSessionMessageReposito
      * 插入联网搜索
      */
     @Override
-    public void addWebSearchRead(String sourceEnum, String providerName, String question, WebSearchResultVO resultVO, long cost) {
+    public void addWebSearchRead(AiWebSearchSourceEnum sourceEnum, String providerName, String question, WebSearchResultVO resultVO, long cost) {
         if (!mock) {
             String userQueryTraceNumber = getUserQueryTraceNumber();
-            aiChatWebsearchService.insert(sourceEnum, providerName, question, resultVO, cost, userQueryTraceNumber, userChat)
+            aiChatWebsearchService.insert(sourceEnum == null ? null : sourceEnum.getCode(), providerName, question, resultVO, cost, userQueryTraceNumber, userChat)
                     .exceptionally(throwable -> {
                         log.error("addWebSearchRead error {}, question = {}", throwable.toString(), question, throwable);
                         return null;

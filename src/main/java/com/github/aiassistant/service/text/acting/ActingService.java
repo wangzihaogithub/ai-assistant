@@ -2,14 +2,15 @@ package com.github.aiassistant.service.text.acting;
 
 import com.github.aiassistant.entity.model.chat.MemoryIdVO;
 import com.github.aiassistant.entity.model.chat.WebSearchResultVO;
-import com.github.aiassistant.util.AiUtil;
-import com.github.aiassistant.service.text.ChatStreamingResponseHandler;
-import com.github.aiassistant.util.FutureUtil;
-import com.github.aiassistant.service.text.tools.functioncall.UrlReadTools;
-import com.github.aiassistant.service.text.tools.WebSearchService;
+import com.github.aiassistant.enums.AiWebSearchSourceEnum;
 import com.github.aiassistant.service.jsonschema.ActingJsonSchema;
 import com.github.aiassistant.service.jsonschema.LlmJsonSchemaApiService;
 import com.github.aiassistant.service.jsonschema.ReasoningJsonSchema;
+import com.github.aiassistant.service.text.ChatStreamingResponseHandler;
+import com.github.aiassistant.service.text.tools.WebSearchService;
+import com.github.aiassistant.service.text.tools.functioncall.UrlReadTools;
+import com.github.aiassistant.util.AiUtil;
+import com.github.aiassistant.util.FutureUtil;
 import com.github.aiassistant.util.StringUtils;
 
 import java.util.*;
@@ -18,8 +19,6 @@ import java.util.function.Consumer;
 
 //// @Component
 public class ActingService {
-
-    public static final String WEB_SOURCE_ENUM = "ActingJsonSchema";
     private final WebSearchService webSearchService = new WebSearchService(Arrays.asList(UrlReadTools.PROXY1, UrlReadTools.PROXY2));
     //    // @Autowired
     private final LlmJsonSchemaApiService llmJsonSchemaApiService;
@@ -44,7 +43,7 @@ public class ActingService {
                 if (websearchKeyword == null || result.websearchKeyword.isEmpty()) {
                     websearchKeyword = Collections.singletonList(curr.task);
                 }
-                webSearchFuture = webSearchService.webSearchRead(websearchKeyword, 1, 10000, false, responseHandler.adapterWebSearch(WEB_SOURCE_ENUM));
+                webSearchFuture = webSearchService.webSearchRead(websearchKeyword, 1, 10000, false, responseHandler.adapterWebSearch(AiWebSearchSourceEnum.ActingJsonSchema));
             } else {
                 webSearchFuture = CompletableFuture.completedFuture(null);
             }

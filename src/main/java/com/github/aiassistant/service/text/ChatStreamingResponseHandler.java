@@ -4,9 +4,11 @@ import com.github.aiassistant.entity.model.chat.AiVariables;
 import com.github.aiassistant.entity.model.chat.QaKnVO;
 import com.github.aiassistant.entity.model.chat.QuestionClassifyListVO;
 import com.github.aiassistant.entity.model.chat.WebSearchResultVO;
+import com.github.aiassistant.enums.AiWebSearchSourceEnum;
 import com.github.aiassistant.enums.UserTriggerEventEnum;
 import com.github.aiassistant.service.jsonschema.ReasoningJsonSchema;
 import com.github.aiassistant.service.text.acting.ActingService;
+import com.github.aiassistant.service.text.sseemitter.SseHttpResponse;
 import com.github.aiassistant.service.text.tools.WebSearchService;
 import com.github.aiassistant.service.text.tools.functioncall.UrlReadTools;
 import dev.langchain4j.agent.tool.ToolExecutionRequest;
@@ -38,6 +40,13 @@ public interface ChatStreamingResponseHandler {
             public void onTokenBegin(int baseMessageIndex, int addMessageCount, int generateCount) {
                 for (ChatStreamingResponseHandler h : list) {
                     h.onTokenBegin(baseMessageIndex, addMessageCount, generateCount);
+                }
+            }
+
+            @Override
+            public void onBlacklistQuestion(SseHttpResponse response, String question, QuestionClassifyListVO classifyListVO) {
+                for (ChatStreamingResponseHandler h : list) {
+                    h.onBlacklistQuestion(response, question, classifyListVO);
                 }
             }
 
@@ -84,9 +93,9 @@ public interface ChatStreamingResponseHandler {
             }
 
             @Override
-            public void onQuestionClassify(QuestionClassifyListVO questionClassify, String question) {
+            public void onQuestionClassify(QuestionClassifyListVO questionClassify, String question, AiVariables variables) {
                 for (ChatStreamingResponseHandler h : list) {
-                    h.onQuestionClassify(questionClassify, question);
+                    h.onQuestionClassify(questionClassify, question, variables);
                 }
             }
 
@@ -112,13 +121,6 @@ public interface ChatStreamingResponseHandler {
             }
 
             @Override
-            public void onResumeCard(String url, String html) {
-                for (ChatStreamingResponseHandler h : list) {
-                    h.onResumeCard(url, html);
-                }
-            }
-
-            @Override
             public void onVariables(AiVariables variables) {
                 for (ChatStreamingResponseHandler h : list) {
                     h.onVariables(variables);
@@ -140,28 +142,28 @@ public interface ChatStreamingResponseHandler {
             }
 
             @Override
-            public void afterUrlRead(String sourceEnum, String providerName, String question, UrlReadTools urlReadTools, WebSearchResultVO.Row row, String content, String merge, long cost) {
+            public void afterUrlRead(AiWebSearchSourceEnum sourceEnum, String providerName, String question, UrlReadTools urlReadTools, WebSearchResultVO.Row row, String content, String merge, long cost) {
                 for (ChatStreamingResponseHandler h : list) {
                     h.afterUrlRead(sourceEnum, providerName, question, urlReadTools, row, content, merge, cost);
                 }
             }
 
             @Override
-            public void afterWebSearch(String sourceEnum, String providerName, String question, WebSearchResultVO resultVO, long cost) {
+            public void afterWebSearch(AiWebSearchSourceEnum sourceEnum, String providerName, String question, WebSearchResultVO resultVO, long cost) {
                 for (ChatStreamingResponseHandler h : list) {
                     h.afterWebSearch(sourceEnum, providerName, question, resultVO, cost);
                 }
             }
 
             @Override
-            public void beforeUrlRead(String sourceEnum, String providerName, String question, UrlReadTools urlReadTools, WebSearchResultVO.Row row) {
+            public void beforeUrlRead(AiWebSearchSourceEnum sourceEnum, String providerName, String question, UrlReadTools urlReadTools, WebSearchResultVO.Row row) {
                 for (ChatStreamingResponseHandler h : list) {
                     h.beforeUrlRead(sourceEnum, providerName, question, urlReadTools, row);
                 }
             }
 
             @Override
-            public void beforeWebSearch(String sourceEnum, String providerName, String question) {
+            public void beforeWebSearch(AiWebSearchSourceEnum sourceEnum, String providerName, String question) {
                 for (ChatStreamingResponseHandler h : list) {
                     h.beforeWebSearch(sourceEnum, providerName, question);
                 }
@@ -229,7 +231,7 @@ public interface ChatStreamingResponseHandler {
         return this;
     }
 
-    public default WebSearchService.EventListener adapterWebSearch(String sourceEnum) {
+    public default WebSearchService.EventListener adapterWebSearch(AiWebSearchSourceEnum sourceEnum) {
         ChatStreamingResponseHandler h = this;
         return new WebSearchService.EventListener() {
             @Override
@@ -272,6 +274,9 @@ public interface ChatStreamingResponseHandler {
     default void onToolCalls(Response<AiMessage> response) {
     }
 
+    default void onBlacklistQuestion(SseHttpResponse response, String question, QuestionClassifyListVO classifyListVO) {
+    }
+
     default <T> void onUserTrigger(UserTriggerEventEnum<T> eventName, T payload, long timestamp) {
 //            @Override
 //            public void onFindJob(KnJobResp knJobResp, AiJobQuery query) {
@@ -287,7 +292,7 @@ public interface ChatStreamingResponseHandler {
     default void onKnowledge(List<List<QaKnVO>> knLibList, String question) {
     }
 
-    default void onQuestionClassify(QuestionClassifyListVO questionClassify, String question) {
+    default void onQuestionClassify(QuestionClassifyListVO questionClassify, String question, AiVariables variables) {
     }
 
     default void onSystemMessage(String message, AiVariables variables, String promptText) {
@@ -297,10 +302,6 @@ public interface ChatStreamingResponseHandler {
 //    default void onFindJob(KnJobResp knJobResp, AiJobQuery query) {
 //
 //    }
-
-    default void onResumeCard(String url, String html) {
-
-    }
 
     default void onVariables(AiVariables variables) {
 
@@ -344,19 +345,19 @@ public interface ChatStreamingResponseHandler {
 
     }
 
-    default void beforeWebSearch(String sourceEnum, String providerName, String question) {
+    default void beforeWebSearch(AiWebSearchSourceEnum sourceEnum, String providerName, String question) {
 
     }
 
-    default void afterWebSearch(String sourceEnum, String providerName, String question, WebSearchResultVO resultVO, long cost) {
+    default void afterWebSearch(AiWebSearchSourceEnum sourceEnum, String providerName, String question, WebSearchResultVO resultVO, long cost) {
 
     }
 
-    default void beforeUrlRead(String sourceEnum, String providerName, String question, UrlReadTools urlReadTools, WebSearchResultVO.Row row) {
+    default void beforeUrlRead(AiWebSearchSourceEnum sourceEnum, String providerName, String question, UrlReadTools urlReadTools, WebSearchResultVO.Row row) {
 
     }
 
-    default void afterUrlRead(String sourceEnum, String providerName, String question, UrlReadTools urlReadTools, WebSearchResultVO.Row row, String content, String merge, long cost) {
+    default void afterUrlRead(AiWebSearchSourceEnum sourceEnum, String providerName, String question, UrlReadTools urlReadTools, WebSearchResultVO.Row row, String content, String merge, long cost) {
 
     }
 }

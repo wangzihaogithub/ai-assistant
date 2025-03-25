@@ -4,6 +4,7 @@ import com.github.aiassistant.entity.model.chat.MemoryIdVO;
 import com.github.aiassistant.entity.model.chat.WebSearchResultVO;
 import com.github.aiassistant.entity.model.chat.WebSearchToolExecutionResultMessage;
 import com.github.aiassistant.enums.AiAssistantKnTypeEnum;
+import com.github.aiassistant.enums.AiWebSearchSourceEnum;
 import com.github.aiassistant.service.text.ChatStreamingResponseHandler;
 import com.github.aiassistant.service.text.embedding.KnnApiService;
 import com.github.aiassistant.service.text.embedding.ReRankModelClient;
@@ -49,6 +50,12 @@ public class WebSearchTools extends Tools {
         this.reRankModelGetter = reRankModelGetter;
     }
 
+    @Override
+    public void setBeanName(String beanName) {
+        super.setBeanName(beanName);
+        AiWebSearchSourceEnum.create(beanName);
+    }
+
     @Tool(name = "联网搜索", value = {"# 插件功能\n" +
             "此工具可用于使用谷歌等搜索引擎进行全网搜索。特别是新闻相关\n" +
             "# 返回字段名单\n" +
@@ -60,8 +67,10 @@ public class WebSearchTools extends Tools {
             @P(value = "搜索内容", required = true) List<String> q,
             @ToolMemoryId ToolExecutionRequest request,
             @ToolMemoryId MemoryIdVO memoryIdVO) {
+        AiWebSearchSourceEnum sourceEnum = AiWebSearchSourceEnum.valueOf(getBeanName());
+
         ChatStreamingResponseHandler handler = getStreamingResponseHandler();
-        CompletableFuture<WebSearchResultVO> read = webSearchService.webSearchRead(q, 1, 10000, false, handler.adapterWebSearch(getBeanName()));
+        CompletableFuture<WebSearchResultVO> read = webSearchService.webSearchRead(q, 1, 10000, false, handler.adapterWebSearch(sourceEnum));
         CompletableFuture<CompletableFuture<WebSearchToolExecutionResultMessage>> f = read.thenApply(ws -> {
             ReRankModelClient reRankModelClient = newReRankModel(memoryIdVO);
             CompletableFuture<WebSearchResultVO> wsf;

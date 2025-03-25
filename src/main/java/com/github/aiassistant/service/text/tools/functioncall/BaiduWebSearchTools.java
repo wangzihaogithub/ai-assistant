@@ -3,12 +3,12 @@ package com.github.aiassistant.service.text.tools.functioncall;
 import com.github.aiassistant.entity.model.chat.MemoryIdVO;
 import com.github.aiassistant.entity.model.chat.WebSearchResultVO;
 import com.github.aiassistant.entity.model.chat.WebSearchToolExecutionResultMessage;
+import com.github.aiassistant.enums.AiWebSearchSourceEnum;
+import com.github.aiassistant.platform.HtmlQuery;
+import com.github.aiassistant.service.text.ChatStreamingResponseHandler;
 import com.github.aiassistant.service.text.tools.Tools;
 import com.github.aiassistant.service.text.tools.WebSearch;
-import com.github.aiassistant.util.AiUtil;
-import com.github.aiassistant.service.text.ChatStreamingResponseHandler;
 import com.github.aiassistant.util.FutureUtil;
-import com.github.aiassistant.platform.HtmlQuery;
 import com.github.aiassistant.util.StringUtils;
 import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
@@ -51,7 +51,7 @@ public class BaiduWebSearchTools extends Tools implements WebSearch {
         if (!StringUtils.hasText(q)) {
             return CompletableFuture.completedFuture(WebSearchResultVO.empty());
         }
-        String qLimit = AiUtil.limit(q, 20, true);
+        String qLimit = StringUtils.substring(q, 20, true);
         int pageSize = 10;
 
         int count = (int) Math.ceil((double) limit / (double) pageSize);
@@ -116,6 +116,12 @@ public class BaiduWebSearchTools extends Tools implements WebSearch {
         return "百度";
     }
 
+    @Override
+    public void setBeanName(String beanName) {
+        super.setBeanName(beanName);
+        AiWebSearchSourceEnum.create(beanName);
+    }
+
     @Tool(name = "菜鸟无忧百度搜索", value = {"# 插件功能\n" +
             "此工具可用于使用谷歌等搜索引擎进行全网搜索。特别是新闻相关\n" +
             "# 返回字段名单\n" +
@@ -131,11 +137,12 @@ public class BaiduWebSearchTools extends Tools implements WebSearch {
         ChatStreamingResponseHandler handler = getStreamingResponseHandler();
         String beanName = getBeanName();
         String providerName = getProviderName();
+        AiWebSearchSourceEnum sourceEnum = AiWebSearchSourceEnum.valueOf(beanName);
         for (String s : q) {
-            handler.beforeWebSearch(beanName, providerName, s);
+            handler.beforeWebSearch(sourceEnum, providerName, s);
             long start = System.currentTimeMillis();
             CompletableFuture<WebSearchResultVO> vo = webSearch(s, 10);
-            vo.thenAccept(resultVO -> handler.afterWebSearch(beanName, providerName, s, resultVO, System.currentTimeMillis() - start));
+            vo.thenAccept(resultVO -> handler.afterWebSearch(sourceEnum, providerName, s, resultVO, System.currentTimeMillis() - start));
             voList.add(vo);
         }
         return FutureUtil.allOf(voList).thenApply(list -> {

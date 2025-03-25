@@ -66,6 +66,7 @@ public class AiToolServiceImpl {
             if (tool == null) {
                 continue;
             }
+            tool.setBeanName(toolEnum);
             String toolFunctionName = aiTool.getToolFunctionName();
             String toolFunctionEnum = aiTool.getToolFunctionEnum();
             String englishName = toolEnum + "-" + toolFunctionEnum + "_" + aiTool.getId();

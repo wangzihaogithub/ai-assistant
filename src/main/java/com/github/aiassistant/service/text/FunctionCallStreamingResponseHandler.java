@@ -3,6 +3,7 @@ package com.github.aiassistant.service.text;
 import com.github.aiassistant.entity.model.chat.IDAiMessage;
 import com.github.aiassistant.entity.model.chat.LangChainUserMessage;
 import com.github.aiassistant.entity.model.chat.MemoryIdVO;
+import com.github.aiassistant.enums.AiErrorTypeEnum;
 import com.github.aiassistant.service.jsonschema.LlmJsonSchemaApiService;
 import com.github.aiassistant.service.jsonschema.WhetherWaitingForAiJsonSchema;
 import com.github.aiassistant.service.text.sseemitter.SseHttpResponse;
@@ -23,8 +24,7 @@ import dev.langchain4j.model.output.FinishReason;
 import dev.langchain4j.model.output.Response;
 import dev.langchain4j.model.output.TokenUsage;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -201,7 +201,7 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
                         addMessage(tm);
                     }
                     for (SseHttpResponseImpl emitter : aiEmitterList) {
-                        emitter.toolMessageReady();
+                        emitter.ready();
                     }
                     if (!isEmitter || aiEmitterList.stream().allMatch(SseHttpResponseImpl::isEmpty)) {
                         generate();
@@ -296,9 +296,9 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
         if (!StringUtils.hasText(aiText)) {
             return CompletableFuture.completedFuture(false);
         }
-        if (AiUtil.isNeedConfirmToolCall(response, toolMethodList)) {
-            return CompletableFuture.completedFuture(true);
-        }
+//        if (AiUtil.isNeedConfirmToolCall(response, toolMethodList)) {
+//            return CompletableFuture.completedFuture(true);
+//        }
         if (memoryId instanceof MemoryIdVO && llmJsonSchemaApiService != null) {
             WhetherWaitingForAiJsonSchema schema = llmJsonSchemaApiService.getWhetherWaitingForAiJsonSchema((MemoryIdVO) memoryId);
             if (schema == null) {
@@ -362,13 +362,13 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
     }
 
     public SseHttpResponse toResponse() {
-        return new SseHttpResponseImpl(this);
+        return SseHttpResponseImpl.newReady(this);
     }
 
     protected SseHttpResponse newEmitter(List<ToolExecutionRequest> toolExecutionRequests, Tools.ToolMethod method, Response<AiMessage> response) {
         SseHttpResponseImpl emitter = null;
         if (toolExecutionRequests.size() == 1 && ResultToolExecutor.isEmitterMethod(method.method())) {
-            emitter = new SseHttpResponseImpl(this, response);
+            emitter = SseHttpResponseImpl.newUnReady(this, response);
             aiEmitterList.add(emitter);
         }
         return emitter;
@@ -394,7 +394,7 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
     }
 
     private void onTokenReadTimeout(long timeout, long readTimeoutMs) {
-        TimeoutException exception = new TimeoutException(String.format("llm error! onTokenReadTimeout modelName '%s' readTimeout %s/ms, config '%sms'", modelName, timeout, readTimeoutMs));
+        TimeoutException exception = new TimeoutException(String.format("llm error! %s modelName '%s' readTimeout %s/ms, config '%sms'", AiErrorTypeEnum.onTokenReadTimeout, modelName, timeout, readTimeoutMs));
         exceptionally(exception);
     }
 
@@ -413,6 +413,7 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
 
     @Override
     public void onError(Throwable throwable) {
+        Objects.requireNonNull(throwable, "throwable cannot be null");
         Throwable rootError = throwable instanceof CompletionException ? throwable.getCause() : throwable;
         ExecutionException exception = new ExecutionException(
                 "llm error! modelName=" + modelName + " " + rootError.getMessage(),
@@ -428,23 +429,29 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
         private final FunctionCallStreamingResponseHandler handler;
         private final Response<AiMessage> lastResponse;
         private final StringBuilder builder = new StringBuilder();
-        private final AtomicBoolean toolMessageReady = new AtomicBoolean();
+        private final AtomicBoolean toolMessageReady;
         private final LinkedBlockingQueue<Runnable> pendingEventList = new LinkedBlockingQueue<>();
+        private final AtomicBoolean closeFlag = new AtomicBoolean(false);
         private volatile Response<AiMessage> tokenEnd;
         private volatile boolean empty = true;
 
-        public SseHttpResponseImpl(FunctionCallStreamingResponseHandler handler, Response<AiMessage> lastResponse) {
+        private SseHttpResponseImpl(FunctionCallStreamingResponseHandler handler,
+                                    Response<AiMessage> lastResponse,
+                                    boolean toolMessageReady) {
             this.handler = handler;
             this.lastResponse = lastResponse;
+            this.toolMessageReady = new AtomicBoolean(toolMessageReady);
         }
 
-        public SseHttpResponseImpl(FunctionCallStreamingResponseHandler handler) {
-            this.handler = handler;
-            this.lastResponse = new Response<>(AiUtil.NULL, new TokenUsage(0, 0, 0), FinishReason.STOP);
-            toolMessageReady.set(true);
+        public static SseHttpResponseImpl newUnReady(FunctionCallStreamingResponseHandler handler, Response<AiMessage> lastResponse) {
+            return new SseHttpResponseImpl(handler, lastResponse, false);
         }
 
-        void toolMessageReady() {
+        public static SseHttpResponseImpl newReady(FunctionCallStreamingResponseHandler handler) {
+            return new SseHttpResponseImpl(handler, null, true);
+        }
+
+        public void ready() {
             if (toolMessageReady.compareAndSet(false, true)) {
                 while (!pendingEventList.isEmpty()) {
                     ArrayList<Runnable> events = new ArrayList<>(pendingEventList.size());
@@ -477,6 +484,9 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
 
         @Override
         public void close() {
+            if (!closeFlag.compareAndSet(false, true)) {
+                throw new IllegalStateException("close() has already been called");
+            }
             empty = false;
             if (!toolMessageReady.get()) {
                 pendingEventList.add(this::close);
@@ -484,10 +494,19 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
             }
             if (tokenEnd == null) {
                 AiMessage aiMessage = new AiMessage(builder.toString());
-                tokenEnd = lastResponse != null ? new Response<>(aiMessage,
-                        lastResponse.tokenUsage(),
-                        lastResponse.finishReason(),
-                        lastResponse.metadata()) : new Response<>(aiMessage);
+                TokenUsage tokenUsage;
+                FinishReason finishReason;
+                Map<String, Object> metadata;
+                if (lastResponse != null) {
+                    tokenUsage = lastResponse.tokenUsage();
+                    finishReason = lastResponse.finishReason();
+                    metadata = lastResponse.metadata();
+                } else {
+                    tokenUsage = new TokenUsage(0, 0, 0);
+                    finishReason = FinishReason.STOP;
+                    metadata = new HashMap<>();
+                }
+                tokenEnd = new Response<>(aiMessage, tokenUsage, finishReason, metadata);
                 handler.onTokenEnd(tokenEnd);
             }
             handler.done(tokenEnd);
@@ -495,6 +514,10 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
 
         @Override
         public void close(Throwable error) {
+            if (!closeFlag.compareAndSet(false, true)) {
+                throw new IllegalStateException("close() has already been called");
+            }
+            Objects.requireNonNull(error, "error cannot be null");
             empty = false;
             if (!toolMessageReady.get()) {
                 pendingEventList.add(() -> close(error));

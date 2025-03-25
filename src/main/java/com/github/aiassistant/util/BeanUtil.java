@@ -5,6 +5,7 @@ import java.beans.Introspector;
 import java.beans.PropertyDescriptor;
 import java.lang.reflect.Method;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 
@@ -136,5 +137,36 @@ public class BeanUtil {
         } else {
             return value;
         }
+    }
+
+    private static boolean isJavaPackage(Class clazz) {
+        Package aPackage = clazz.getPackage();
+        return aPackage == null || aPackage.getName().startsWith("java.");
+    }
+
+    private static void flatMap(Map<String, Object> map, String prefix, Object bean) {
+        if (bean == null || "".equals(bean)) {
+            map.put(prefix, " ");
+            return;
+        }
+        if (!(bean instanceof Map) && isJavaPackage(bean.getClass())) {
+            map.put(prefix, bean);
+        } else {
+            Map<String, Object> beanMap = bean instanceof Map ? (Map<String, Object>) bean : new BeanMap(bean);
+            for (Map.Entry<String, Object> entry : beanMap.entrySet()) {
+                String p = (prefix.isEmpty() ? "" : prefix + ".") + entry.getKey();
+                Object value = entry.getValue();
+                flatMap(map, p, value);
+            }
+        }
+    }
+
+    public static Map<String, Object> toMap(Object bean) {
+        Map<String, Object> map = new LinkedHashMap<>();
+        Map<String, Object> beanMap = bean instanceof Map ? (Map<String, Object>) bean : new BeanMap(bean);
+        for (Map.Entry<String, Object> entry : beanMap.entrySet()) {
+            flatMap(map, entry.getKey(), entry.getValue());
+        }
+        return map;
     }
 }

@@ -9,7 +9,6 @@ import com.github.aiassistant.entity.model.user.AiAccessUserVO;
 import com.github.aiassistant.enums.AiChatUidTypeEnum;
 import com.github.aiassistant.enums.MessageTypeEnum;
 import com.github.aiassistant.serviceintercept.AiChatHistoryServiceIntercept;
-import com.github.aiassistant.util.AiUtil;
 import com.github.aiassistant.util.Lists;
 import com.github.aiassistant.util.StringUtils;
 import org.slf4j.Logger;
@@ -383,7 +382,7 @@ public class AiChatHistoryServiceImpl {
             vo.setCreateTime(message.getCreateTime());
             vo.setStartTime(message.getStartTime());
             vo.setMessageTypeEnum(Objects.toString(message.getType().getCode(), ""));
-            vo.setMessageText(AiUtil.limit(text, 65000, true));
+            vo.setMessageText(StringUtils.substring(text, 65000, true));
             vo.setTextCharLength(Objects.toString(text, "").length());
             vo.setMessageIndex(message.getMessageIndex());
             vo.setAgainUserQueryTraceNumber(Objects.toString(againUserQueryTraceNumber, ""));
@@ -397,11 +396,11 @@ public class AiChatHistoryServiceImpl {
 //                        AiChatHistoryJob historyJob = new AiChatHistoryJob();
 //                        historyJob.setAiChatId(chatId);
 //                        historyJob.setJobId(Integer.valueOf(knJobVO.getId()));
-//                        historyJob.setJobName(AiUtil.limit(knJobVO.getName(), 512, true));
+//                        historyJob.setJobName(StringUtils.limit(knJobVO.getName(), 512, true));
 //                        historyJob.setJobIndex(index);
 //                        historyJob.setJobScore(knJobVO.scoreLong());
 //                        historyJob.setJobIndexUpdatedTime(knJobVO.getIndexUpdatedTime());
-//                        historyJob.setJobIndexName(AiUtil.limit(knJobVO.getIndexName(), 128, true));
+//                        historyJob.setJobIndexName(StringUtils.limit(knJobVO.getIndexName(), 128, true));
 //                        vo.getJobList().add(historyJob);
 //                    }
 //                    index++;

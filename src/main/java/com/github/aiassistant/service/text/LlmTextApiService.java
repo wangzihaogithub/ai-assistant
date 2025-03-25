@@ -4,6 +4,7 @@ import com.github.aiassistant.entity.AiAssistantKn;
 import com.github.aiassistant.entity.model.chat.*;
 import com.github.aiassistant.entity.model.user.AiAccessUserVO;
 import com.github.aiassistant.enums.AiAssistantKnTypeEnum;
+import com.github.aiassistant.enums.AiWebSearchSourceEnum;
 import com.github.aiassistant.service.jsonschema.LlmJsonSchemaApiService;
 import com.github.aiassistant.service.jsonschema.ReasoningJsonSchema;
 import com.github.aiassistant.service.jsonschema.WebsearchReduceJsonSchema;
@@ -22,6 +23,7 @@ import com.github.aiassistant.service.text.tools.Tools;
 import com.github.aiassistant.service.text.tools.WebSearchService;
 import com.github.aiassistant.service.text.variables.AiVariablesService;
 import com.github.aiassistant.util.AiUtil;
+import com.github.aiassistant.util.BeanUtil;
 import com.github.aiassistant.util.FutureUtil;
 import com.github.aiassistant.util.StringUtils;
 import dev.ai4j.openai4j.chat.ResponseFormatType;
@@ -44,19 +46,6 @@ import java.util.stream.Collectors;
  * Text类型的聊天模型服务
  */
 public class LlmTextApiService {
-    public static final String WEBSEARCH_SOURCE = "LlmTextApiService";
-    /**
-     * 是否并行执行，思考的子问题（注：并行不能携带上一个子问题的执行结果,如果子问题需要依赖上一个子问题的执行结果，需要改为false）
-     */
-    public static final boolean REASONING_AND_ACTING_PARALLEL = true;
-    /**
-     * 最大简单联网条数
-     */
-    public static final int MAX_SIMPLE_WEB_SEARCH = 10;
-    /**
-     * 最大联网兜底条数
-     */
-    public static final int MAX_ACTING_WEB_SEARCH = 20;
     private static final Logger log = LoggerFactory.getLogger(LlmTextApiService.class);
     /**
      * 估计各种文本类型（如文本、提示、文本段等）中的标记计数的接口
@@ -88,6 +77,18 @@ public class LlmTextApiService {
     private final ActingService actingService;
     private final ReasoningService reasoningService;
     private final KnSettingWebsearchBlacklistServiceImpl knSettingWebsearchBlacklistService;
+    /**
+     * 最大联网兜底条数
+     */
+    public int maxActingWebSearch = 20;
+    /**
+     * 最大简单联网条数
+     */
+    public int maxSimpleWebSearch = 10;
+    /**
+     * 是否并行执行，思考的子问题（注：并行不能携带上一个子问题的执行结果,如果子问题需要依赖上一个子问题的执行结果，需要改为false）
+     */
+    public boolean reasoningAndActingParallel = true;
 
     public LlmTextApiService(LlmJsonSchemaApiService llmJsonSchemaApiService,
                              AiQuestionClassifyService aiQuestionClassifyService,
@@ -198,6 +199,30 @@ public class LlmTextApiService {
         return handlerFuture;
     }
 
+    public int getMaxActingWebSearch() {
+        return maxActingWebSearch;
+    }
+
+    public void setMaxActingWebSearch(int maxActingWebSearch) {
+        this.maxActingWebSearch = maxActingWebSearch;
+    }
+
+    public int getMaxSimpleWebSearch() {
+        return maxSimpleWebSearch;
+    }
+
+    public void setMaxSimpleWebSearch(int maxSimpleWebSearch) {
+        this.maxSimpleWebSearch = maxSimpleWebSearch;
+    }
+
+    public boolean isReasoningAndActingParallel() {
+        return reasoningAndActingParallel;
+    }
+
+    public void setReasoningAndActingParallel(boolean reasoningAndActingParallel) {
+        this.reasoningAndActingParallel = reasoningAndActingParallel;
+    }
+
     /**
      * 提问
      *
@@ -221,7 +246,7 @@ public class LlmTextApiService {
             ChatStreamingResponseHandler responseHandler = ChatStreamingResponseHandler.merge(Arrays.asList(userResponseHandler, new RepositoryChatStreamingResponseHandler(repository)), userResponseHandler);
             // 历史记录
             Collection<ChatMessage> hl = repository.getHistoryList();
-            List<ChatMessage> historyList = AiUtil.removeSystemMessage(new LinkedList<>(hl));
+            List<ChatMessage> historyList = AiUtil.removeSystemMessage(hl);
             int baseMessageIndex = historyList.size();//起始消息下标
             int addMessageCount = 1;// 为什么是1？因为第0个是内置的SystemMessage，所以至少要有一个。
             // 当前问题，如果是重新回答需要获取最后一次问题getLastUserQuestion
@@ -303,7 +328,7 @@ public class LlmTextApiService {
             AssistantConfig assistantConfig = AssistantConfig.select(memoryId.getAiAssistant(), classifyListVO.getClassifyAssistant());
 
             // 问题分类完成通知
-            responseHandler.onQuestionClassify(classifyListVO, lastQuestion);
+            responseHandler.onQuestionClassify(classifyListVO, lastQuestion, variables);
             aiVariablesService.setterQuestionClassifyResult(variables.getQuestionClassify(), classifyListVO.getClassifyResult());
             int historySumLength = AiUtil.sumLength(historyList);
             boolean create = historyList.isEmpty();
@@ -313,8 +338,8 @@ public class LlmTextApiService {
             if (classifyListVO.isJdlw() && isEnableWebSearch(websearch, assistantConfig, knPromptText, mstatePromptText, lastQuestion)) {
                 int maxCharLength = assistantConfig.getMaxMemoryTokens() - historySumLength;
                 CompletableFuture<CompletableFuture<WebSearchResultVO>> wf =
-                        webSearchService.webSearchRead(lastQuestion, 1, maxCharLength, false, responseHandler.adapterWebSearch(WEBSEARCH_SOURCE)).thenApply(s -> {
-                            return s.isEmpty() ? CompletableFuture.completedFuture(s) : reduceWebSearch(Collections.singletonList(s), lastQuestion, memoryId, MAX_SIMPLE_WEB_SEARCH);
+                        webSearchService.webSearchRead(lastQuestion, 1, maxCharLength, false, responseHandler.adapterWebSearch(AiWebSearchSourceEnum.LlmTextApiService)).thenApply(s -> {
+                            return s.isEmpty() ? CompletableFuture.completedFuture(s) : reduceWebSearch(Collections.singletonList(s), lastQuestion, memoryId, maxSimpleWebSearch);
                         });
                 webSearchResult = FutureUtil.allOf(wf).thenApply(resultVO -> {
                     String xmlString = AiUtil.toAiXmlString(lastQuestion, WebSearchResultVO.toSimpleAiString(resultVO));
@@ -329,7 +354,7 @@ public class LlmTextApiService {
             // 3.思考
             CompletableFuture<ActingService.Plan> reasoningResultFuture;
             if (classifyListVO.isWtcj() && isEnableReasoning(reasoning, assistantConfig, knPromptText, mstatePromptText, lastQuestion)) {
-                reasoningResultFuture = reasoningAndActing(knnFuture, webSearchResult, lastQuestion, memoryId, REASONING_AND_ACTING_PARALLEL, responseHandler, websearch, classifyListVO);
+                reasoningResultFuture = reasoningAndActing(knnFuture, webSearchResult, lastQuestion, memoryId, reasoningAndActingParallel, responseHandler, websearch, classifyListVO);
             } else {
                 reasoningResultFuture = CompletableFuture.completedFuture(null);
             }
@@ -359,8 +384,7 @@ public class LlmTextApiService {
                                 lastQuestion,
                                 historyList,
                                 addMessageCount,
-                                baseMessageIndex,
-                                create
+                                baseMessageIndex
                         );
                         // 完毕前
                         responseHandler.onBeforeQuestionLlm(lastQuestion);
@@ -368,7 +392,10 @@ public class LlmTextApiService {
                         // 无法回答
                         if (classifyListVO.isWfhd()) {
                             SseHttpResponse response = handler.toResponse();
-                            response.close("根据相关规定，我无法回答这个问题，换个话题吧。");
+                            responseHandler.onBlacklistQuestion(response, lastQuestion, classifyListVO);
+                            if (response.isEmpty()) {
+                                response.close("根据相关规定，我无法回答这个问题，换个话题吧。");
+                            }
                         }
 
                         // 构建完毕
@@ -405,13 +432,12 @@ public class LlmTextApiService {
             String lastQuestion,
             List<ChatMessage> historyList,
             int rootAddMessageCount,
-            int baseMessageIndex,
-            boolean create
+            int baseMessageIndex
     ) {
         Long readTimeoutMs = classifyListVO.getReadTimeoutMs();
 
         // 系统消息
-        SystemMessage systemMessage = buildSystemMessage(assistantConfig.getSystemPromptText(), responseHandler, variables, create);
+        SystemMessage systemMessage = buildSystemMessage(assistantConfig.getSystemPromptText(), responseHandler, variables);
         // 少样本学习
         List<ChatMessage> fewshotMessageList = AiUtil.deserializeFewshot(memoryId.getFewshotList(), variables);
         AiUtil.addToHistoryList(historyList, systemMessage, fewshotMessageList);
@@ -495,7 +521,7 @@ public class LlmTextApiService {
                                         try {
                                             List<WebSearchResultVO> flattedWebSearchResult = plan.flatWebSearchResult();
                                             responseHandler.onBeforeWebSearchReduce(flattedWebSearchResult);
-                                            CompletableFuture<WebSearchResultVO> reduce = reduceWebSearch(flattedWebSearchResult, question, memoryIdVO, MAX_ACTING_WEB_SEARCH);
+                                            CompletableFuture<WebSearchResultVO> reduce = reduceWebSearch(flattedWebSearchResult, question, memoryIdVO, maxActingWebSearch);
                                             CompletableFuture<ActingService.Plan> planFuture = new CompletableFuture<>();
                                             reduce.whenComplete((resultVO, throwable1) -> {
                                                 if (throwable1 == null && resultVO != null) {
@@ -578,7 +604,7 @@ public class LlmTextApiService {
             return null;
         }
         // 知识库提问
-        Map<String, Object> var = AiUtil.toMap(variables);
+        Map<String, Object> var = BeanUtil.toMap(variables);
         var.put("documents", QaKnVO.qaToString(qaKnVOList));
         String text = AiUtil.toPrompt(knPromptText, var).text();
         return new KnowledgeAiMessage(new KnowledgeTextContent(text, question, question, qaKnVOList));
@@ -640,13 +666,11 @@ public class LlmTextApiService {
      * @param promptText      promptText
      * @param responseHandler responseHandler
      * @param variables       variables
-     * @param create          create
      * @return 系统提示词
      */
     private SystemMessage buildSystemMessage(String promptText,
                                              ChatStreamingResponseHandler responseHandler,
-                                             AiVariables variables,
-                                             boolean create) {
+                                             AiVariables variables) {
         if (!StringUtils.hasText(promptText)) {
             return null;
         }
@@ -708,7 +732,7 @@ public class LlmTextApiService {
         }
 
         @Override
-        public void onQuestionClassify(QuestionClassifyListVO questionClassify, String question) {
+        public void onQuestionClassify(QuestionClassifyListVO questionClassify, String question, AiVariables variables) {
             repository.addQuestionClassify(questionClassify, question);
         }
 
@@ -728,7 +752,7 @@ public class LlmTextApiService {
         }
 
         @Override
-        public void afterWebSearch(String sourceEnum, String providerName, String question, WebSearchResultVO resultVO, long cost) {
+        public void afterWebSearch(AiWebSearchSourceEnum sourceEnum, String providerName, String question, WebSearchResultVO resultVO, long cost) {
             repository.addWebSearchRead(sourceEnum, providerName, question, resultVO, cost);
         }
 

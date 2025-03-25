@@ -22,7 +22,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
-import java.sql.Timestamp;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
@@ -32,10 +31,6 @@ import java.util.stream.Collectors;
 
 public class AiUtil {
     public static final AiMessage NULL = new AiMessage("null");
-    public static final String ERROR_TYPE_LIMIT_REQUESTS = "limit_requests";
-    public static final String ERROR_TYPE_DATA_INSPECTION_FAILED = "data_inspection_failed";
-    public static final String ERROR_TYPE_TOKEN_READ_TIMEOUT = "token_read_timeout";
-    public static final String ERROR_TYPE_UNKNOWN_ERROR = "unknown_error";
     private static final Pattern VARIABLE_PATTERN = Pattern.compile("\\{\\{(.+?)\\}\\}");
     private static final Pattern TRAILING_COMMA_PATTERN = Pattern.compile(",(\\s*[}\\]])");
     private static final Logger log = LoggerFactory.getLogger(AiUtil.class);
@@ -65,28 +60,6 @@ public class AiUtil {
             resultList.add(toolMethod);
         }
         return resultList;
-    }
-
-    public static List<String> splitString(String string) {
-        if (StringUtils.hasText(string)) {
-            return Arrays.asList(string.split(","));
-        } else {
-            return Collections.emptyList();
-        }
-    }
-
-    public static String getErrorType(String errorString) {
-        String errorType;
-        if (errorString.contains("limit_requests")) {
-            errorType = ERROR_TYPE_LIMIT_REQUESTS;
-        } else if (errorString.contains("data_inspection_failed")) {
-            errorType = ERROR_TYPE_DATA_INSPECTION_FAILED;
-        } else if (errorString.contains("onTokenReadTimeout")) {
-            errorType = ERROR_TYPE_TOKEN_READ_TIMEOUT;
-        } else {
-            errorType = ERROR_TYPE_UNKNOWN_ERROR;
-        }
-        return errorType;
     }
 
     public static CompletableFuture<Boolean> toFutureBoolean(TokenStream tokenStream) {
@@ -137,7 +110,7 @@ public class AiUtil {
                     } else {
                         String text = response.content().text();
                         try {
-                            T json = toBean(text, type);
+                            T json = aiJsonToBean(text, type);
                             future.complete(json);
                         } catch (Exception e) {
                             future.completeExceptionally(e);
@@ -278,7 +251,7 @@ public class AiUtil {
                     } else {
                         String text = response.content().text();
                         try {
-                            List<T> json = toListBean(text, type);
+                            List<T> json = aiJsonToList(text, type);
                             future.complete(json);
                         } catch (Exception e) {
                             future.completeExceptionally(e);
@@ -293,7 +266,7 @@ public class AiUtil {
         return future;
     }
 
-    public static <T> List<T> toListBean(String aiJson, Class<T> type) throws IOException {
+    public static <T> List<T> aiJsonToList(String aiJson, Class<T> type) throws IOException {
         if (aiJson == null || aiJson.isEmpty()) {
             return new ArrayList<>();
         }
@@ -354,14 +327,7 @@ public class AiUtil {
     }
 
     public static Prompt toPrompt(String promptMessage, AiVariables variables) {
-        return toPrompt(promptMessage, toMap(variables));
-    }
-
-    public static String limit(String string, int limit, boolean notnull) {
-        if (string == null || string.isEmpty()) {
-            return notnull ? "" : string;
-        }
-        return string.length() > limit ? string.substring(0, limit) : string;
+        return toPrompt(promptMessage, BeanUtil.toMap(variables));
     }
 
     public static int sumUserLength(Collection<ChatMessage> list) {
@@ -390,60 +356,9 @@ public class AiUtil {
     }
 
     public static String toAiXmlString(String key, String value) {
-        String key64 = limit(key, 64);
+        String key64 = StringUtils.substring(key, 64, true);
         return "<" + key64 + ">" + value + "</" + key64 + ">";
     }
-
-    private static String limit(String str, int limit) {
-        return str != null && str.length() > limit ? str.substring(0, limit) : Objects.toString(str, "");
-    }
-
-    //    public static Function<String,String> tokenChunkFilter(){
-//        return new Function<String, String>() {
-//            private String prefix = "|\n| ---";
-//            private String suffix = " |";
-//            private StringBuilder builder = new StringBuilder();
-//            private boolean start;
-//
-//            private boolean isEnd(String q, int s){
-//                if((q.length()-s)<=suffix.length()){
-//                    return false;
-//                }
-//                int j =0;
-//                for (int i = s,a=0; i < q.length(); i++,a++) {
-//                    if(q.charAt(i) != suffix.charAt(j+a)){
-//                        return false;
-//                    }
-//                }
-//                return true;
-//            }
-//            @Override
-//            public String apply(String question) {
-//                int builderLength = builder.length();
-//
-//                String result = question;
-//                builder.append(question);
-//                if(!start) {
-//                    int i = builder.indexOf(prefix);
-//                    if(i != -1) {
-//                        start = true;
-//                       int s = i-builderLength;
-//                        for (int i1 = s; i1 < question.length(); i1++) {
-//                            if()
-//                        }
-//                        result = question.substring(0,s);
-//                    }
-//                }else {
-//
-//                }
-//                int outof = builder.length() - prefix.length();
-//                if(outof>0) {
-//                    builder.delete(0,outof);
-//                }
-//
-//            }
-//        };
-//    }
 
     public static String toJsonString(Object object) {
         try {
@@ -498,11 +413,11 @@ public class AiUtil {
         return length;
     }
 
-    public static boolean isFewshot(ChatMessage message) {
+    public static boolean isTypeFewshot(ChatMessage message) {
         return message instanceof FewshotUserMessage || message instanceof FewshotAiMessage;
     }
 
-    public static boolean isUser(ChatMessage message) {
+    public static boolean isTypeUser(ChatMessage message) {
         return message != null && message.getClass() == UserMessage.class;
     }
 
@@ -511,7 +426,7 @@ public class AiUtil {
         if (dbList.isEmpty()) {
             return list;
         }
-        Map<String, Object> variablesMap = toMap(variables);
+        Map<String, Object> variablesMap = BeanUtil.toMap(variables);
         for (AiAssistantFewshot db : dbList) {
             String text = db.getMessageText();
             String messageTypeEnum = db.getMessageTypeEnum();
@@ -579,37 +494,6 @@ public class AiUtil {
         return list;
     }
 
-    public static boolean isJavaPackage(Class clazz) {
-        Package aPackage = clazz.getPackage();
-        return aPackage == null || aPackage.getName().startsWith("java.");
-    }
-
-    private static void flatMap(Map<String, Object> map, String prefix, Object bean) {
-        if (bean == null || "".equals(bean)) {
-            map.put(prefix, " ");
-            return;
-        }
-        if (!(bean instanceof Map) && isJavaPackage(bean.getClass())) {
-            map.put(prefix, bean);
-        } else {
-            Map<String, Object> beanMap = bean instanceof Map ? (Map<String, Object>) bean : new BeanMap(bean);
-            for (Map.Entry<String, Object> entry : beanMap.entrySet()) {
-                String p = (prefix.isEmpty() ? "" : prefix + ".") + entry.getKey();
-                Object value = entry.getValue();
-                flatMap(map, p, value);
-            }
-        }
-    }
-
-    public static Map<String, Object> toMap(Object bean) {
-        Map<String, Object> map = new LinkedHashMap<>();
-        Map<String, Object> beanMap = bean instanceof Map ? (Map<String, Object>) bean : new BeanMap(bean);
-        for (Map.Entry<String, Object> entry : beanMap.entrySet()) {
-            flatMap(map, entry.getKey(), entry.getValue());
-        }
-        return map;
-    }
-
     public static String userMessageToString(UserMessage userMessage) {
         if (userMessage == null) {
             return null;
@@ -670,7 +554,7 @@ public class AiUtil {
         return joiner.toString();
     }
 
-    public static List<ChatMessage> removeSystemMessage(List<ChatMessage> historyList) {
+    public static List<ChatMessage> removeSystemMessage(Collection<ChatMessage> historyList) {
         return historyList.stream().filter(e -> !(e instanceof SystemMessage)).collect(Collectors.toList());
     }
 
@@ -707,7 +591,7 @@ public class AiUtil {
         return matcher.replaceAll("$1");
     }
 
-    private static <T> T toBean(String aiJson, Class<T> type) throws IOException {
+    public static <T> T aiJsonToBean(String aiJson, Class<T> type) throws IOException {
         if (aiJson == null || aiJson.isEmpty()) {
             return null;
         }
@@ -783,146 +667,4 @@ public class AiUtil {
         }
     }
 
-    private static boolean isNumeric(String str) {
-        if (str == null || str.isEmpty()) {
-            return false;
-        }
-        int sz = str.length();
-        for (int i = 0; i < sz; i++) {
-            if (!Character.isDigit(str.charAt(i))) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    private static Integer[] parseIntegerNumbers(String str) {
-        if (str == null) {
-            return new Integer[0];
-        }
-        List<Integer> result = new ArrayList<>();
-        StringBuilder builder = new StringBuilder();
-        for (int i = 0; i < str.length(); i++) {
-            char c = str.charAt(i);
-            if (c >= '0' && c <= '9') {
-                builder.append(c);
-            } else if (builder.length() > 0) {
-                try {
-                    result.add(Integer.valueOf(builder.toString()));
-                } catch (Exception e) {
-                    return new Integer[0];
-                }
-                builder.setLength(0);
-            }
-        }
-        if (builder.length() > 0) {
-            try {
-                result.add(Integer.valueOf(builder.toString()));
-            } catch (Exception e) {
-                return new Integer[0];
-            }
-        }
-        return result.toArray(new Integer[0]);
-    }
-
-    public static Timestamp parseDate(String noHasZoneAnyDateString) {
-        if (noHasZoneAnyDateString == null || noHasZoneAnyDateString.isEmpty()) {
-            return null;
-        }
-        int shotTimestampLength = 10;
-        int longTimestampLength = 13;
-        if (noHasZoneAnyDateString.length() == shotTimestampLength || noHasZoneAnyDateString.length() == longTimestampLength) {
-            if (isNumeric(noHasZoneAnyDateString)) {
-                long timestamp = Long.parseLong(noHasZoneAnyDateString);
-                if (noHasZoneAnyDateString.length() == shotTimestampLength) {
-                    timestamp = timestamp * 1000;
-                }
-                return new Timestamp(timestamp);
-            }
-        }
-        if ("null".equals(noHasZoneAnyDateString)) {
-            return null;
-        }
-        if ("NULL".equals(noHasZoneAnyDateString)) {
-            return null;
-        }
-        Integer[] numbers = parseIntegerNumbers(noHasZoneAnyDateString);
-        if (numbers.length == 0) {
-            return null;
-        } else {
-            if (numbers[0] > 2999 || numbers[0] < 1900) {
-                return null;
-            }
-            if (numbers.length >= 2) {
-                if (numbers[1] > 12 || numbers[1] <= 0) {
-                    return null;
-                }
-            }
-            if (numbers.length >= 3) {
-                if (numbers[2] > 31 || numbers[2] <= 0) {
-                    return null;
-                }
-            }
-            if (numbers.length >= 4) {
-                if (numbers[3] > 24 || numbers[3] < 0) {
-                    return null;
-                }
-            }
-            if (numbers.length >= 5) {
-                if (numbers[4] >= 60 || numbers[4] < 0) {
-                    return null;
-                }
-            }
-            if (numbers.length >= 6) {
-                if (numbers[5] >= 60 || numbers[5] < 0) {
-                    return null;
-                }
-            }
-            try {
-                Calendar calendar = Calendar.getInstance();
-                calendar.set(Calendar.MONTH, 0);
-                calendar.set(Calendar.DAY_OF_MONTH, 1);
-                calendar.set(Calendar.HOUR_OF_DAY, 0);
-                calendar.set(Calendar.MINUTE, 0);
-                calendar.set(Calendar.SECOND, 0);
-                calendar.set(Calendar.MILLISECOND, 0);
-                if (numbers.length == 1) {
-                    calendar.set(Calendar.YEAR, numbers[0]);
-                } else if (numbers.length == 2) {
-                    calendar.set(Calendar.YEAR, numbers[0]);
-                    if (noHasZoneAnyDateString.contains("Q") &&
-                            (noHasZoneAnyDateString.contains("Q1") || noHasZoneAnyDateString.contains("Q2") || noHasZoneAnyDateString.contains("Q3") || noHasZoneAnyDateString.contains("Q4"))) {
-                        calendar.set(Calendar.MONTH, ((numbers[1] - 1) * 3));
-                    } else {
-                        calendar.set(Calendar.MONTH, numbers[1] - 1);
-                    }
-                } else if (numbers.length == 3) {
-                    calendar.set(Calendar.YEAR, numbers[0]);
-                    calendar.set(Calendar.MONTH, numbers[1] - 1);
-                    calendar.set(Calendar.DAY_OF_MONTH, numbers[2]);
-                } else if (numbers.length == 4) {
-                    calendar.set(Calendar.YEAR, numbers[0]);
-                    calendar.set(Calendar.MONTH, numbers[1] - 1);
-                    calendar.set(Calendar.DAY_OF_MONTH, numbers[2]);
-                    calendar.set(Calendar.HOUR_OF_DAY, numbers[3]);
-                } else if (numbers.length == 5) {
-                    calendar.set(Calendar.YEAR, numbers[0]);
-                    calendar.set(Calendar.MONTH, numbers[1] - 1);
-                    calendar.set(Calendar.DAY_OF_MONTH, numbers[2]);
-                    calendar.set(Calendar.HOUR_OF_DAY, numbers[3]);
-                    calendar.set(Calendar.MINUTE, numbers[4]);
-                } else {
-                    calendar.set(Calendar.YEAR, numbers[0]);
-                    calendar.set(Calendar.MONTH, numbers[1] - 1);
-                    calendar.set(Calendar.DAY_OF_MONTH, numbers[2]);
-                    calendar.set(Calendar.HOUR_OF_DAY, numbers[3]);
-                    calendar.set(Calendar.MINUTE, numbers[4]);
-                    calendar.set(Calendar.SECOND, numbers[5]);
-                }
-                return new Timestamp(calendar.getTimeInMillis());
-            } catch (Exception e) {
-                return null;
-            }
-        }
-    }
 }

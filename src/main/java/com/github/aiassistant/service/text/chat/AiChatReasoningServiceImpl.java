@@ -8,8 +8,8 @@ import com.github.aiassistant.entity.AiChatReasoningPlan;
 import com.github.aiassistant.platform.JsonUtil;
 import com.github.aiassistant.service.jsonschema.ReasoningJsonSchema;
 import com.github.aiassistant.service.text.acting.ActingService;
-import com.github.aiassistant.util.AiUtil;
 import com.github.aiassistant.util.Lists;
+import com.github.aiassistant.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -98,7 +98,7 @@ public class AiChatReasoningServiceImpl {
                 Integer userChatHistoryId = user.getUserChatHistoryId(aiChatHistoryMapper).get();
 
                 request.setAiChatId(user.getId());
-                request.setQuestion(AiUtil.limit(request.question, 3950, true));
+                request.setQuestion(StringUtils.substring(request.question, 3950, true));
                 request.setNeedSplittingFlag(request.reason.needSplitting);
                 request.setUserChatHistoryId(userChatHistoryId);
                 if (request.plan != null) {
@@ -108,12 +108,12 @@ public class AiChatReasoningServiceImpl {
                     AiChatReasoningPlan insertPlan = new AiChatReasoningPlan();
                     insertPlan.setAiChatId(request.getAiChatId());
                     insertPlan.setUserChatHistoryId(request.getUserChatHistoryId());
-                    insertPlan.setTask(AiUtil.limit(plan.getTask(), 512, true));
-                    insertPlan.setFailMessage(AiUtil.limit(plan.getResult().failMessage, 2000, true));
-                    insertPlan.setAnswer(AiUtil.limit(plan.getResult().answer, 65000, true));
-                    insertPlan.setAiQuestion(AiUtil.limit(plan.getResult().aiQuestion, 512, true));
+                    insertPlan.setTask(StringUtils.substring(plan.getTask(), 512, true));
+                    insertPlan.setFailMessage(StringUtils.substring(plan.getResult().failMessage, 2000, true));
+                    insertPlan.setAnswer(StringUtils.substring(plan.getResult().answer, 65000, true));
+                    insertPlan.setAiQuestion(StringUtils.substring(plan.getResult().aiQuestion, 512, true));
                     Collection<String> websearchKeyword = plan.getResult().websearchKeyword;
-                    insertPlan.setWebsearchKeyword(websearchKeyword == null || websearchKeyword.isEmpty() ? "" : AiUtil.limit(objectWriter.writeValueAsString(websearchKeyword), 1024, true));
+                    insertPlan.setWebsearchKeyword(websearchKeyword == null || websearchKeyword.isEmpty() ? "" : StringUtils.substring(objectWriter.writeValueAsString(websearchKeyword), 1024, true));
                     insertPlan.setResolvedFlag(plan.getResult().resolved);
                     insertPlan.setPlanIndex(plan.getIndex());
 

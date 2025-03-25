@@ -9,7 +9,6 @@ import com.github.aiassistant.entity.model.chat.AiChatListResp;
 import com.github.aiassistant.entity.model.chat.AiChatResp;
 import com.github.aiassistant.enums.AiChatUidTypeEnum;
 import com.github.aiassistant.service.text.memory.AiMemoryServiceImpl;
-import com.github.aiassistant.util.AiUtil;
 import com.github.aiassistant.util.StringUtils;
 
 import java.io.Serializable;
@@ -49,7 +48,7 @@ public class AiChatServiceImpl {
     }
 
     private String nameLimit(String name) {
-        return AiUtil.limit(name, nameLimit, true);
+        return StringUtils.substring(name, nameLimit, true);
     }
 
     public AiChatResp insert(String assistantId, String name, Serializable createUid, AiChatUidTypeEnum uidTypeEnum) {

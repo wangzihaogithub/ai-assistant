@@ -5,6 +5,8 @@ import com.github.aiassistant.entity.model.chat.AiVariables;
 import com.github.aiassistant.entity.model.chat.QaKnVO;
 import com.github.aiassistant.entity.model.chat.QuestionClassifyListVO;
 import com.github.aiassistant.entity.model.chat.WebSearchResultVO;
+import com.github.aiassistant.enums.AiErrorTypeEnum;
+import com.github.aiassistant.enums.AiWebSearchSourceEnum;
 import com.github.aiassistant.enums.UserTriggerEventEnum;
 import com.github.aiassistant.service.jsonschema.ReasoningJsonSchema;
 import com.github.aiassistant.service.text.ChatStreamingResponseHandler;
@@ -93,8 +95,10 @@ public class SseEmitterResponseHandler implements ChatStreamingResponseHandler {
         this.generateCount = generateCount;
         String errorString = error.toString();
 
+        AiErrorTypeEnum errorTypeEnum = AiErrorTypeEnum.parseErrorType(errorString);
         sendToClient(emitter, "api-error",
-                "errorType", AiUtil.getErrorType(errorString),
+                "errorType", errorTypeEnum.getCode(),
+                "messageText", errorTypeEnum.getMessageText(),
                 "error", error.toString());
         log.error("sse api error {}", error.toString(), error);
 
@@ -153,13 +157,13 @@ public class SseEmitterResponseHandler implements ChatStreamingResponseHandler {
     }
 
     @Override
-    public void afterWebSearch(String sourceEnum, String providerName, String question, WebSearchResultVO resultVO, long cost) {
+    public void afterWebSearch(AiWebSearchSourceEnum sourceEnum, String providerName, String question, WebSearchResultVO resultVO, long cost) {
         onWebSearchReadList.add(new OnWebSearchRead(sourceEnum, providerName, question, resultVO, cost));
         sendOnWebSearchRead(sourceEnum, providerName, question, resultVO, cost, false);
     }
 
     @Override
-    public void beforeWebSearch(String sourceEnum, String providerName, String question) {
+    public void beforeWebSearch(AiWebSearchSourceEnum sourceEnum, String providerName, String question) {
         sendToClient(emitter, "before-websearch",
                 "question", question,
                 "providerName", providerName,
@@ -167,7 +171,7 @@ public class SseEmitterResponseHandler implements ChatStreamingResponseHandler {
     }
 
     @Override
-    public void afterUrlRead(String sourceEnum, String providerName, String question, UrlReadTools urlReadTools, WebSearchResultVO.Row row, String content, String merge, long cost) {
+    public void afterUrlRead(AiWebSearchSourceEnum sourceEnum, String providerName, String question, UrlReadTools urlReadTools, WebSearchResultVO.Row row, String content, String merge, long cost) {
         sendToClient(emitter, "after-urlread",
                 "question", question,
                 "providerName", providerName,
@@ -180,7 +184,7 @@ public class SseEmitterResponseHandler implements ChatStreamingResponseHandler {
     }
 
     @Override
-    public void beforeUrlRead(String sourceEnum, String providerName, String question, UrlReadTools urlReadTools, WebSearchResultVO.Row row) {
+    public void beforeUrlRead(AiWebSearchSourceEnum sourceEnum, String providerName, String question, UrlReadTools urlReadTools, WebSearchResultVO.Row row) {
         sendToClient(emitter, "before-urlread",
                 "question", question,
                 "providerName", providerName,
@@ -188,7 +192,7 @@ public class SseEmitterResponseHandler implements ChatStreamingResponseHandler {
                 "row", row);
     }
 
-    private void sendOnWebSearchRead(String sourceEnum, String providerName, String question,
+    private void sendOnWebSearchRead(AiWebSearchSourceEnum sourceEnum, String providerName, String question,
                                      WebSearchResultVO resultVO, long cost, boolean replay) {
         sendToClient(emitter, "after-websearch",
                 "replay", replay,
@@ -196,7 +200,7 @@ public class SseEmitterResponseHandler implements ChatStreamingResponseHandler {
                 "question", question,
                 "providerName", providerName,
                 "cost", cost,
-                "sourceEnum", sourceEnum,
+                "sourceEnum", sourceEnum == null ? null : sourceEnum.getCode(),
                 "webSearchResult", resultVO);
     }
 
@@ -345,13 +349,6 @@ public class SseEmitterResponseHandler implements ChatStreamingResponseHandler {
         }
     }
 
-    @Override
-    public void onResumeCard(String url, String html) {
-        sendToClient(emitter, "resume-card",
-                "url", url,
-                "html", html);
-    }
-
 //    @Override
 //    public void onFindJob(KnJobResp knJobResp, AiJobQuery parseQuery) {
 //        List<KnJobVO> knList = knJobResp.getList();
@@ -383,7 +380,7 @@ public class SseEmitterResponseHandler implements ChatStreamingResponseHandler {
     }
 
     @Override
-    public void onQuestionClassify(QuestionClassifyListVO questionClassify, String question) {
+    public void onQuestionClassify(QuestionClassifyListVO questionClassify, String question, AiVariables variables) {
         sendToClient(emitter, "question-classify",
                 "classify", questionClassify.getClassifyResultList(),
                 "question", question
@@ -485,13 +482,13 @@ public class SseEmitterResponseHandler implements ChatStreamingResponseHandler {
     }
 
     static class OnWebSearchRead {
-        final String sourceEnum;
+        final AiWebSearchSourceEnum sourceEnum;
         final String providerName;
         final String question;
         final WebSearchResultVO resultVO;
         final long cost;
 
-        OnWebSearchRead(String sourceEnum, String providerName, String question, WebSearchResultVO resultVO, long cost) {
+        OnWebSearchRead(AiWebSearchSourceEnum sourceEnum, String providerName, String question, WebSearchResultVO resultVO, long cost) {
             this.sourceEnum = sourceEnum;
             this.providerName = providerName;
             this.question = question;

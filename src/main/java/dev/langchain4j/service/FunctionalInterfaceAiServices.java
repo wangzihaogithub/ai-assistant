@@ -1,6 +1,7 @@
 package dev.langchain4j.service;
 
 import com.github.aiassistant.entity.model.chat.WebSearchResultVO;
+import com.github.aiassistant.enums.AiWebSearchSourceEnum;
 import com.github.aiassistant.service.text.ChatStreamingResponseHandler;
 import com.github.aiassistant.service.text.tools.Tools;
 import com.github.aiassistant.service.text.tools.functioncall.UrlReadTools;
@@ -728,7 +729,7 @@ public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
                 }
 
                 @Override
-                public void beforeUrlRead(String sourceEnum, String providerName, String question, UrlReadTools urlReadTools, WebSearchResultVO.Row row) {
+                public void beforeUrlRead(AiWebSearchSourceEnum sourceEnum, String providerName, String question, UrlReadTools urlReadTools, WebSearchResultVO.Row row) {
                     try {
                         responseHandler.beforeUrlRead(sourceEnum, providerName, question, urlReadTools, row);
                     } catch (Exception e) {
@@ -737,7 +738,7 @@ public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
                 }
 
                 @Override
-                public void beforeWebSearch(String sourceEnum, String providerName, String question) {
+                public void beforeWebSearch(AiWebSearchSourceEnum sourceEnum, String providerName, String question) {
                     try {
                         responseHandler.beforeWebSearch(sourceEnum, providerName, question);
                     } catch (Exception e) {
@@ -746,7 +747,7 @@ public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
                 }
 
                 @Override
-                public void afterUrlRead(String sourceEnum, String providerName, String question, UrlReadTools urlReadTools, WebSearchResultVO.Row row, String content, String merge, long cost) {
+                public void afterUrlRead(AiWebSearchSourceEnum sourceEnum, String providerName, String question, UrlReadTools urlReadTools, WebSearchResultVO.Row row, String content, String merge, long cost) {
                     try {
                         responseHandler.afterUrlRead(sourceEnum, providerName, question, urlReadTools, row, content, merge, cost);
                     } catch (Exception e) {
@@ -755,7 +756,7 @@ public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
                 }
 
                 @Override
-                public void afterWebSearch(String sourceEnum, String providerName, String question, WebSearchResultVO resultVO, long cost) {
+                public void afterWebSearch(AiWebSearchSourceEnum sourceEnum, String providerName, String question, WebSearchResultVO resultVO, long cost) {
                     try {
                         responseHandler.afterWebSearch(sourceEnum, providerName, question, resultVO, cost);
                     } catch (Exception e) {

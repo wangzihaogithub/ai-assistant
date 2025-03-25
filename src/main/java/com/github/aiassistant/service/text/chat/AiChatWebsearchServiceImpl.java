@@ -7,7 +7,6 @@ import com.github.aiassistant.entity.AiChatWebsearch;
 import com.github.aiassistant.entity.AiChatWebsearchResult;
 import com.github.aiassistant.entity.model.chat.WebSearchResultVO;
 import com.github.aiassistant.service.text.tools.functioncall.UrlReadTools;
-import com.github.aiassistant.util.AiUtil;
 import com.github.aiassistant.util.Lists;
 import com.github.aiassistant.util.StringUtils;
 import org.slf4j.Logger;
@@ -68,12 +67,12 @@ public class AiChatWebsearchServiceImpl {
             AiChatWebsearchRequest aiChatRequest = new AiChatWebsearchRequest(resultVO, user);
             List<UrlReadTools.ProxyVO> proxyList = resultVO.getProxyList();
             String proxyString = proxyList != null ? proxyList.stream().map(e -> e == null ? UrlReadTools.NO_PROXY : e.toAddressString()).filter(StringUtils::hasText).collect(Collectors.joining(",")) : "";
-            aiChatRequest.setSearchProxy(AiUtil.limit(proxyString, 255, true));
+            aiChatRequest.setSearchProxy(StringUtils.substring(proxyString, 255, true));
             aiChatRequest.setSearchTimeMs(cost);
             aiChatRequest.setUserQueryTraceNumber(userQueryTraceNumber);
             aiChatRequest.setProviderName(providerName);
             aiChatRequest.setQuestion(question);
-            aiChatRequest.setSourceEnum(sourceEnum);
+            aiChatRequest.setSourceEnum(StringUtils.substring(sourceEnum, 30, true));
             aiChatRequest.setCreateTime(new Date());
             // 防止问答过猛
             while (!insertRequestQueue.offer(aiChatRequest)) {
@@ -106,15 +105,15 @@ public class AiChatWebsearchServiceImpl {
 
                     insertResult.setAiChatId(request.getAiChatId());
                     insertResult.setUserChatHistoryId(request.getUserChatHistoryId());
-                    insertResult.setPageUrl(AiUtil.limit(row.getUrl(), 255, true));
-                    insertResult.setPageTitle(AiUtil.limit(row.getTitle(), 255, true));
-                    insertResult.setPageTime(AiUtil.limit(row.getTime(), 50, true));
-                    insertResult.setPageSource(AiUtil.limit(row.getSource(), 50, true));
-                    insertResult.setPageContent(AiUtil.limit(row.getContent(), 65000, true));
+                    insertResult.setPageUrl(StringUtils.substring(row.getUrl(), 255, true));
+                    insertResult.setPageTitle(StringUtils.substring(row.getTitle(), 255, true));
+                    insertResult.setPageTime(StringUtils.substring(row.getTime(), 50, true));
+                    insertResult.setPageSource(StringUtils.substring(row.getSource(), 50, true));
+                    insertResult.setPageContent(StringUtils.substring(row.getContent(), 65000, true));
                     Long urlReadTimeCost = row.getUrlReadTimeCost();
                     insertResult.setUrlReadTimeCost(urlReadTimeCost == null ? 0L : urlReadTimeCost);
                     UrlReadTools.ProxyVO proxyVO = row.getProxy();
-                    insertResult.setUrlReadProxy(AiUtil.limit(proxyVO != null ? proxyVO.toAddressString() : UrlReadTools.NO_PROXY, 35, true));
+                    insertResult.setUrlReadProxy(StringUtils.substring(proxyVO != null ? proxyVO.toAddressString() : UrlReadTools.NO_PROXY, 35, true));
                     request.resultList.add(insertResult);
                 }
             } catch (Exception e) {

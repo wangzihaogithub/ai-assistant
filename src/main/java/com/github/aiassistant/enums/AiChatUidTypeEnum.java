@@ -24,14 +24,14 @@ public class AiChatUidTypeEnum {
     }
 
     public static AiChatUidTypeEnum create(String code) {
-        Objects.requireNonNull(code, "AiChatUidTypeEnum#valueOf code cannot be null");
+        Objects.requireNonNull(code, "AiChatUidTypeEnum#create code cannot be null");
         AiChatUidTypeEnum value = new AiChatUidTypeEnum(code);
         CODE_VALUES.put(code, value);
         return value;
     }
 
     public static AiChatUidTypeEnum create(AiChatUidTypeEnum code) {
-        Objects.requireNonNull(code, "AiChatUidTypeEnum#valueOf code cannot be null");
+        Objects.requireNonNull(code, "AiChatUidTypeEnum#create code cannot be null");
         CODE_VALUES.put(code.code, code);
         return code;
     }

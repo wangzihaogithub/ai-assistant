@@ -266,7 +266,7 @@ public class WebSearchResultVO {
             } else {
                 key = content;
             }
-            return AiUtil.limit(key, 500, true);
+            return StringUtils.substring(key, 500, true);
         }
     }
 }

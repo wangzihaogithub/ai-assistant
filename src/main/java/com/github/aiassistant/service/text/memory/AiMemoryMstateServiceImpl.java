@@ -4,8 +4,8 @@ import com.github.aiassistant.dao.AiMemoryMstateMapper;
 import com.github.aiassistant.entity.AiMemoryMstate;
 import com.github.aiassistant.entity.model.chat.MStateAiParseVO;
 import com.github.aiassistant.entity.model.chat.MStateVO;
-import com.github.aiassistant.util.AiUtil;
 import com.github.aiassistant.util.Lists;
+import com.github.aiassistant.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,8 +45,8 @@ public class AiMemoryMstateServiceImpl {
             }
             AiMemoryMstate mstate = new AiMemoryMstate();
             mstate.setAiMemoryId(aiMemoryId);
-            mstate.setStateKey(AiUtil.limit(entry.getKey(), 50, true));
-            mstate.setStateValue(AiUtil.limit(Objects.toString(value), 65000, true));
+            mstate.setStateKey(StringUtils.substring(entry.getKey(), 50, true));
+            mstate.setStateValue(StringUtils.substring(Objects.toString(value), 65000, true));
             mstate.setUserAiMemoryMessageId(userMsg.getId());
             mstate.setUserMessageIndex(userMsg.getMessageIndex());
             mstate.setCreateTime(now);

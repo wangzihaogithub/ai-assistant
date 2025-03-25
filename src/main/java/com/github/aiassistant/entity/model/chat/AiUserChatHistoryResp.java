@@ -2,6 +2,7 @@ package com.github.aiassistant.entity.model.chat;
 
 import com.github.aiassistant.entity.AiChatAbort;
 import com.github.aiassistant.entity.AiMemoryError;
+import com.github.aiassistant.enums.AiErrorTypeEnum;
 import com.github.aiassistant.util.AiUtil;
 import com.github.aiassistant.util.BeanUtil;
 import com.github.aiassistant.util.StringUtils;
@@ -74,7 +75,7 @@ public class AiUserChatHistoryResp {
                 AiMemoryError cast = (AiMemoryError) lastEvent;
                 String errorType = cast.getErrorType();
                 if (!StringUtils.hasText(errorType)) {
-                    errorType = AiUtil.getErrorType(cast.getErrorMessage());
+                    errorType = AiErrorTypeEnum.parseErrorType(errorType).getCode();
                 }
                 String attachmentJson = cast.getAttachmentJson();
                 Object attachment = null;

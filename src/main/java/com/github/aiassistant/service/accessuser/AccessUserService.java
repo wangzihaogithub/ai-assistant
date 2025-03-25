@@ -135,7 +135,7 @@ public class AccessUserService {
             vo.setAssistantKnMap(aiAssistantKnMapper.selectListByAssistantId(assistant.getId()).stream()
                     .collect(Collectors.groupingBy(AiAssistantKn::getKnTypeEnum)));
             vo.setFewshotList(aiAssistantFewshotMapper.selectListByAssistantId(assistant.getId()));
-            vo.setToolMethodList(aiToolService.selectToolMethodList(AiUtil.splitString(assistant.getAiToolIds())));
+            vo.setToolMethodList(aiToolService.selectToolMethodList(StringUtils.splitString(assistant.getAiToolIds(),",")));
             for (AccessUserServiceIntercept intercept : interceptList.get()) {
                 vo = intercept.afterMemoryId(vo, chatId, createUid, uidTypeEnum);
             }

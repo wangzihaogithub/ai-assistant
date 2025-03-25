@@ -6,8 +6,8 @@ import com.github.aiassistant.service.text.tools.functioncall.BaiduWebSearchTool
 import com.github.aiassistant.service.text.tools.functioncall.BingWebSearchTools;
 import com.github.aiassistant.service.text.tools.functioncall.SogouWebSearchTools;
 import com.github.aiassistant.service.text.tools.functioncall.UrlReadTools;
-import com.github.aiassistant.util.AiUtil;
 import com.github.aiassistant.util.FutureUtil;
+import com.github.aiassistant.util.StringUtils;
 
 import java.net.Proxy;
 import java.util.ArrayList;
@@ -132,7 +132,7 @@ public class WebSearchService {
                                 eventListener.beforeUrlRead(providerName, q, u, row);
                                 futures.add(u.readString(url).thenAccept(text -> {
                                     row.setProxy(proxy);
-                                    String merge = AiUtil.limit(mergeContent(row.getContent(), text), itemLimit, true);
+                                    String merge = StringUtils.substring(mergeContent(row.getContent(), text), itemLimit, true);
                                     long urlReadCost = System.currentTimeMillis() - startUrl;
                                     row.setUrlReadTimeCost(urlReadCost);
                                     eventListener.afterUrlRead(providerName, q, u, row, text, merge, urlReadCost);
