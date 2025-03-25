@@ -25,6 +25,10 @@ public class AiChatUidTypeEnum {
 
     public static AiChatUidTypeEnum create(String code) {
         Objects.requireNonNull(code, "AiChatUidTypeEnum#create code cannot be null");
+        AiChatUidTypeEnum exist = valueOf(code);
+        if (exist != null) {
+            return exist;
+        }
         AiChatUidTypeEnum value = new AiChatUidTypeEnum(code);
         CODE_VALUES.put(code, value);
         return value;
@@ -32,6 +36,10 @@ public class AiChatUidTypeEnum {
 
     public static AiChatUidTypeEnum create(AiChatUidTypeEnum code) {
         Objects.requireNonNull(code, "AiChatUidTypeEnum#create code cannot be null");
+        AiChatUidTypeEnum exist = valueOf(code.code);
+        if (exist != null) {
+            return exist;
+        }
         CODE_VALUES.put(code.code, code);
         return code;
     }

@@ -28,6 +28,10 @@ public class UserTriggerEventEnum<T> {
 
     public static <T> UserTriggerEventEnum<T> create(String code, Class<T> payloadClass) {
         Objects.requireNonNull(code, "UserTriggerEventEnum#create code cannot be null");
+        UserTriggerEventEnum<T> exist = valueOf(code);
+        if (exist != null) {
+            return exist;
+        }
         UserTriggerEventEnum<T> value = new UserTriggerEventEnum<>(code, payloadClass);
         CODE_VALUES.put(code, value);
         return value;

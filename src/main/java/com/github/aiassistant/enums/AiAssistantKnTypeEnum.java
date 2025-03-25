@@ -36,6 +36,10 @@ public class AiAssistantKnTypeEnum {
 
     public static AiAssistantKnTypeEnum create(String code) {
         Objects.requireNonNull(code, "AiAssistantKnTypeEnum#create code cannot be null");
+        AiAssistantKnTypeEnum exist = valueOf(code);
+        if (exist != null) {
+            return exist;
+        }
         AiAssistantKnTypeEnum value = new AiAssistantKnTypeEnum(code);
         CODE_VALUES.put(code, value);
         return value;

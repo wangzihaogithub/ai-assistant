@@ -31,6 +31,10 @@ public class AiQuestionClassifyActionEnum {
 
     public static AiQuestionClassifyActionEnum create(String code, String name, boolean defaultEnable) {
         Objects.requireNonNull(code, "AiQuestionClassifyActionEnum#create code cannot be null");
+        AiQuestionClassifyActionEnum exist = valueOf(code);
+        if (exist != null) {
+            return exist;
+        }
         AiQuestionClassifyActionEnum value = new AiQuestionClassifyActionEnum(code, name, defaultEnable);
         CODE_VALUES.put(code, value);
         return value;

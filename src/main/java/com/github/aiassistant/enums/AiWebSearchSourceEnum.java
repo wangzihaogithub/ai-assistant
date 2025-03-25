@@ -22,6 +22,10 @@ public class AiWebSearchSourceEnum {
 
     public static AiWebSearchSourceEnum create(String code) {
         Objects.requireNonNull(code, "AiWebSearchSourceEnum#create code cannot be null");
+        AiWebSearchSourceEnum exist = valueOf(code);
+        if (exist != null) {
+            return exist;
+        }
         AiWebSearchSourceEnum value = new AiWebSearchSourceEnum(code);
         CODE_VALUES.put(code, value);
         return value;

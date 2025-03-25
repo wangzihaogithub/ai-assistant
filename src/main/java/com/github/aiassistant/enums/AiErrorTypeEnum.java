@@ -51,6 +51,10 @@ public class AiErrorTypeEnum {
 
     public static AiErrorTypeEnum create(String code, String name, String messageText, Predicate<String> test) {
         Objects.requireNonNull(code, "AiErrorTypeEnum#create code cannot be null");
+        AiErrorTypeEnum exist = valueOf(code);
+        if (exist != null) {
+            return exist;
+        }
         AiErrorTypeEnum value = new AiErrorTypeEnum(code, name, messageText, test);
         CODE_VALUES.put(code, value);
         return value;
