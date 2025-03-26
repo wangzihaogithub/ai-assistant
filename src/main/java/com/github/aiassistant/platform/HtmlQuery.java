@@ -40,15 +40,19 @@ public class HtmlQuery<T extends Element> {
                 html = htmlQuery;
             } else {
                 ContentType mContentType = ContentType.parse(metaContentType);
-                String mcharset = mContentType.getCharset();
-                if (mcharset != null && mcharset.equalsIgnoreCase(contentType.getCharset())) {
-                    try {
-                        html = HtmlQuery.valueOf(outStream.toString(mcharset));
-                    } catch (UnsupportedEncodingException ignored) {
+                if (mContentType == null) {
+                    html = htmlQuery;
+                } else {
+                    String mcharset = mContentType.getCharset();
+                    if (mcharset != null && mcharset.equalsIgnoreCase(contentType.getCharset())) {
+                        try {
+                            html = HtmlQuery.valueOf(outStream.toString(mcharset));
+                        } catch (UnsupportedEncodingException ignored) {
+                            html = htmlQuery;
+                        }
+                    } else {
                         html = htmlQuery;
                     }
-                } else {
-                    html = htmlQuery;
                 }
             }
             return html;

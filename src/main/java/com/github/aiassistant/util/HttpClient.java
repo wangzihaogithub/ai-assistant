@@ -2,9 +2,12 @@ package com.github.aiassistant.util;
 
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.X509TrustManager;
+import java.io.IOException;
 import java.io.InputStream;
+import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
 import java.net.Proxy;
+import java.net.SocketAddress;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.Map;
@@ -37,7 +40,19 @@ public interface HttpClient {
     };
     HostnameVerifier trustAllHostnames = (hostname, session) -> hostname != null || session != null;
 
+    public static InetSocketAddress parseAddress(Proxy proxy) {
+        if (proxy != null && proxy.type() == Proxy.Type.HTTP) {
+            SocketAddress address = proxy.address();
+            if (address instanceof InetSocketAddress) {
+                return (InetSocketAddress) address;
+            }
+        }
+        return null;
+    }
+
     HttpRequest request(String uriTemplate, Map<String, ?> uriVariables) throws MalformedURLException;
+
+    void close() throws IOException;
 
     void setProxy(Proxy proxy);
 
@@ -56,7 +71,7 @@ public interface HttpClient {
     }
 
     interface HttpResponse {
-        InputStream getInputStream();
+        InputStream getInputStream() throws IOException;
 
         String getHeader(String name);
     }

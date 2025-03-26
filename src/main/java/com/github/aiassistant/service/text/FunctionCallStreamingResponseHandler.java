@@ -429,9 +429,9 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
         private final FunctionCallStreamingResponseHandler handler;
         private final Response<AiMessage> lastResponse;
         private final StringBuilder builder = new StringBuilder();
-        private final AtomicBoolean toolMessageReady;
         private final LinkedBlockingQueue<Runnable> pendingEventList = new LinkedBlockingQueue<>();
         private final AtomicBoolean closeFlag = new AtomicBoolean(false);
+        private volatile boolean toolMessageReady;
         private volatile Response<AiMessage> tokenEnd;
         private volatile boolean empty = true;
 
@@ -440,7 +440,7 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
                                     boolean toolMessageReady) {
             this.handler = handler;
             this.lastResponse = lastResponse;
-            this.toolMessageReady = new AtomicBoolean(toolMessageReady);
+            this.toolMessageReady = toolMessageReady;
         }
 
         public static SseHttpResponseImpl newUnReady(FunctionCallStreamingResponseHandler handler, Response<AiMessage> lastResponse) {
@@ -452,13 +452,12 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
         }
 
         public void ready() {
-            if (toolMessageReady.compareAndSet(false, true)) {
-                while (!pendingEventList.isEmpty()) {
-                    ArrayList<Runnable> events = new ArrayList<>(pendingEventList.size());
-                    pendingEventList.drainTo(events);
-                    for (Runnable runnable : events) {
-                        runnable.run();
-                    }
+            toolMessageReady = true;
+            while (!pendingEventList.isEmpty()) {
+                ArrayList<Runnable> events = new ArrayList<>(pendingEventList.size());
+                pendingEventList.drainTo(events);
+                for (Runnable runnable : events) {
+                    runnable.run();
                 }
             }
         }
@@ -471,7 +470,7 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
         @Override
         public void write(String next) {
             empty = false;
-            if (!toolMessageReady.get()) {
+            if (!toolMessageReady) {
                 pendingEventList.add(() -> write(next));
                 return;
             }
@@ -484,13 +483,13 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
 
         @Override
         public void close() {
-            if (!closeFlag.compareAndSet(false, true)) {
-                throw new IllegalStateException("close() has already been called");
-            }
             empty = false;
-            if (!toolMessageReady.get()) {
+            if (!toolMessageReady) {
                 pendingEventList.add(this::close);
                 return;
+            }
+            if (!closeFlag.compareAndSet(false, true)) {
+                throw new IllegalStateException("close() has already been called");
             }
             if (tokenEnd == null) {
                 AiMessage aiMessage = new AiMessage(builder.toString());
@@ -514,14 +513,14 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
 
         @Override
         public void close(Throwable error) {
-            if (!closeFlag.compareAndSet(false, true)) {
-                throw new IllegalStateException("close() has already been called");
-            }
             Objects.requireNonNull(error, "error cannot be null");
             empty = false;
-            if (!toolMessageReady.get()) {
+            if (!toolMessageReady) {
                 pendingEventList.add(() -> close(error));
                 return;
+            }
+            if (!closeFlag.compareAndSet(false, true)) {
+                throw new IllegalStateException("close() has already been called");
             }
             handler.onError(error);
         }

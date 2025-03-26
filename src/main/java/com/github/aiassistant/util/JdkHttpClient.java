@@ -119,6 +119,11 @@ public class JdkHttpClient implements HttpClient {
     }
 
     @Override
+    public void close() throws IOException {
+
+    }
+
+    @Override
     public void setProxy(Proxy proxy) {
         this.proxy = proxy;
     }

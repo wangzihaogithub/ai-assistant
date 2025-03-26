@@ -2,15 +2,11 @@ package com.github.aiassistant.service.text.tools.functioncall;
 
 import com.github.aiassistant.entity.model.chat.MemoryIdVO;
 import com.github.aiassistant.entity.model.chat.UrlReadToolExecutionResultMessage;
+import com.github.aiassistant.platform.ApacheHttpClient;
 import com.github.aiassistant.platform.HtmlQuery;
 import com.github.aiassistant.platform.PlatformDependentUtil;
-import com.github.aiassistant.platform.SpringWebAsyncRestTemplateHttpClient;
 import com.github.aiassistant.service.text.tools.Tools;
-import com.github.aiassistant.util.HttpClient;
-import com.github.aiassistant.util.UserAgentGenerator;
-import com.github.aiassistant.util.ContentType;
-import com.github.aiassistant.util.FutureUtil;
-import com.github.aiassistant.util.StringUtils;
+import com.github.aiassistant.util.*;
 import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
 import dev.langchain4j.agent.tool.ToolExecutionRequest;
@@ -25,9 +21,6 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeoutException;
-import java.util.function.BiConsumer;
 import java.util.zip.DeflaterInputStream;
 import java.util.zip.GZIPInputStream;
 
@@ -75,7 +68,12 @@ public class UrlReadTools extends Tools {
         this.max302 = max302;
         this.httpClients = new HttpClient[clients];
         for (int i = 0; i < httpClients.length; i++) {
-            HttpClient client = new SpringWebAsyncRestTemplateHttpClient(threadNamePrefix);
+            HttpClient client;
+            if (PlatformDependentUtil.isSupportApacheHttpClient()) {
+                client = new ApacheHttpClient(threadNamePrefix);
+            } else {
+                client = new JdkHttpClient();
+            }
             client.setReadTimeout(readTimeout);
             client.setConnectTimeout(connectTimeout);
             client.ignoreHttpsValidation();
@@ -85,38 +83,6 @@ public class UrlReadTools extends Tools {
             httpClients[i] = client;
         }
         this.proxy = proxy;
-    }
-
-    public static void main(String[] args) throws IOException, ExecutionException, InterruptedException, TimeoutException {
-        UrlReadTools urlReadTools = new UrlReadTools("main",
-                33, 22, 1);
-        long s = System.currentTimeMillis();
-        for (int i = 0; i < 10; i++) {
-            CompletableFuture<String> read = urlReadTools.readString("https://lgwindow.sdut.edu.cn/__local/9/98/32/909A91C8515AB92FFD094FDF20B_BF6AEE2F_246705.pdf?e=.pdf");
-            read.whenComplete(new BiConsumer<String, Throwable>() {
-                @Override
-                public void accept(String question, Throwable throwable) {
-
-                    long f = System.currentTimeMillis() - s;
-
-                    System.out.println("question = " + f);
-                }
-            });
-        }
-
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    Thread.sleep(100000);
-                    System.out.println("s1 = " + 1);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-        }).start();
-//        String ks = read.get(551200, TimeUnit.MILLISECONDS);
-        System.out.println("read = " + s);
     }
 
     private static ByteArrayOutputStream toByteArrayOutStream(InputStream source)
@@ -170,7 +136,10 @@ public class UrlReadTools extends Tools {
             try {
                 String contentTypeString = response.getHeader("content-type");
                 ContentType contentType = contentTypeString != null ? ContentType.parse(contentTypeString) : ContentType.create("text/html", "utf-8");
-                String charset = contentType.getCharset();
+                String charset = null;
+                if (contentType != null) {
+                    charset = contentType.getCharset();
+                }
                 if (charset == null) {
                     charset = "utf-8";
                 }

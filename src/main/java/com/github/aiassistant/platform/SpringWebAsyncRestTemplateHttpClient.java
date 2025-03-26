@@ -1,10 +1,8 @@
 package com.github.aiassistant.platform;
 
 import com.github.aiassistant.util.HttpClient;
-import org.apache.http.HttpHost;
 import org.apache.http.client.config.RequestConfig;
-import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;
-import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
+import org.springframework.beans.factory.DisposableBean;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -12,16 +10,13 @@ import org.springframework.http.client.AsyncClientHttpRequestFactory;
 import org.springframework.http.client.HttpComponentsAsyncClientHttpRequestFactory;
 import org.springframework.web.client.AsyncRestTemplate;
 
-import javax.net.ssl.KeyManager;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.TrustManager;
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
 import java.net.Proxy;
 import java.net.SocketAddress;
-import java.security.SecureRandom;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
@@ -83,6 +78,25 @@ public class SpringWebAsyncRestTemplateHttpClient implements HttpClient {
     }
 
     @Override
+    public void close() throws IOException {
+        if (template == null) {
+            return;
+        }
+        AsyncClientHttpRequestFactory asyncRequestFactory = template.getAsyncRequestFactory();
+        if (asyncRequestFactory instanceof DisposableBean) {
+            try {
+                ((DisposableBean) asyncRequestFactory).destroy();
+            } catch (Exception e) {
+                if (e instanceof IOException) {
+                    throw (IOException) e;
+                } else {
+                    throw new IOException("close exception", e);
+                }
+            }
+        }
+    }
+
+    @Override
     public void setProxy(Proxy proxy) {
         this.proxy = proxy;
     }
@@ -138,45 +152,11 @@ public class SpringWebAsyncRestTemplateHttpClient implements HttpClient {
 //    }
 
     private AsyncClientHttpRequestFactory clientApache() {
-        HttpHost proxyHttp = null;
-        InetSocketAddress proxyAddress = getProxyAddress();
-        if (proxyAddress != null) {
-            proxyHttp = new HttpHost(proxyAddress.getHostString(), proxyAddress.getPort(), "http");
-        }
-        RequestConfig.Builder requestConfigBuilder = RequestConfig.custom();
-        if (readTimeout != null) {
-            requestConfigBuilder.setConnectionRequestTimeout(readTimeout);
-            requestConfigBuilder.setSocketTimeout(readTimeout);
-        }
-        if (connectTimeout != null) {
-            requestConfigBuilder.setConnectTimeout(connectTimeout);
-        }
-        if (proxyHttp != null) {
-            requestConfigBuilder.setProxy(proxyHttp);
-        }
-        requestConfigBuilder.setMaxRedirects(1);
-        RequestConfig requestConfig = requestConfigBuilder.build();
-        HttpAsyncClientBuilder system = HttpAsyncClientBuilder.create()
-                .useSystemProperties()
-                .setThreadFactory(threadFactory)
-                .setDefaultRequestConfig(requestConfig);
-        if (proxyHttp != null) {
-            system.setProxy(proxyHttp);
-        }
-        if (ignoreHttpsValidation) {
-            try {
-                SSLContext ctx = SSLContext.getInstance("TLS");
-                ctx.init((KeyManager[]) null, new TrustManager[]{disableValidationTrustManager}, new SecureRandom());
-                system.setSSLContext(ctx);
-                system.setSSLHostnameVerifier(trustAllHostnames);
-            } catch (Exception ignored) {
-            }
-        }
-        CloseableHttpAsyncClient client = system.build();
-        HttpComponentsAsyncClientHttpRequestFactory factory = new HttpComponentsAsyncClientHttpRequestFactory(client) {
+        ApacheHttpClientBuilder.ClientBuilder clientBuilder = ApacheHttpClientBuilder.newClientBuilder(threadFactory, ignoreHttpsValidation, connectTimeout, readTimeout, proxy);
+        HttpComponentsAsyncClientHttpRequestFactory factory = new HttpComponentsAsyncClientHttpRequestFactory(clientBuilder.builder.build()) {
             @Override
             protected RequestConfig createRequestConfig(Object client) {
-                return requestConfig;
+                return clientBuilder.requestConfig;
             }
         };
         return factory;

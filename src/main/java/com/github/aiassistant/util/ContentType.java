@@ -23,7 +23,8 @@ public class ContentType {
     // Static method to parse content type string
     public static ContentType parse(String contentTypeString) {
         if (contentTypeString == null || contentTypeString.isEmpty()) {
-            throw new IllegalArgumentException("Content-Type string cannot be null or empty");
+            return null;
+//            throw new IllegalArgumentException("Content-Type string cannot be null or empty");
         }
 
         String[] parts = contentTypeString.split(";");
@@ -32,7 +33,8 @@ public class ContentType {
         // Split main type into type and subtype
         String[] mainTypeParts = mainType.split("/");
         if (mainTypeParts.length != 2) {
-            throw new IllegalArgumentException("Invalid Content-Type format: " + contentTypeString);
+            return null;
+//            throw new IllegalArgumentException("Invalid Content-Type format: " + contentTypeString);
         }
 
         String type = mainTypeParts[0].trim();

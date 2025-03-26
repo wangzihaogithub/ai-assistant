@@ -1,5 +1,8 @@
 package com.github.aiassistant.util;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -12,6 +15,8 @@ import java.util.function.Function;
  * 异步工具类（1.对象转换，2.流程编排）
  */
 public class FutureUtil {
+
+    private static final Logger log = LoggerFactory.getLogger(FutureUtil.class);
 
     /**
      * 对象转换，将原类型转成新类型
@@ -31,7 +36,15 @@ public class FutureUtil {
                 try {
                     result.complete(mapper.apply(t));
                 } catch (Throwable e) {
-                    result.completeExceptionally(e);
+                    try {
+                        if (result.isDone()) {
+                            result.obtrudeException(e);
+                        } else {
+                            result.completeExceptionally(e);
+                        }
+                    } catch (Throwable ttt) {
+                        log.error("FutureUtil map Error while executing future {}", e.toString(), e);
+                    }
                 }
             }
         });
@@ -48,7 +61,15 @@ public class FutureUtil {
                     consumer.accept(t);
                     result.complete(t);
                 } catch (Throwable e) {
-                    result.completeExceptionally(e);
+                    try {
+                        if (result.isDone()) {
+                            result.obtrudeException(e);
+                        } else {
+                            result.completeExceptionally(e);
+                        }
+                    } catch (Throwable ttt) {
+                        log.error("FutureUtil accept Error while executing future {}", e.toString(), e);
+                    }
                 }
             }
         });
@@ -71,7 +92,15 @@ public class FutureUtil {
                 try {
                     consumer.accept(t);
                 } catch (Throwable e) {
-                    root.completeExceptionally(e);
+                    try {
+                        if (root.isDone()) {
+                            root.obtrudeException(e);
+                        } else {
+                            root.completeExceptionally(e);
+                        }
+                    } catch (Throwable ttt) {
+                        log.error("FutureUtil accept Error while executing future {}", e.toString(), e);
+                    }
                 }
             }
         });
@@ -88,9 +117,21 @@ public class FutureUtil {
     public static <T> CompletableFuture<T> join(CompletableFuture<T> future, CompletableFuture<T> join) {
         return future.whenComplete((t, throwable) -> {
             if (throwable != null) {
-                join.completeExceptionally(throwable);
+                try {
+                    join.completeExceptionally(throwable);
+                } catch (Throwable tt) {
+                    log.error("FutureUtil join Error while executing future {}", tt.toString(), tt);
+                }
             } else {
-                join.complete(t);
+                try {
+                    join.complete(t);
+                } catch (Throwable tt) {
+                    try {
+                        join.obtrudeException(tt);
+                    } catch (Throwable ttt) {
+                        log.error("FutureUtil join Error while executing future {}", tt.toString(), tt);
+                    }
+                }
             }
         });
     }
@@ -118,12 +159,24 @@ public class FutureUtil {
             for (CompletableFuture<V> f : value) {
                 f.whenComplete((resp, throwable) -> {
                     if (throwable != null) {
-                        future.completeExceptionally(throwable);
+                        try {
+                            future.completeExceptionally(throwable);
+                        } catch (Throwable t) {
+                            log.error("FutureUtil allOfMapList Error while executing future {}", t.toString(), t);
+                        }
                     } else {
                         list.add(resp);
                     }
                     if (countDown.decrementAndGet() == 0) {
-                        future.complete(result);
+                        try {
+                            future.complete(result);
+                        } catch (Throwable t) {
+                            try {
+                                future.obtrudeException(t);
+                            } catch (Throwable ttt) {
+                                log.error("FutureUtil allOfMapList Error while executing future {}", t.toString(), t);
+                            }
+                        }
                     }
                 });
             }
@@ -170,13 +223,25 @@ public class FutureUtil {
                 for (CompletableFuture<V> future : futures) {
                     future.whenComplete((v, throwable) -> {
                         if (throwable != null) {
-                            result.completeExceptionally(throwable);
+                            try {
+                                result.completeExceptionally(throwable);
+                            } catch (Throwable t) {
+                                log.error("FutureUtil allOf Error while executing future {}", t.toString(), t);
+                            }
                         } else {
                             synchronized (list) {
                                 list.add(v);
                             }
                             if (count.decrementAndGet() == 0) {
-                                result.complete(list);
+                                try {
+                                    result.complete(list);
+                                } catch (Throwable t) {
+                                    try {
+                                        future.obtrudeException(t);
+                                    } catch (Throwable ttt) {
+                                        log.error("FutureUtil allOf Error while executing future {}", t.toString(), t);
+                                    }
+                                }
                             }
                         }
                     });
@@ -199,13 +264,35 @@ public class FutureUtil {
         CompletableFuture<V> result = new CompletableFuture<>();
         future.whenComplete((future1, throwable) -> {
             if (throwable != null) {
-                scheduledNotNull.execute(() -> result.completeExceptionally(throwable));
+                scheduledNotNull.execute(() -> {
+                    try {
+                        result.completeExceptionally(throwable);
+                    } catch (Throwable t) {
+                        log.error("FutureUtil allOf Error while executing future {}", t.toString(), t);
+                    }
+                });
             } else {
                 future1.whenComplete((v, throwable1) -> {
                     if (throwable1 != null) {
-                        scheduledNotNull.execute(() -> result.completeExceptionally(throwable1));
+                        scheduledNotNull.execute(() -> {
+                            try {
+                                result.completeExceptionally(throwable1);
+                            } catch (Throwable t) {
+                                log.error("FutureUtil allOf Error while executing future {}", t.toString(), t);
+                            }
+                        });
                     } else {
-                        scheduledNotNull.execute(() -> result.complete(v));
+                        scheduledNotNull.execute(() -> {
+                            try {
+                                result.complete(v);
+                            } catch (Throwable t) {
+                                try {
+                                    result.obtrudeException(t);
+                                } catch (Throwable tt) {
+                                    log.error("FutureUtil allOf Error while executing future {}", t.toString(), t);
+                                }
+                            }
+                        });
                     }
                 });
             }
@@ -252,11 +339,23 @@ public class FutureUtil {
             CompletableFuture<V> value = entry.getValue();
             value.whenComplete((resultList, throwable) -> {
                 if (throwable != null) {
-                    future.completeExceptionally(throwable);
+                    try {
+                        future.completeExceptionally(throwable);
+                    } catch (Throwable t) {
+                        log.error("FutureUtil allOfMap Error while executing future {}", t.toString(), t);
+                    }
                 } else {
                     result.put(key, resultList);
                     if (countDown.decrementAndGet() == 0) {
-                        future.complete(result);
+                        try {
+                            future.complete(result);
+                        } catch (Throwable t) {
+                            try {
+                                future.obtrudeException(t);
+                            } catch (Throwable tt) {
+                                log.error("FutureUtil allOfMap Error while executing future {}", t.toString(), t);
+                            }
+                        }
                     }
                 }
             });
