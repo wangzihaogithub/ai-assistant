@@ -2,7 +2,6 @@ package com.github.aiassistant.service.text.tools.functioncall;
 
 import com.github.aiassistant.entity.model.chat.AiVariables;
 import com.github.aiassistant.service.text.tools.Tools;
-import com.github.aiassistant.util.AiUtil;
 import com.github.aiassistant.util.BeanUtil;
 import dev.langchain4j.agent.tool.Tool;
 import dev.langchain4j.agent.tool.ToolExecutionRequest;

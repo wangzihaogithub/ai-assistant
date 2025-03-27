@@ -11,6 +11,7 @@ import com.github.aiassistant.service.text.embedding.ReRankModelClient;
 import com.github.aiassistant.service.text.tools.Tools;
 import com.github.aiassistant.service.text.tools.WebSearchService;
 import com.github.aiassistant.util.FutureUtil;
+import com.github.aiassistant.util.Name;
 import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
 import dev.langchain4j.agent.tool.ToolExecutionRequest;
@@ -64,7 +65,7 @@ public class WebSearchTools extends Tools {
             "摘要\n" +
             "来源"})
     public Object search(
-            @P(value = "搜索内容", required = true) List<String> q,
+            @P(value = "搜索内容", required = true) @Name("q") List<String> q,
             @ToolMemoryId ToolExecutionRequest request,
             @ToolMemoryId MemoryIdVO memoryIdVO) {
         AiWebSearchSourceEnum sourceEnum = AiWebSearchSourceEnum.valueOf(getBeanName());

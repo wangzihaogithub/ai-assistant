@@ -2,22 +2,26 @@ package com.github.aiassistant.util;
 
 import com.github.aiassistant.platform.SpringParameterNameDiscoverer;
 
-import java.io.IOException;
-import java.lang.instrument.IllegalClassFormatException;
 import java.lang.reflect.Member;
 import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.WeakHashMap;
+import java.util.function.Predicate;
 
 public class ParameterNamesUtil {
     private static final Map<Class<?>, Map<Member, String[]>> PARAMETER_NAMES_CACHE = Collections.synchronizedMap(new WeakHashMap<>());
     private static final String[] EMPTY = {};
 
-    public static String[] getParameterNames(Method method) {
+    public static String[] getParameterNames(Method method, Predicate<Parameter> nameMissPredicate) {
+        if (nameMissPredicate == null) {
+            nameMissPredicate = parameter -> false;
+        }
+        String[] parameterNames;
         if (SpringParameterNameDiscoverer.isSupport()) {
-            return SpringParameterNameDiscoverer.getParameterNames(method);
+            parameterNames = SpringParameterNameDiscoverer.getParameterNames(method);
         } else {
             Class<?> declaringClass = method.getDeclaringClass();
             if (declaringClass.isInterface()) {
@@ -28,12 +32,26 @@ public class ParameterNamesUtil {
                 memberMap = readParameterNameMap(declaringClass);
                 PARAMETER_NAMES_CACHE.put(declaringClass, memberMap);
             }
-            String[] parameterNames = memberMap.get(method);
-            if (parameterNames == null) {
-                throw new IllegalStateException("bad method!. object=" + method.getDeclaringClass() + ",method=" + method);
-            }
-            return parameterNames;
+            parameterNames = memberMap.get(method);
         }
+        if (parameterNames == null) {
+            Parameter[] parameters = method.getParameters();
+            parameterNames = new String[parameters.length];
+            for (int i = 0; i < parameters.length; i++) {
+                Parameter parameter = parameters[i];
+                Name annotation = parameter.getAnnotation(Name.class);
+                String name;
+                if (annotation != null) {
+                    name = annotation.value();
+                } else if (nameMissPredicate.test(parameter)) {
+                    throw new IllegalStateException("Name for argument of method [" + method + "] not specified, and parameter name information not available via reflection. Ensure that the compiler uses the '-parameters' flag. or use annotation @com.github.aiassistant.util.Name");
+                } else {
+                    name = parameter.getName();
+                }
+                parameterNames[i] = name;
+            }
+        }
+        return parameterNames;
     }
 
     public static Map<Member, String[]> readParameterNameMap(Class<?> clazz) {
@@ -50,7 +68,7 @@ public class ParameterNamesUtil {
                 }
             }
             return result;
-        } catch (ClassNotFoundException | IOException | IllegalClassFormatException e) {
+        } catch (Throwable e) {
             return Collections.emptyMap();
         }
     }

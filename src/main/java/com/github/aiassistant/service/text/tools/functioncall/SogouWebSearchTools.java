@@ -9,6 +9,7 @@ import com.github.aiassistant.service.text.ChatStreamingResponseHandler;
 import com.github.aiassistant.service.text.tools.Tools;
 import com.github.aiassistant.service.text.tools.WebSearch;
 import com.github.aiassistant.util.FutureUtil;
+import com.github.aiassistant.util.Name;
 import com.github.aiassistant.util.StringUtils;
 import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
@@ -170,7 +171,7 @@ public class SogouWebSearchTools extends Tools implements WebSearch {
             "摘要\n" +
             "来源"})
     public Object search(
-            @P(value = "搜索内容", required = true) List<String> q,
+            @P(value = "搜索内容", required = true) @Name("q") List<String> q,
             @ToolMemoryId ToolExecutionRequest request,
             @ToolMemoryId MemoryIdVO memoryIdVO) {
         List<CompletableFuture<WebSearchResultVO>> voList = new ArrayList<>();

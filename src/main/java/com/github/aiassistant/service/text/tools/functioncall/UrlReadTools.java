@@ -182,7 +182,7 @@ public class UrlReadTools extends Tools {
 
     @Tool(name = "菜鸟无忧链接读取", value = {"当你需要获取网页内容时，使用此工具，可以获取url链接下的内容"})
     public CompletableFuture<UrlReadToolExecutionResultMessage> read(
-            @P(value = "URL", required = false) String urlString,
+            @P(value = "URL", required = false) @Name("urlString") String urlString,
             @ToolMemoryId ToolExecutionRequest request,
             @ToolMemoryId MemoryIdVO memoryIdVO) throws IOException {
         CompletableFuture<String> future = readString(urlString);
@@ -223,8 +223,12 @@ public class UrlReadTools extends Tools {
 
         @Override
         public boolean equals(Object o) {
-            if (this == o) return true;
-            if (!(o instanceof ProxyVO)) return false;
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof ProxyVO)) {
+                return false;
+            }
             ProxyVO proxyVO = (ProxyVO) o;
             return Objects.equals(host, proxyVO.host) && Objects.equals(port, proxyVO.port);
         }

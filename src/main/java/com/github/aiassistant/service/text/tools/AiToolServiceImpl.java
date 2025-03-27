@@ -6,10 +6,7 @@ import com.github.aiassistant.entity.AiTool;
 import com.github.aiassistant.entity.AiToolParameter;
 import com.github.aiassistant.util.ParameterNamesUtil;
 import com.github.aiassistant.util.StringUtils;
-import dev.langchain4j.agent.tool.Tool;
-import dev.langchain4j.agent.tool.ToolParameters;
-import dev.langchain4j.agent.tool.ToolSpecification;
-import dev.langchain4j.agent.tool.ToolSpecificationsUtil;
+import dev.langchain4j.agent.tool.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -75,7 +72,7 @@ public class AiToolServiceImpl {
                 log.warn("tool {} name {} not exist!", toolEnum, aiTool.getToolFunctionEnum());
                 continue;
             }
-            String[] parameterNames = ParameterNamesUtil.getParameterNames(functionMethod);
+            String[] parameterNames = ParameterNamesUtil.getParameterNames(functionMethod, e-> e.isAnnotationPresent(P.class));
             Map<String, AiToolParameter> parameterMap = parameters.get(aiTool.getId());
             Map<String, String> parameterDefaultValueMap = new HashMap<>();
             if (parameterMap != null) {
