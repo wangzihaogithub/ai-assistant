@@ -54,7 +54,7 @@ public class AiChatServiceImpl {
     public AiChatResp insert(String assistantId, String name, Serializable createUid, AiChatUidTypeEnum uidTypeEnum) {
         Date now = new Date();
 
-        Integer createUidInt = Integer.valueOf(createUid.toString());
+        Integer createUidInt = createUid == null || "".equals(createUid) ? null : Integer.valueOf(createUid.toString());
 
         AiMemory aiMemory = aiMemoryService.insert(now);
 

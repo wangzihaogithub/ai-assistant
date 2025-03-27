@@ -34,8 +34,8 @@ public class ParameterNamesUtil {
             }
             parameterNames = memberMap.get(method);
         }
+        Parameter[] parameters = method.getParameters();
         if (parameterNames == null) {
-            Parameter[] parameters = method.getParameters();
             parameterNames = new String[parameters.length];
             for (int i = 0; i < parameters.length; i++) {
                 Parameter parameter = parameters[i];
@@ -49,6 +49,14 @@ public class ParameterNamesUtil {
                     name = parameter.getName();
                 }
                 parameterNames[i] = name;
+            }
+        } else {
+            for (int i = 0; i < parameters.length; i++) {
+                Parameter parameter = parameters[i];
+                Name annotation = parameter.getAnnotation(Name.class);
+                if (annotation != null) {
+                    parameterNames[i] = annotation.value();
+                }
             }
         }
         return parameterNames;
