@@ -114,9 +114,9 @@ public interface ChatStreamingResponseHandler {
             }
 
             @Override
-            public <T> void onUserTrigger(UserTriggerEventEnum<T> eventName, T payload, long timestamp) {
+            public <T> void onUserTrigger(UserTriggerEventEnum<T> triggerEventEnum, T payload, long timestamp) {
                 for (ChatStreamingResponseHandler h : list) {
-                    h.onUserTrigger(eventName, payload, timestamp);
+                    h.onUserTrigger(triggerEventEnum, payload, timestamp);
                 }
             }
 
@@ -277,7 +277,7 @@ public interface ChatStreamingResponseHandler {
     default void onBlacklistQuestion(SseHttpResponse response, String question, QuestionClassifyListVO classifyListVO) {
     }
 
-    default <T> void onUserTrigger(UserTriggerEventEnum<T> eventName, T payload, long timestamp) {
+    default <T> void onUserTrigger(UserTriggerEventEnum<T> triggerEventEnum, T payload, long timestamp) {
 //            @Override
 //            public void onFindJob(KnJobResp knJobResp, AiJobQuery query) {
 //                for (ChatStreamingResponseHandler h : list) {

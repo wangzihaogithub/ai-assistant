@@ -28,6 +28,7 @@ import org.elasticsearch.client.RestClient;
 
 import javax.sql.DataSource;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -151,12 +152,16 @@ public class AiApplication {
         this.accessUserService = new AccessUserService(aiChatMapper, aiAssistantJsonschemaMapper, aiAssistantMstateMapper, aiAssistantMapper, aiAssistantKnMapper, aiAssistantFewshotMapper, aiToolService, aiChatHistoryService, getServiceInterceptSupplier(AccessUserServiceIntercept.class, interceptMap));
 
         this.aiVariablesService = new AiVariablesService(aiMemoryMstateService, aiVariablesMapper, getServiceInterceptSupplier(AiVariablesServiceIntercept.class, interceptMap));
-        this.llmTextApiService = new LlmTextApiService(llmJsonSchemaApiService, aiQuestionClassifyService, aiVariablesService, knnApiService, actingService, reasoningService, knSettingWebsearchBlacklistServiceImpl);
+        this.llmTextApiService = new LlmTextApiService(llmJsonSchemaApiService, aiQuestionClassifyService, aiVariablesService, knnApiService, actingService, reasoningService, knSettingWebsearchBlacklistServiceImpl,
+                Math.max(Runtime.getRuntime().availableProcessors() * 2, 6), getServiceInterceptSupplier(LlmTextApiServiceIntercept.class, interceptMap));
 
     }
 
     private static <T extends ServiceIntercept> Supplier<Collection<T>> getServiceInterceptSupplier(Class<T> clazz, Function<Class<? extends ServiceIntercept>, Collection<ServiceIntercept>> interceptMap) {
-        return () -> (Collection<T>) interceptMap.apply(clazz);
+        return () -> {
+            Collection collection = interceptMap.apply(clazz);
+            return collection == null ? Collections.emptyList() : collection;
+        };
     }
 
     public RestClient getEmbeddingStore() {

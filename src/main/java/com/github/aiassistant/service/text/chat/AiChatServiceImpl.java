@@ -7,6 +7,7 @@ import com.github.aiassistant.entity.AiChatHistory;
 import com.github.aiassistant.entity.AiMemory;
 import com.github.aiassistant.entity.model.chat.AiChatListResp;
 import com.github.aiassistant.entity.model.chat.AiChatResp;
+import com.github.aiassistant.enums.AiChatTimeEnum;
 import com.github.aiassistant.enums.AiChatUidTypeEnum;
 import com.github.aiassistant.service.text.memory.AiMemoryServiceImpl;
 import com.github.aiassistant.util.StringUtils;
@@ -84,10 +85,17 @@ public class AiChatServiceImpl {
     public List<AiChatListResp> selectList(String keyword,
                                            Integer pageNum,
                                            Integer pageSize,
+                                           String startTime,
+                                           String endTime,
+                                           AiChatTimeEnum chatTimeEnum,
                                            Serializable createUid,
                                            AiChatUidTypeEnum uidTypeEnum) {
+        if (chatTimeEnum == null) {
+            chatTimeEnum = AiChatTimeEnum.lastChatTime;
+        }
         int offset = Math.max(0, (pageNum - 1) * pageSize);
-        List<AiChatListResp> list = aiChatMapper.selectListByUid(keyword, offset, pageSize, uidTypeEnum.getCode(), createUid);
+        List<AiChatListResp> list = aiChatMapper.selectListByUid(keyword, offset, pageSize, uidTypeEnum.getCode(), createUid,
+                startTime, endTime, chatTimeEnum.getColumnName());
 
         List<Integer> historyIdList = list.stream().map(AiChatListResp::getAiChatHistoryId).collect(Collectors.toList());
         if (!historyIdList.isEmpty()) {

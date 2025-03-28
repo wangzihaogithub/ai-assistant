@@ -22,6 +22,7 @@ import com.github.aiassistant.service.text.tools.QueryBuilderUtil;
 import com.github.aiassistant.service.text.tools.Tools;
 import com.github.aiassistant.service.text.tools.WebSearchService;
 import com.github.aiassistant.service.text.variables.AiVariablesService;
+import com.github.aiassistant.serviceintercept.LlmTextApiServiceIntercept;
 import com.github.aiassistant.util.AiUtil;
 import com.github.aiassistant.util.BeanUtil;
 import com.github.aiassistant.util.FutureUtil;
@@ -40,6 +41,8 @@ import org.slf4j.LoggerFactory;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.function.BiFunction;
+import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /**
@@ -77,6 +80,7 @@ public class LlmTextApiService {
     private final ActingService actingService;
     private final ReasoningService reasoningService;
     private final KnSettingWebsearchBlacklistServiceImpl knSettingWebsearchBlacklistService;
+    private final Supplier<Collection<LlmTextApiServiceIntercept>> interceptList;
     /**
      * 最大联网兜底条数
      */
@@ -95,17 +99,8 @@ public class LlmTextApiService {
                              AiVariablesService aiVariablesService,
                              KnnApiService knnApiService,
                              ActingService actingService, ReasoningService reasoningService,
-                             KnSettingWebsearchBlacklistServiceImpl knSettingWebsearchBlacklistService) {
-        this(llmJsonSchemaApiService, aiQuestionClassifyService, aiVariablesService, knnApiService, actingService,
-                reasoningService, knSettingWebsearchBlacklistService, Math.max(Runtime.getRuntime().availableProcessors() * 2, 6));
-    }
-
-    public LlmTextApiService(LlmJsonSchemaApiService llmJsonSchemaApiService,
-                             AiQuestionClassifyService aiQuestionClassifyService,
-                             AiVariablesService aiVariablesService,
-                             KnnApiService knnApiService,
-                             ActingService actingService, ReasoningService reasoningService,
-                             KnSettingWebsearchBlacklistServiceImpl knSettingWebsearchBlacklistService, int threads) {
+                             KnSettingWebsearchBlacklistServiceImpl knSettingWebsearchBlacklistService, int threads,
+                             Supplier<Collection<LlmTextApiServiceIntercept>> interceptList) {
         ThreadPoolExecutor poolExecutor = new ThreadPoolExecutor(
                 threads, threads,
                 60, TimeUnit.SECONDS,
@@ -123,6 +118,7 @@ public class LlmTextApiService {
         this.actingService = actingService;
         this.reasoningService = reasoningService;
         this.knSettingWebsearchBlacklistService = knSettingWebsearchBlacklistService;
+        this.interceptList = interceptList;
     }
 
     private static List<ChatMessage> mergeMessageList(ChatMessage userMessage, ChatMessage knowledge, ChatMessage mstate) {
@@ -331,11 +327,16 @@ public class LlmTextApiService {
             responseHandler.onQuestionClassify(classifyListVO, lastQuestion, variables);
             aiVariablesService.setterQuestionClassifyResult(variables.getQuestionClassify(), classifyListVO.getClassifyResult());
             int historySumLength = AiUtil.sumLength(historyList);
-            boolean create = historyList.isEmpty();
+
+            // 准备就绪后，是否需要中断后续流程
+            Collection<LlmTextApiServiceIntercept> intercepts = interceptList.get();
+            Function<FunctionCallStreamingResponseHandler, CompletableFuture<Void>> interrupt
+                    = Optional.ofNullable(interceptRepository(user, memoryId, classifyListVO, variables, websearch, reasoning, responseHandler, historyList, question, lastQuestion, intercepts))
+                    .orElseGet(() -> interceptQuestion(user, memoryId, classifyListVO, variables, websearch, reasoning, responseHandler, historyList, question, lastQuestion, intercepts));
 
             // 1.联网搜索
             CompletableFuture<String> webSearchResult;
-            if (classifyListVO.isJdlw() && isEnableWebSearch(websearch, assistantConfig, knPromptText, mstatePromptText, lastQuestion)) {
+            if (interrupt == null && classifyListVO.isJdlw() && isEnableWebSearch(websearch, assistantConfig, knPromptText, mstatePromptText, lastQuestion)) {
                 int maxCharLength = assistantConfig.getMaxMemoryTokens() - historySumLength;
                 CompletableFuture<CompletableFuture<WebSearchResultVO>> wf =
                         webSearchService.webSearchRead(lastQuestion, 1, maxCharLength, false, responseHandler.adapterWebSearch(AiWebSearchSourceEnum.LlmTextApiService)).thenApply(s -> {
@@ -353,7 +354,7 @@ public class LlmTextApiService {
             CompletableFuture<List<List<QaKnVO>>> knnFuture = classifyListVO.isQa() ? selectKnList(assistantConfig, knPromptText, memoryId.getAssistantKnList(AiAssistantKnTypeEnum.qa), lastQuestion) : CompletableFuture.completedFuture(Collections.emptyList());
             // 3.思考
             CompletableFuture<ActingService.Plan> reasoningResultFuture;
-            if (classifyListVO.isWtcj() && isEnableReasoning(reasoning, assistantConfig, knPromptText, mstatePromptText, lastQuestion)) {
+            if (interrupt == null && classifyListVO.isWtcj() && isEnableReasoning(reasoning, assistantConfig, knPromptText, mstatePromptText, lastQuestion)) {
                 reasoningResultFuture = reasoningAndActing(knnFuture, webSearchResult, lastQuestion, memoryId, reasoningAndActingParallel, responseHandler, websearch, classifyListVO);
             } else {
                 reasoningResultFuture = CompletableFuture.completedFuture(null);
@@ -397,9 +398,16 @@ public class LlmTextApiService {
                                 response.close("根据相关规定，我无法回答这个问题，换个话题吧。");
                             }
                         }
-
+                        CompletableFuture<Void> interruptAfter = null;
+                        if (interrupt != null) {
+                            interruptAfter = interrupt.apply(handler);
+                        }
                         // 构建完毕
-                        handlerFuture.complete(handler);
+                        if (interruptAfter != null) {
+                            interruptAfter.thenAccept(unused1 -> handlerFuture.complete(handler));
+                        } else {
+                            handlerFuture.complete(handler);
+                        }
                         // 开始让AI回答
 //                        handler.addMessage(new AiMessage("嗯,让我先思考一下，用户到问题是\""+lastQuestion+"\""));
 //                        handler.generate();
@@ -415,6 +423,54 @@ public class LlmTextApiService {
             log.error("llm question chatId {}, error {}", memoryId.getChatId(), e.toString(), e);
         }
         return handlerFuture;
+    }
+
+    private Function<FunctionCallStreamingResponseHandler, CompletableFuture<Void>> interceptRepository(
+            AiAccessUserVO user,
+            MemoryIdVO memoryId,
+            QuestionClassifyListVO classifyListVO,
+            AiVariables variables,
+            Boolean websearch,
+            Boolean reasoning,
+            ChatStreamingResponseHandler responseHandler,
+            List<ChatMessage> historyList,
+            String question,
+            String lastQuestion,
+            Collection<LlmTextApiServiceIntercept> intercepts) {
+        for (LlmTextApiServiceIntercept intercept : intercepts) {
+            Function<FunctionCallStreamingResponseHandler, CompletableFuture<Void>> function = intercept.interceptRepository(user, memoryId, classifyListVO, variables, websearch, reasoning, responseHandler, historyList, question, lastQuestion);
+            if (function != null) {
+                return function;
+            }
+        }
+        for (LlmTextApiServiceIntercept intercept : intercepts) {
+            Function<FunctionCallStreamingResponseHandler, CompletableFuture<Void>> function = intercept.interceptQuestion(user, memoryId, classifyListVO, variables, websearch, reasoning, responseHandler, historyList, question, lastQuestion);
+            if (function != null) {
+                return function;
+            }
+        }
+        return null;
+    }
+
+    private Function<FunctionCallStreamingResponseHandler, CompletableFuture<Void>> interceptQuestion(
+            AiAccessUserVO user,
+            MemoryIdVO memoryId,
+            QuestionClassifyListVO classifyListVO,
+            AiVariables variables,
+            Boolean websearch,
+            Boolean reasoning,
+            ChatStreamingResponseHandler responseHandler,
+            List<ChatMessage> historyList,
+            String question,
+            String lastQuestion,
+            Collection<LlmTextApiServiceIntercept> intercepts) {
+        for (LlmTextApiServiceIntercept intercept : intercepts) {
+            Function<FunctionCallStreamingResponseHandler, CompletableFuture<Void>> function = intercept.interceptQuestion(user, memoryId, classifyListVO, variables, websearch, reasoning, responseHandler, historyList, question, lastQuestion);
+            if (function != null) {
+                return function;
+            }
+        }
+        return null;
     }
 
     private FunctionCallStreamingResponseHandler newFunctionCallStreamingResponseHandler(

@@ -54,8 +54,14 @@
               and ( ac.`name` LIKE concat('%',#{arg0},'%')
                         OR ach.`message_text` LIKE concat('%',#{arg0},'%') )
           </if>
+        <if test="arg5 != null and arg5 != ''">
+            and ac.${arg7} >= #{arg5}
+        </if>
+        <if test="arg6 != null and arg6 != ''">
+            and ac.${arg7} &lt;= #{arg6}
+        </if>
         GROUP BY ac.id
-        ORDER BY ac.last_chat_time DESC, ac.id DESC
+        ORDER BY ac.${arg7} DESC, ac.id DESC
         limit #{arg1}, #{arg2}
     </select>
 

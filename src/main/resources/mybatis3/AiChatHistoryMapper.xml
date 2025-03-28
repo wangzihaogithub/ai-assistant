@@ -39,6 +39,7 @@
             acr.need_splitting_flag as 'reasoningFlag'
         FROM ai_chat_history ach
         LEFT JOIN ai_chat_reasoning acr ON acr.user_query_trace_number = ach.user_query_trace_number
+        LEFT JOIN ai_chat_classify acc ON acc.user_query_trace_number = ach.user_query_trace_number
         WHERE ach.ai_chat_id = #{arg0}
           AND ach.user_chat_history_id IS NOT NULL
           AND ach.delete_time IS NULL

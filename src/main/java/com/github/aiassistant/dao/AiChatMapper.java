@@ -18,7 +18,8 @@ public interface AiChatMapper {
 
     /**
      * 更新最近聊天时间
-     * @param idList idList
+     *
+     * @param idList       idList
      * @param lastChatTime lastChatTime
      * @return 条数
      */
@@ -27,7 +28,8 @@ public interface AiChatMapper {
 
     /**
      * 更新最近联网状态
-     * @param idList idList
+     *
+     * @param idList        idList
      * @param lastWebsearch lastWebsearch
      * @return 条数
      */
@@ -36,5 +38,6 @@ public interface AiChatMapper {
 
     List<AiChatListResp> selectListByUid(String keyword,
                                          Integer offset, Integer pageSize,
-                                         String uidType, Serializable createUid);
+                                         String uidType, Serializable createUid,
+                                         String startTime, String endTime, String chatTimeColumnName);
 }

@@ -3,16 +3,15 @@ package com.github.aiassistant.service.text.chat;
 import com.github.aiassistant.dao.AiChatClassifyMapper;
 import com.github.aiassistant.entity.AiChatClassify;
 import com.github.aiassistant.entity.model.chat.QuestionClassifyListVO;
+import com.github.aiassistant.enums.AiQuestionClassifyActionEnum;
 import com.github.aiassistant.util.Lists;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.stream.Collectors;
 
 /**
  * 增删改查-AI聊天分类
@@ -39,9 +38,10 @@ public class AiChatClassifyServiceImpl {
 
     /**
      * 提交聊天分类
-     * @param classifyResultList classifyResultList
-     * @param chatId chatId
-     * @param question question
+     *
+     * @param classifyResultList   classifyResultList
+     * @param chatId               chatId
+     * @param question             question
      * @param userQueryTraceNumber userQueryTraceNumber
      * @return 聊天分类提交结果
      */
@@ -63,6 +63,8 @@ public class AiChatClassifyServiceImpl {
                 insert.setClassifyGroupName(Objects.toString(classifyVO.getGroupName(), ""));
                 insert.setQuestion(Objects.toString(question, ""));
                 insert.setAiQuestionClassifyAssistantId(classifyVO.getAiQuestionClassifyAssistantId());
+                insert.setActionEnums(Optional.ofNullable(classifyVO.getActionEnums()).map(e -> e.stream().map(AiQuestionClassifyActionEnum::getCode).collect(Collectors.joining(","))).orElse(""));
+
                 aiChatRequest.classifyList.add(insert);
             }
             // 防止问答过猛
