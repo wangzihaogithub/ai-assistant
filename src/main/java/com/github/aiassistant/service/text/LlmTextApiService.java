@@ -330,13 +330,16 @@ public class LlmTextApiService {
 
             // 准备就绪后，是否需要中断后续流程
             Collection<LlmTextApiServiceIntercept> intercepts = interceptList.get();
-            Function<FunctionCallStreamingResponseHandler, CompletableFuture<Void>> interrupt
-                    = Optional.ofNullable(interceptRepository(user, memoryId, classifyListVO, variables, websearch, reasoning, responseHandler, historyList, question, lastQuestion, intercepts))
-                    .orElseGet(() -> interceptQuestion(user, memoryId, classifyListVO, variables, websearch, reasoning, responseHandler, historyList, question, lastQuestion, intercepts));
+            Function<FunctionCallStreamingResponseHandler, CompletableFuture<Void>> interceptRepository =
+                    interceptRepository(user, memoryId, classifyListVO, variables, websearch, reasoning, responseHandler, historyList, question, lastQuestion, intercepts);
+            Function<FunctionCallStreamingResponseHandler, CompletableFuture<Void>> interceptQuestion =
+                    interceptRepository == null ?
+                            interceptQuestion(user, memoryId, classifyListVO, variables, websearch, reasoning, responseHandler, historyList, question, lastQuestion, intercepts) : null;
+            boolean interrupt = interceptRepository != null || interceptQuestion != null;
 
             // 1.联网搜索
             CompletableFuture<String> webSearchResult;
-            if (interrupt == null && classifyListVO.isJdlw() && isEnableWebSearch(websearch, assistantConfig, knPromptText, mstatePromptText, lastQuestion)) {
+            if (!interrupt && classifyListVO.isJdlw() && isEnableWebSearch(websearch, assistantConfig, knPromptText, mstatePromptText, lastQuestion)) {
                 int maxCharLength = assistantConfig.getMaxMemoryTokens() - historySumLength;
                 CompletableFuture<CompletableFuture<WebSearchResultVO>> wf =
                         webSearchService.webSearchRead(lastQuestion, 1, maxCharLength, false, responseHandler.adapterWebSearch(AiWebSearchSourceEnum.LlmTextApiService)).thenApply(s -> {
@@ -354,7 +357,7 @@ public class LlmTextApiService {
             CompletableFuture<List<List<QaKnVO>>> knnFuture = classifyListVO.isQa() ? selectKnList(assistantConfig, knPromptText, memoryId.getAssistantKnList(AiAssistantKnTypeEnum.qa), lastQuestion) : CompletableFuture.completedFuture(Collections.emptyList());
             // 3.思考
             CompletableFuture<ActingService.Plan> reasoningResultFuture;
-            if (interrupt == null && classifyListVO.isWtcj() && isEnableReasoning(reasoning, assistantConfig, knPromptText, mstatePromptText, lastQuestion)) {
+            if (!interrupt && classifyListVO.isWtcj() && isEnableReasoning(reasoning, assistantConfig, knPromptText, mstatePromptText, lastQuestion)) {
                 reasoningResultFuture = reasoningAndActing(knnFuture, webSearchResult, lastQuestion, memoryId, reasoningAndActingParallel, responseHandler, websearch, classifyListVO);
             } else {
                 reasoningResultFuture = CompletableFuture.completedFuture(null);
@@ -378,7 +381,7 @@ public class LlmTextApiService {
                                 user,
                                 variables,
                                 qaKnVOList,
-                                repository,
+                                interceptRepository != null ? null : repository,
                                 question,
                                 memoryId,
                                 responseHandler,
@@ -399,8 +402,10 @@ public class LlmTextApiService {
                             }
                         }
                         CompletableFuture<Void> interruptAfter = null;
-                        if (interrupt != null) {
-                            interruptAfter = interrupt.apply(handler);
+                        if (interceptRepository != null) {
+                            interruptAfter = interceptRepository.apply(handler);
+                        } else if (interceptQuestion != null) {
+                            interruptAfter = interceptQuestion.apply(handler);
                         }
                         // 构建完毕
                         if (interruptAfter != null) {
@@ -500,10 +505,12 @@ public class LlmTextApiService {
 
         // 记忆
         ConsumerTokenWindowChatMemory chatMemory = new ConsumerTokenWindowChatMemory(memoryId, assistantConfig.getMaxMemoryTokens(), assistantConfig.getMaxMemoryRounds(),
-                tokenizer, historyList, repository::add);
+                tokenizer, historyList, repository == null ? null : repository::add);
         // JsonSchema
         llmJsonSchemaApiService.putSessionMemory(memoryId, new JsonSchemaTokenWindowChatMemory(chatMemory, systemMessage, fewshotMessageList));
-        repository.afterJsonSchemaBuild();
+        if (repository != null) {
+            repository.afterJsonSchemaBuild();
+        }
 
         // 用户消息
         ChatMessage userMessage = StringUtils.hasText(question) ? new UserMessage(question) : null;
@@ -518,11 +525,14 @@ public class LlmTextApiService {
         questionList.forEach(chatMemory::add);
 
         // 插入用户的提问
-        repository.addUserQuestion(questionList).exceptionally(throwable -> {
-            // 插入失败，返回错误消息
-            responseHandler.onError(throwable, baseMessageIndex, addMessageCount, 0);
-            return null;
-        });
+        if (repository != null) {
+            repository.addUserQuestion(questionList).exceptionally(throwable -> {
+                // 插入失败，返回错误消息
+                responseHandler.onError(throwable, baseMessageIndex, addMessageCount, 0);
+                return null;
+            });
+        }
+
         // 获取模型
         AiModel aiModel = memoryId.indexAt(getModels(assistantConfig));
 

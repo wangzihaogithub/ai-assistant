@@ -201,7 +201,7 @@ public class JdbcSessionMessageRepository extends AbstractSessionMessageReposito
         // 插入聊天
         CompletableFuture<?> chat = aiChatHistoryService.insert(now, requestTrace, againUserQueryTraceNumber, websearch, userChat);
         // 如果该智能体开启了记忆状态，就插入状态
-        if (mStateAiParseVO != null) {
+        if (mStateAiParseVO != null && userMemory != null) {
             userMemory.thenAccept(e -> aiMemoryMstateService.insert(e, mStateAiParseVO));
         }
         // 持久化完成后就可以恢复前端的提问按钮了
