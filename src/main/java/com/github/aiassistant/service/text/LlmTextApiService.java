@@ -448,12 +448,6 @@ public class LlmTextApiService {
                 return function;
             }
         }
-        for (LlmTextApiServiceIntercept intercept : intercepts) {
-            Function<FunctionCallStreamingResponseHandler, CompletableFuture<Void>> function = intercept.interceptQuestion(user, memoryId, classifyListVO, variables, websearch, reasoning, responseHandler, historyList, question, lastQuestion);
-            if (function != null) {
-                return function;
-            }
-        }
         return null;
     }
 
