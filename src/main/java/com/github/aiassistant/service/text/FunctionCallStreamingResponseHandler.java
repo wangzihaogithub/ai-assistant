@@ -491,7 +491,7 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
             if (!closeFlag.compareAndSet(false, true)) {
                 throw new IllegalStateException("close() has already been called");
             }
-            if (tokenEnd == null) {
+            if (tokenEnd == null && builder.length() > 0) {
                 AiMessage aiMessage = new AiMessage(builder.toString());
                 TokenUsage tokenUsage;
                 FinishReason finishReason;
