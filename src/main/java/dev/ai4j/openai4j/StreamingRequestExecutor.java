@@ -30,6 +30,7 @@ import static dev.ai4j.openai4j.Utils.toException;
 class StreamingRequestExecutor<Request, Response, ResponseContent> {
 
     private static final JsonUtil.ObjectWriter objectWriter = JsonUtil.objectWriter();
+    private static final JsonUtil.ObjectReader objectReader = JsonUtil.objectReader();
     private static final Logger log = LoggerFactory.getLogger(StreamingRequestExecutor.class);
     private static final MediaType mediaType = MediaType.get("application/json; charset=utf-8");
     private final OkHttpClient okHttpClient;
@@ -205,7 +206,7 @@ class StreamingRequestExecutor<Request, Response, ResponseContent> {
                 }
 
                 try {
-                    Response response = Json.fromJson(data, responseClass);
+                    Response response = objectReader.readValue(data, responseClass);
                     ResponseContent responseContent = streamEventContentExtractor.apply(response);
                     if (responseContent != null) {
                         partialResponseHandler.accept(responseContent); // do not handle exception, fail-fast
