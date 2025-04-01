@@ -13,6 +13,8 @@ public interface SseHttpResponse {
      */
     void write(String next);
 
+    boolean isClose();
+
     /**
      * 告诉前端结束推送
      */

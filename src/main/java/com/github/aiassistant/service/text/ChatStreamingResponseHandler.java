@@ -170,6 +170,13 @@ public interface ChatStreamingResponseHandler {
             }
 
             @Override
+            public void onBeforeReasoningAndActing(boolean reasoningAndActing) {
+                for (ChatStreamingResponseHandler h : list) {
+                    h.onBeforeReasoningAndActing(reasoningAndActing);
+                }
+            }
+
+            @Override
             public void onReasoning(String question, ReasoningJsonSchema.Result result) {
                 for (ChatStreamingResponseHandler h : list) {
                     h.onReasoning(question, result);
@@ -318,6 +325,10 @@ public interface ChatStreamingResponseHandler {
     }
 
     default void onBeforeReasoning(String question, boolean parallel) {
+
+    }
+
+    default void onBeforeReasoningAndActing(boolean reasoningAndActing) {
 
     }
 

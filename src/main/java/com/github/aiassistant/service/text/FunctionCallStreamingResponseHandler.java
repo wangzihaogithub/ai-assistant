@@ -434,6 +434,7 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
         private volatile boolean toolMessageReady;
         private volatile Response<AiMessage> tokenEnd;
         private volatile boolean empty = true;
+        private volatile boolean close = false;
 
         private SseHttpResponseImpl(FunctionCallStreamingResponseHandler handler,
                                     Response<AiMessage> lastResponse,
@@ -482,7 +483,13 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
         }
 
         @Override
+        public boolean isClose() {
+            return close;
+        }
+
+        @Override
         public void close() {
+            close = true;
             empty = false;
             if (!toolMessageReady) {
                 pendingEventList.add(this::close);
@@ -514,6 +521,7 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
         @Override
         public void close(Throwable error) {
             Objects.requireNonNull(error, "error cannot be null");
+            close = true;
             empty = false;
             if (!toolMessageReady) {
                 pendingEventList.add(() -> close(error));

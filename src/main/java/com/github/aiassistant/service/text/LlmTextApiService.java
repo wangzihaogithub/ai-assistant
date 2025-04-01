@@ -357,11 +357,14 @@ public class LlmTextApiService {
             CompletableFuture<List<List<QaKnVO>>> knnFuture = classifyListVO.isQa() ? selectKnList(assistantConfig, knPromptText, memoryId.getAssistantKnList(AiAssistantKnTypeEnum.qa), lastQuestion) : CompletableFuture.completedFuture(Collections.emptyList());
             // 3.思考
             CompletableFuture<ActingService.Plan> reasoningResultFuture;
-            if (!interrupt && classifyListVO.isWtcj() && isEnableReasoning(reasoning, assistantConfig, knPromptText, mstatePromptText, lastQuestion)) {
+            boolean reasoningAndActing = !interrupt && classifyListVO.isWtcj() && isEnableReasoning(reasoning, assistantConfig, knPromptText, mstatePromptText, lastQuestion);
+            if (reasoningAndActing) {
                 reasoningResultFuture = reasoningAndActing(knnFuture, webSearchResult, lastQuestion, memoryId, reasoningAndActingParallel, responseHandler, websearch, classifyListVO);
             } else {
                 reasoningResultFuture = CompletableFuture.completedFuture(null);
             }
+            responseHandler.onBeforeReasoningAndActing(reasoningAndActing);
+
             // 等待结果
             FutureUtil.allOf(webSearchResult, knnFuture, reasoningResultFuture)
                     .thenAccept(unused -> {
@@ -544,9 +547,6 @@ public class LlmTextApiService {
                                                                      ChatStreamingResponseHandler responseHandler,
                                                                      Boolean websearch,
                                                                      QuestionClassifyListVO classifyListVO) {
-        if (!StringUtils.hasText(question)) {
-            return CompletableFuture.completedFuture(null);
-        }
         CompletableFuture<CompletableFuture<ActingService.Plan>> future = knnFuture
                 .handle((qaList, throwable) -> {
                     if (throwable != null) {

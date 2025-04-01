@@ -163,6 +163,12 @@ public class SseEmitterResponseHandler implements ChatStreamingResponseHandler {
     }
 
     @Override
+    public void onBeforeReasoningAndActing(boolean reasoningAndActing) {
+        sendToClient(emitter, "before-reasoning-and-acting",
+                "reasoningAndActing", reasoningAndActing);
+    }
+
+    @Override
     public void beforeWebSearch(AiWebSearchSourceEnum sourceEnum, String providerName, String question) {
         sendToClient(emitter, "before-websearch",
                 "question", question,
