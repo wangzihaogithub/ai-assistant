@@ -62,7 +62,7 @@
             from ai_chat_history
             where ai_chat_id = #{arg0}
             and user_query_flag = true
-            <if test="againUserQueryTraceNumber != null and againUserQueryTraceNumber != ''">
+            <if test="arg1 != null and arg1 != ''">
                 and user_query_trace_number in
                     (select
                          if(root_user_query_trace_number = '', user_query_trace_number, root_user_query_trace_number)
