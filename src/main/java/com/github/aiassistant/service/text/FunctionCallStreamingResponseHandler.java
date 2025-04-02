@@ -38,11 +38,11 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
     public static final int MAX_GENERATE_COUNT = 10;
     public static final long READ_DONE = -1L;
     private static final ScheduledThreadPoolExecutor READ_TIMEOUT_SCHEDULED = new ScheduledThreadPoolExecutor(1, new ThreadFactory() {
-        private final AtomicInteger threadCount = new AtomicInteger(0);
 
         @Override
         public Thread newThread(Runnable r) {
-            Thread thread = new Thread(r, "ai-readTimeout" + threadCount.getAndIncrement());
+            Thread thread = new Thread(r);
+            thread.setName("ai-readTimeout" + thread.getId());
             thread.setDaemon(true);
             return thread;
         }

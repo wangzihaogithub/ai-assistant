@@ -17,7 +17,7 @@ import java.util.concurrent.Executor;
 /**
  * Jsonschema工具调用
  */
-public class JsonschemaFunctionCallStreamingResponseHandler extends FunctionCallStreamingResponseHandler {
+class JsonschemaFunctionCallStreamingResponseHandler extends FunctionCallStreamingResponseHandler {
 
     JsonschemaFunctionCallStreamingResponseHandler(String modelName,
                                                    StreamingChatLanguageModel chatModel, ChatMemory chatMemory,
@@ -30,7 +30,7 @@ public class JsonschemaFunctionCallStreamingResponseHandler extends FunctionCall
                 toolMethodList, isSupportChineseToolName, baseMessageIndex, addMessageCount, readTimeoutMs, executor);
     }
 
-    public JsonschemaFunctionCallStreamingResponseHandler(FunctionCallStreamingResponseHandler parent) {
+    JsonschemaFunctionCallStreamingResponseHandler(FunctionCallStreamingResponseHandler parent) {
         super(parent);
     }
 
