@@ -46,6 +46,10 @@ public class KnnApiService {
      */
     private int modelModIndex = 0;
 
+    public KnnApiService(RestClient embeddingStore) {
+        this(embeddingStore, null, 10);
+    }
+
     public KnnApiService(RestClient embeddingStore, AiEmbeddingMapper aiEmbeddingMapper) {
         this(embeddingStore, aiEmbeddingMapper, 10);
     }
