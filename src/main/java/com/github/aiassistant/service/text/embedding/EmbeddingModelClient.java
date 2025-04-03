@@ -38,7 +38,7 @@ public class EmbeddingModelClient {
         this.modelName = modelName;
         this.dimensions = dimensions;
         this.aiEmbeddingMapper = aiEmbeddingMapper;
-        this.maxRequestSize = maxRequestSize == null ? 1 : Math.max(1, maxRequestSize);
+        this.maxRequestSize = maxRequestSize == null ? 10 : Math.max(1, maxRequestSize);
         this.executor = executor == null ? Runnable::run : executor;
     }
 
