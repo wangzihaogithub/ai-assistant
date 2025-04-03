@@ -13,6 +13,7 @@ public class AiChatResp {
     private Date updateTime;
     private Date lastChatTime;
     private Boolean lastWebsearchFlag;
+    private String chatSourceEnum;//聊天来源枚举（pc=pc端创建的，wxmini=微信小程序）
 
     public static AiChatResp convert(AiChat aiChat) {
         return BeanUtil.toBean(aiChat, AiChatResp.class);
@@ -24,6 +25,14 @@ public class AiChatResp {
 
     public void setId(Integer id) {
         this.id = id;
+    }
+
+    public String getChatSourceEnum() {
+        return chatSourceEnum;
+    }
+
+    public void setChatSourceEnum(String chatSourceEnum) {
+        this.chatSourceEnum = chatSourceEnum;
     }
 
     public String getName() {

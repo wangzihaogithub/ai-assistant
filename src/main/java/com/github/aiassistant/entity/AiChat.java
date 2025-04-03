@@ -5,7 +5,7 @@ import java.util.Date;
 //// @Data
 //// @TableName("ai_chat")
 public class AiChat {
-//    // @TableId(value = "id", type = IdType.AUTO)
+    //    // @TableId(value = "id", type = IdType.AUTO)
     private Integer id;
     private String name;
     private Date createTime;
@@ -17,6 +17,15 @@ public class AiChat {
     private Date deleteTime;
     private String assistantId;
     private String uidType; // 用户类型，类型等于表名，student=学生，sys_user=员工
+    private String chatSourceEnum;//聊天来源枚举（pc=pc端创建的，wxmini=微信小程序）
+
+    public String getChatSourceEnum() {
+        return chatSourceEnum;
+    }
+
+    public void setChatSourceEnum(String chatSourceEnum) {
+        this.chatSourceEnum = chatSourceEnum;
+    }
 
     public Integer getId() {
         return id;

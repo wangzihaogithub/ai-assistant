@@ -93,7 +93,7 @@ public class AiApplicationTest {
         AiAssistant assistant = assistantList.iterator().next();
 
         // 会话
-        AiChatResp chat = aiApplication.getAiChatService().insert(assistant.getId(), "", 1, uidTypeEnum);
+        AiChatResp chat = aiApplication.getAiChatService().insert(assistant.getId(), "", 1, uidTypeEnum, null);
 
         // 提问
         ChatQueryRequest chatQueryRequest = new ChatQueryRequest();

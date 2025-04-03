@@ -17,7 +17,62 @@ public class AiChatListResp {
     private Integer aiChatHistoryId;
     private String assistantId;
     private String logoUrl;
+    private String chatSourceEnum;//聊天来源枚举（pc=pc端创建的，wxmini=微信小程序）
+
     private AiChatHistoryResp history;
+
+    public static AiChatHistoryResp convertHistory(String keyword, AiChatHistory history) {
+        if (history == null) {
+            return null;
+        }
+        AiChatHistoryResp bean = BeanUtil.toBean(history, AiChatHistoryResp.class);
+        if (StringUtils.hasText(keyword)) {
+            bean.setMessageText(messageText(keyword, bean.getMessageText()));
+        }
+        return bean;
+    }
+
+    private static int findIndex(int j, String messageText, int maxChars) {
+        int charCount = 0;
+        for (int i = j - 1; i > 0; i--) {
+            char c = messageText.charAt(i);
+            if (isSplitter(c)) {
+                return i + 1;
+            }
+            if (charCount >= maxChars) {
+                return j;
+            }
+            charCount++;
+        }
+        return j;
+    }
+
+    private static boolean isSplitter(char c) {
+        return Character.isWhitespace(c)
+                || c == ',' || c == '，'
+                || c == '.' || c == '。'
+                || c == ':' || c == '：'
+                || c == '？' || c == '?'
+                || c == '!' || c == '！';
+    }
+
+    private static String messageText(String keyword, String messageText) {
+        int maxChars = 20;
+        if (messageText.length() <= maxChars) {
+            return messageText;
+        }
+        int i = messageText.indexOf(keyword);
+        if (i != -1) {
+            if (messageText.length() - i <= maxChars) {
+                return messageText.substring(messageText.length() - maxChars);
+            } else {
+                int index = findIndex(i, messageText, maxChars);
+                return messageText.substring(index);
+            }
+        } else {
+            return messageText;
+        }
+    }
 
     public Integer getId() {
         return id;
@@ -25,6 +80,14 @@ public class AiChatListResp {
 
     public void setId(Integer id) {
         this.id = id;
+    }
+
+    public String getChatSourceEnum() {
+        return chatSourceEnum;
+    }
+
+    public void setChatSourceEnum(String chatSourceEnum) {
+        this.chatSourceEnum = chatSourceEnum;
     }
 
     public String getName() {
@@ -97,59 +160,6 @@ public class AiChatListResp {
 
     public void setHistory(AiChatHistoryResp history) {
         this.history = history;
-    }
-
-    public static AiChatHistoryResp convertHistory(String keyword, AiChatHistory history) {
-        if (history == null) {
-            return null;
-        }
-        AiChatHistoryResp bean = BeanUtil.toBean(history, AiChatHistoryResp.class);
-        if (StringUtils.hasText(keyword)) {
-            bean.setMessageText(messageText(keyword, bean.getMessageText()));
-        }
-        return bean;
-    }
-
-    private static int findIndex(int j, String messageText, int maxChars) {
-        int charCount = 0;
-        for (int i = j - 1; i > 0; i--) {
-            char c = messageText.charAt(i);
-            if (isSplitter(c)) {
-                return i + 1;
-            }
-            if (charCount >= maxChars) {
-                return j;
-            }
-            charCount++;
-        }
-        return j;
-    }
-
-    private static boolean isSplitter(char c) {
-        return Character.isWhitespace(c)
-                || c == ',' || c == '，'
-                || c == '.' || c == '。'
-                || c == ':' || c == '：'
-                || c == '？' || c == '?'
-                || c == '!' || c == '！';
-    }
-
-    private static String messageText(String keyword, String messageText) {
-        int maxChars = 20;
-        if (messageText.length() <= maxChars) {
-            return messageText;
-        }
-        int i = messageText.indexOf(keyword);
-        if (i != -1) {
-            if (messageText.length() - i <= maxChars) {
-                return messageText.substring(messageText.length() - maxChars);
-            } else {
-                int index = findIndex(i, messageText, maxChars);
-                return messageText.substring(index);
-            }
-        } else {
-            return messageText;
-        }
     }
 
     // @Data

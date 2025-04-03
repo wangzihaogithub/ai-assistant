@@ -7,6 +7,7 @@ import com.github.aiassistant.entity.AiChatHistory;
 import com.github.aiassistant.entity.AiMemory;
 import com.github.aiassistant.entity.model.chat.AiChatListResp;
 import com.github.aiassistant.entity.model.chat.AiChatResp;
+import com.github.aiassistant.enums.AiChatSourceEnum;
 import com.github.aiassistant.enums.AiChatTimeEnum;
 import com.github.aiassistant.enums.AiChatUidTypeEnum;
 import com.github.aiassistant.service.text.memory.AiMemoryServiceImpl;
@@ -52,7 +53,9 @@ public class AiChatServiceImpl {
         return StringUtils.left(name, nameLimit, true);
     }
 
-    public AiChatResp insert(String assistantId, String name, Serializable createUid, AiChatUidTypeEnum uidTypeEnum) {
+    public AiChatResp insert(String assistantId, String name,
+                             Serializable createUid, AiChatUidTypeEnum uidTypeEnum,
+                             AiChatSourceEnum chatSourceEnum) {
         Date now = new Date();
 
         Integer createUidInt = createUid == null || "".equals(createUid) ? null : Integer.valueOf(createUid.toString());
@@ -74,6 +77,7 @@ public class AiChatServiceImpl {
         aiChat.setLastChatTime(now);
         aiChat.setUidType(uidTypeEnum.getCode());
         aiChat.setLastWebsearchFlag(false);
+        aiChat.setChatSourceEnum(chatSourceEnum == null ? "" : chatSourceEnum.getCode());
         aiChatMapper.insert(aiChat);
         return AiChatResp.convert(aiChat);
     }
