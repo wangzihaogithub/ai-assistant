@@ -1,15 +1,14 @@
 package com.github.aiassistant.util;
 
+import com.github.aiassistant.platform.PlatformDependentUtil;
+
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.MalformedURLException;
-import java.net.Proxy;
-import java.net.URL;
-import java.net.URLConnection;
+import java.net.*;
 import java.security.SecureRandom;
 import java.util.Collections;
 import java.util.Map;
@@ -52,7 +51,14 @@ public class JdkHttpClient implements HttpClient {
 
     @Override
     public HttpRequest request(String uriTemplate, Map<String, ?> uriVariables) throws MalformedURLException {
-        URL url = expand(uriTemplate, uriVariables == null ? Collections.emptyMap() : uriVariables);
+        Map<String, ?> notnullUriVariables = uriVariables == null ? Collections.emptyMap() : uriVariables;
+        URI uri;
+        try {
+            uri = PlatformDependentUtil.uriTemplateExpand(uriTemplate, notnullUriVariables);
+        } catch (URISyntaxException e) {
+            throw new MalformedURLException(uriTemplate + " is not a valid URL");
+        }
+        URL url = uri.toURL();
         URLConnection connection;
         try {
             if (proxy != null) {

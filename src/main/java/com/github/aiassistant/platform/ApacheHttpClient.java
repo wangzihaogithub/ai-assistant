@@ -19,8 +19,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public class ApacheHttpClient implements HttpClient {
@@ -42,23 +40,6 @@ public class ApacheHttpClient implements HttpClient {
         };
     }
 
-    public static URI expand(String template, Map<String, ?> variables) throws URISyntaxException {
-        Pattern pattern = Pattern.compile("\\{([^{}]+)\\}");
-        Matcher matcher = pattern.matcher(template);
-        StringBuffer sb = new StringBuffer();
-
-        while (matcher.find()) {
-            String variableName = matcher.group(1);
-            Object replacement = variables == null ? null : variables.get(variableName);
-            if (replacement == null) {
-                replacement = "";
-            }
-            matcher.appendReplacement(sb, Matcher.quoteReplacement(replacement.toString()));
-        }
-        matcher.appendTail(sb);
-        return new URI(sb.toString());
-    }
-
     private CloseableHttpAsyncClient client() {
         if (client == null) {
             synchronized (this) {
@@ -77,7 +58,7 @@ public class ApacheHttpClient implements HttpClient {
         Map<String, ?> notnullUriVariables = uriVariables == null ? Collections.emptyMap() : uriVariables;
         URI uri;
         try {
-            uri = expand(uriTemplate, notnullUriVariables);
+            uri = PlatformDependentUtil.uriTemplateExpand(uriTemplate, notnullUriVariables);
         } catch (URISyntaxException e) {
             throw new MalformedURLException(uriTemplate + " is not a valid URL");
         }

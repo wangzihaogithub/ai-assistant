@@ -1,6 +1,5 @@
 package com.github.aiassistant.service.text.tools.functioncall;
 
-import com.github.aiassistant.entity.model.chat.MemoryIdVO;
 import com.github.aiassistant.entity.model.chat.WebSearchResultVO;
 import com.github.aiassistant.entity.model.chat.WebSearchToolExecutionResultMessage;
 import com.github.aiassistant.enums.AiWebSearchSourceEnum;
@@ -19,7 +18,6 @@ import dev.langchain4j.agent.tool.ToolMemoryId;
 import java.net.URI;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 /**
@@ -27,8 +25,13 @@ import java.util.stream.Collectors;
  */
 public class BingWebSearchTools extends Tools implements WebSearch {
     private static final UrlReadTools urlReadTools =
-            new UrlReadTools("web-bing", 500, 1500, 1, UrlReadTools.PROXY1);
-
+            new UrlReadTools(
+                    System.getProperty("aiassistant.BingWebSearchTools.threadNamePrefix", "web-bing"),
+                    Integer.getInteger("aiassistant.BingWebSearchTools.clients", 6),
+                    Integer.getInteger("aiassistant.BingWebSearchTools.connectTimeout", 500),
+                    Integer.getInteger("aiassistant.BingWebSearchTools.readTimeout", 1500),
+                    Integer.getInteger("aiassistant.BingWebSearchTools.max302", 1),
+                    UrlReadTools.PROXY1);
     private final String[] defaultHeaders = {
             "accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
             "accept-language", "zh-CN,zh;q=0.9",
@@ -44,13 +47,6 @@ public class BingWebSearchTools extends Tools implements WebSearch {
             "pragma", "no-cache",
 //            "user-agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
     };
-
-    public static void main(String[] args) throws ExecutionException, InterruptedException {
-        BingWebSearchTools tools = new BingWebSearchTools();
-        CompletableFuture<WebSearchResultVO> f = tools.webSearch("介绍一下当前最具有发展前景的岗位类型", 10);
-        WebSearchResultVO vo = f.get();
-        System.out.println("vo = " + vo);
-    }
 
     private static String getTime(String content) {
         if (content != null) {
@@ -83,7 +79,7 @@ public class BingWebSearchTools extends Tools implements WebSearch {
         if (!StringUtils.hasText(q)) {
             return CompletableFuture.completedFuture(WebSearchResultVO.empty());
         }
-        String qLimit = StringUtils.substring(q, 20, true);
+        String qLimit = StringUtils.left(q, 20, true);
         String urlString = "https://cn.bing.com/search?q={q}&first={pn}&FORM=PERE1";
         int pageSize = 10;
         int count = (int) Math.ceil((double) limit / (double) pageSize);
@@ -178,8 +174,7 @@ public class BingWebSearchTools extends Tools implements WebSearch {
             "来源"})
     public Object search(
             @P(value = "搜索内容", required = true) @Name("q") List<String> q,
-            @ToolMemoryId ToolExecutionRequest request,
-            @ToolMemoryId MemoryIdVO memoryIdVO) {
+            @ToolMemoryId ToolExecutionRequest request) {
         List<CompletableFuture<WebSearchResultVO>> voList = new ArrayList<>();
         ChatStreamingResponseHandler handler = getStreamingResponseHandler();
         String beanName = getBeanName();

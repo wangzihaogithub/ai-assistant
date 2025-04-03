@@ -1,7 +1,7 @@
 package com.github.aiassistant.entity.model.chat;
 
-import com.github.aiassistant.util.AiUtil;
 import com.github.aiassistant.service.text.tools.functioncall.UrlReadTools;
+import com.github.aiassistant.util.AiUtil;
 import com.github.aiassistant.util.StringUtils;
 
 import java.io.ByteArrayOutputStream;
@@ -203,6 +203,11 @@ public class WebSearchResultVO {
         private Long urlReadTimeCost;
         private UrlReadTools.ProxyVO proxy;
 
+        @Override
+        public String toString() {
+            return title;
+        }
+
         public String getUrl() {
             return url;
         }
@@ -266,7 +271,7 @@ public class WebSearchResultVO {
             } else {
                 key = content;
             }
-            return StringUtils.substring(key, 500, true);
+            return StringUtils.left(key, 500, true);
         }
     }
 }

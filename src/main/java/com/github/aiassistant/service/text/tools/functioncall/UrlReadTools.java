@@ -1,6 +1,5 @@
 package com.github.aiassistant.service.text.tools.functioncall;
 
-import com.github.aiassistant.entity.model.chat.MemoryIdVO;
 import com.github.aiassistant.entity.model.chat.UrlReadToolExecutionResultMessage;
 import com.github.aiassistant.platform.ApacheHttpClient;
 import com.github.aiassistant.platform.HtmlQuery;
@@ -183,8 +182,7 @@ public class UrlReadTools extends Tools {
     @Tool(name = "菜鸟无忧链接读取", value = {"当你需要获取网页内容时，使用此工具，可以获取url链接下的内容"})
     public CompletableFuture<UrlReadToolExecutionResultMessage> read(
             @P(value = "URL", required = false) @Name("urlString") String urlString,
-            @ToolMemoryId ToolExecutionRequest request,
-            @ToolMemoryId MemoryIdVO memoryIdVO) throws IOException {
+            @ToolMemoryId ToolExecutionRequest request) {
         CompletableFuture<String> future = readString(urlString);
         return future.thenApply(text -> {
             if (!StringUtils.hasText(text)) {

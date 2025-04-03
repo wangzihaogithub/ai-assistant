@@ -13,7 +13,6 @@ import com.github.aiassistant.enums.AiChatUidTypeEnum;
 import com.github.aiassistant.service.text.chat.AiChatHistoryServiceImpl;
 import com.github.aiassistant.service.text.tools.AiToolServiceImpl;
 import com.github.aiassistant.serviceintercept.AccessUserServiceIntercept;
-import com.github.aiassistant.util.AiUtil;
 import com.github.aiassistant.util.StringUtils;
 
 import java.io.Serializable;
@@ -135,7 +134,7 @@ public class AccessUserService {
             vo.setAssistantKnMap(aiAssistantKnMapper.selectListByAssistantId(assistant.getId()).stream()
                     .collect(Collectors.groupingBy(AiAssistantKn::getKnTypeEnum)));
             vo.setFewshotList(aiAssistantFewshotMapper.selectListByAssistantId(assistant.getId()));
-            vo.setToolMethodList(aiToolService.selectToolMethodList(StringUtils.splitString(assistant.getAiToolIds(),",")));
+            vo.setToolMethodList(aiToolService.selectToolMethodList(StringUtils.split(assistant.getAiToolIds(),",")));
             for (AccessUserServiceIntercept intercept : interceptList.get()) {
                 vo = intercept.afterMemoryId(vo, chatId, createUid, uidTypeEnum);
             }

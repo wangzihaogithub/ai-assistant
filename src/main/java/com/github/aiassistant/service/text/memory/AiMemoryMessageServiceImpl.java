@@ -281,7 +281,7 @@ public class AiMemoryMessageServiceImpl {
             AiMemoryMessageVO vo = new AiMemoryMessageVO();
             vo.setAiMemoryId(memoryId);
             vo.setMessageIndex(message.getMessageIndex());
-            vo.setMessageText(StringUtils.substring(message.getText(), 65000, true));
+            vo.setMessageText(StringUtils.left(message.getText(), 65000, true));
             vo.setMessageTypeEnum(message.getType().getCode());
             vo.setUserQueryFlag(userQueryFlag);
             vo.setCreateTime(message.getCreateTime());
@@ -310,8 +310,8 @@ public class AiMemoryMessageServiceImpl {
                 for (ToolRequest toolRequest : toolRequests) {
                     AiMemoryMessageTool toolVo = new AiMemoryMessageTool();
                     toolVo.setToolRequestId(toolRequest.getRequestId());
-                    toolVo.setToolName(StringUtils.substring(toolRequest.getToolName(), 128, true));
-                    toolVo.setToolArguments(StringUtils.substring(toolRequest.getArguments(), 65000, true));
+                    toolVo.setToolName(StringUtils.left(toolRequest.getToolName(), 128, true));
+                    toolVo.setToolArguments(StringUtils.left(toolRequest.getArguments(), 65000, true));
                     toolVo.setAiMemoryId(memoryId);
                     vo.getToolList().add(toolVo);
                 }
@@ -327,11 +327,11 @@ public class AiMemoryMessageServiceImpl {
             for (QaKnVO qaKnVO : qaKnVOS) {
                 AiMemoryMessageKn knVo = new AiMemoryMessageKn();
                 knVo.setKnId(Integer.valueOf(qaKnVO.getId()));
-                knVo.setKnQuestionText(StringUtils.substring(qaKnVO.getQuestion(), 4000, true));
-                knVo.setKnAnswerText(StringUtils.substring(qaKnVO.getAnswer(), 4000, true));
+                knVo.setKnQuestionText(StringUtils.left(qaKnVO.getQuestion(), 4000, true));
+                knVo.setKnAnswerText(StringUtils.left(qaKnVO.getAnswer(), 4000, true));
                 knVo.setKnScore(qaKnVO.scoreLong());
                 knVo.setKnIndexUpdatedTime(qaKnVO.getIndexUpdatedTime());
-                knVo.setKnIndexName(StringUtils.substring(qaKnVO.getIndexName(), 128, true));
+                knVo.setKnIndexName(StringUtils.left(qaKnVO.getIndexName(), 128, true));
                 knVo.setAiMemoryId(memoryId);
                 aiMemory.getKnList().add(knVo);
             }

@@ -35,10 +35,10 @@ public class AiChatAbortServiceImpl {
     public boolean insert(String beforeText, Integer memoryId, Integer chatId, String userQueryTraceNumber, Integer messageIndex) {
         AiChatAbort abort = new AiChatAbort();
         abort.setCreateTime(new Date());
-        abort.setBeforeText(StringUtils.substring(beforeText, 65000, true));
+        abort.setBeforeText(StringUtils.left(beforeText, 65000, true));
         abort.setAiMemoryId(memoryId);
         abort.setAiChatId(chatId);
-        abort.setUserQueryTraceNumber(StringUtils.substring(userQueryTraceNumber, 32, true));
+        abort.setUserQueryTraceNumber(StringUtils.left(userQueryTraceNumber, 32, true));
         abort.setMessageIndex(messageIndex);
         if (StringUtils.hasText(userQueryTraceNumber)) {
             String rootAgainUserQueryTraceNumber = aiChatHistoryService.selectRootAgainUserQueryTraceNumberMap(Collections.singletonList(userQueryTraceNumber)).get(userQueryTraceNumber);

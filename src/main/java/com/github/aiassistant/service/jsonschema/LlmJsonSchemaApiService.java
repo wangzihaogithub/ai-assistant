@@ -192,7 +192,7 @@ public class LlmJsonSchemaApiService {
             systemPromptText = jsonschema.getSystemPromptText();
             userPromptText = jsonschema.getUserPromptText();
             knPromptText = jsonschema.getKnPromptText();
-            toolMethodList = AiUtil.initTool(aiToolService.selectToolMethodList(StringUtils.splitString(jsonschema.getAiToolIds(), ",")), variables, user);
+            toolMethodList = AiUtil.initTool(aiToolService.selectToolMethodList(StringUtils.split(jsonschema.getAiToolIds(), ",")), variables, user);
         }
         AiServices<T> aiServices = new FunctionalInterfaceAiServices<>(new AiServiceContext(type), systemPromptText, userPromptText,
                 knPromptText, variablesMap, responseHandler, toolMethodList, aiModel.isSupportChineseToolName(), aiModel.modelName, memoryIdVO);

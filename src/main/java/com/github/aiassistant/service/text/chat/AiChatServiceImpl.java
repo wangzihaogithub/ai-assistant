@@ -49,7 +49,7 @@ public class AiChatServiceImpl {
     }
 
     private String nameLimit(String name) {
-        return StringUtils.substring(name, nameLimit, true);
+        return StringUtils.left(name, nameLimit, true);
     }
 
     public AiChatResp insert(String assistantId, String name, Serializable createUid, AiChatUidTypeEnum uidTypeEnum) {

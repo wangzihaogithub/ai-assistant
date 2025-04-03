@@ -5,16 +5,16 @@ import java.util.*;
 
 public class StringUtils {
 
-    public static String substring(String string, int limit, boolean notnull) {
-        if (string == null || string.isEmpty()) {
-            return notnull ? "" : string;
+    public static String left(String string, int length, boolean notnull) {
+        if (string == null) {
+            return notnull ? "" : null;
         }
-        return string.length() > limit ? string.substring(0, limit) : string;
+        return string.length() > length ? string.substring(0, length) : string;
     }
 
-    public static List<String> splitString(String string, String split) {
+    public static List<String> split(String string, String separatorChars) {
         if (hasText(string)) {
-            return Arrays.asList(string.split(split));
+            return Arrays.asList(string.split(separatorChars));
         } else {
             return Collections.emptyList();
         }
@@ -85,7 +85,7 @@ public class StringUtils {
     }
 
     public static Timestamp parseDate(String noHasZoneAnyDateString) {
-        if (noHasZoneAnyDateString == null || noHasZoneAnyDateString.isEmpty()) {
+        if (noHasZoneAnyDateString == null || (noHasZoneAnyDateString = noHasZoneAnyDateString.trim()).isEmpty()) {
             return null;
         }
         int shotTimestampLength = 10;

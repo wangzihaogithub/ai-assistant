@@ -1,6 +1,5 @@
 package com.github.aiassistant.service.text.tools.functioncall;
 
-import com.github.aiassistant.entity.model.chat.MemoryIdVO;
 import com.github.aiassistant.entity.model.chat.WebSearchResultVO;
 import com.github.aiassistant.entity.model.chat.WebSearchToolExecutionResultMessage;
 import com.github.aiassistant.enums.AiWebSearchSourceEnum;
@@ -20,7 +19,6 @@ import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -29,8 +27,13 @@ import java.util.stream.Collectors;
  */
 public class SogouWebSearchTools extends Tools implements WebSearch {
     private static final UrlReadTools urlReadTools =
-            new UrlReadTools("web-sogou", 500, 1500, 1, UrlReadTools.PROXY1);
-
+            new UrlReadTools(
+                    System.getProperty("aiassistant.BingWebSearchTools.threadNamePrefix", "web-sogou"),
+                    Integer.getInteger("aiassistant.BingWebSearchTools.clients", 6),
+                    Integer.getInteger("aiassistant.BingWebSearchTools.connectTimeout", 500),
+                    Integer.getInteger("aiassistant.BingWebSearchTools.readTimeout", 1500),
+                    Integer.getInteger("aiassistant.BingWebSearchTools.max302", 1),
+                    UrlReadTools.PROXY1);
     private final String[] defaultHeaders = {
             "accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
             "accept-language", "zh-CN,zh;q=0.9",
@@ -46,12 +49,6 @@ public class SogouWebSearchTools extends Tools implements WebSearch {
             "pragma", "no-cache",
 //            "user-agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
     };
-
-    public static void main(String[] args) throws ExecutionException, InterruptedException {
-        CompletableFuture<WebSearchResultVO> vo = new SogouWebSearchTools().webSearch("菜鸟无忧", 10);
-        WebSearchResultVO vo1 = vo.get();
-        System.out.println("vo = " + vo1);
-    }
 
     private static Long parseDate(String date) {
         StringBuilder b = new StringBuilder();
@@ -88,7 +85,7 @@ public class SogouWebSearchTools extends Tools implements WebSearch {
             return CompletableFuture.completedFuture(WebSearchResultVO.empty());
         }
         String domain = "https://weixin.sogou.com";
-        String qLimit = StringUtils.substring(q, 20, true);
+        String qLimit = StringUtils.left(q, 20, true);
         String urlString = domain + "/weixin?oq=&query={q}&_sug_type_=1&sut=0&s_from=input&ri=4&_sug_=n&type=2&page={pn}&ie=utf8";
         int pageSize = 10;
 
@@ -172,8 +169,7 @@ public class SogouWebSearchTools extends Tools implements WebSearch {
             "来源"})
     public Object search(
             @P(value = "搜索内容", required = true) @Name("q") List<String> q,
-            @ToolMemoryId ToolExecutionRequest request,
-            @ToolMemoryId MemoryIdVO memoryIdVO) {
+            @ToolMemoryId ToolExecutionRequest request) {
         List<CompletableFuture<WebSearchResultVO>> voList = new ArrayList<>();
         ChatStreamingResponseHandler handler = getStreamingResponseHandler();
         String beanName = getBeanName();

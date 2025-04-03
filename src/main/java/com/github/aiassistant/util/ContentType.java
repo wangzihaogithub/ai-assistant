@@ -65,27 +65,6 @@ public class ContentType {
         return new ContentType(type, subtype, params);
     }
 
-    // Main method for testing
-    public static void main(String[] args) {
-        String contentTypeString1 = "application/json; charset=utf-8; boundary=something";
-        String contentTypeString2 = "application/xml; boundary=abc123";
-
-        ContentType contentType1 = parse(contentTypeString1);
-        ContentType contentType2 = parse(contentTypeString2);
-
-        System.out.println("ContentType 1:");
-        System.out.println("Type: " + contentType1.getType());
-        System.out.println("Subtype: " + contentType1.getSubtype());
-        System.out.println("Charset: " + contentType1.getCharset());
-        System.out.println("Parameters: " + contentType1.getParameters());
-
-        System.out.println("\nContentType 2:");
-        System.out.println("Type: " + contentType2.getType());
-        System.out.println("Subtype: " + contentType2.getSubtype());
-        System.out.println("Charset: " + contentType2.getCharset());
-        System.out.println("Parameters: " + contentType2.getParameters());
-    }
-
     // Getters for ContentType fields
     public String getType() {
         return type;

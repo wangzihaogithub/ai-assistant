@@ -49,8 +49,8 @@ public class AiMemoryErrorServiceImpl {
         AiMemoryError error = new AiMemoryError();
         error.setAiChatId(requestTrace.getMemoryId().getChatId());
         error.setMemoryId(requestTrace.getMemoryId().getMemoryId());
-        error.setErrorClassName(StringUtils.substring(throwable.getClass().getName(), 128, true));
-        error.setErrorMessage(StringUtils.substring(buf.toString(), 65000, true));
+        error.setErrorClassName(StringUtils.left(throwable.getClass().getName(), 128, true));
+        error.setErrorMessage(StringUtils.left(buf.toString(), 65000, true));
         error.setUserQueryTraceNumber(userQueryTraceNumber);
         error.setMessageCount(requestTrace.getMessageSize());
 
@@ -62,7 +62,7 @@ public class AiMemoryErrorServiceImpl {
 
         AiErrorTypeEnum errorTypeEnum = AiErrorTypeEnum.parseErrorType(throwable.toString());
         error.setErrorType(errorTypeEnum.getCode());
-        error.setMessageText(StringUtils.substring(errorTypeEnum.getMessageText(), 512, true));
+        error.setMessageText(StringUtils.left(errorTypeEnum.getMessageText(), 512, true));
         error.setAttachmentJson("");
         if (StringUtils.hasText(userQueryTraceNumber)) {
             String rootAgainUserQueryTraceNumber = aiChatHistoryService.selectRootAgainUserQueryTraceNumberMap(Collections.singletonList(userQueryTraceNumber)).get(userQueryTraceNumber);
@@ -101,9 +101,9 @@ public class AiMemoryErrorServiceImpl {
         AiMemoryError error = new AiMemoryError();
         error.setAiChatId(memoryId.getChatId());
         error.setMemoryId(memoryId.getMemoryId());
-        error.setErrorClassName(StringUtils.substring(errorClassName, 128, true));
-        error.setErrorMessage(StringUtils.substring(errorMessage, 65000, true));
-        error.setUserQueryTraceNumber(StringUtils.substring(userQueryTraceNumber, 32, true));
+        error.setErrorClassName(StringUtils.left(errorClassName, 128, true));
+        error.setErrorMessage(StringUtils.left(errorMessage, 65000, true));
+        error.setUserQueryTraceNumber(StringUtils.left(userQueryTraceNumber, 32, true));
         error.setMessageCount(0);
 
         error.setBaseMessageIndex(messageIndex == null ? -1 : messageIndex);
@@ -112,9 +112,9 @@ public class AiMemoryErrorServiceImpl {
         error.setCreateTime(now);
         error.setSessionTime(timestamp != null ? new Timestamp(timestamp) : now);
 
-        error.setErrorType(StringUtils.substring(errorType, 128, true));
-        error.setMessageText(StringUtils.substring(messageText, 512, true));
-        error.setAttachmentJson(StringUtils.substring(attachmentJson, 65000, true));
+        error.setErrorType(StringUtils.left(errorType, 128, true));
+        error.setMessageText(StringUtils.left(messageText, 512, true));
+        error.setAttachmentJson(StringUtils.left(attachmentJson, 65000, true));
         if (StringUtils.hasText(userQueryTraceNumber)) {
             String rootAgainUserQueryTraceNumber = aiChatHistoryService.selectRootAgainUserQueryTraceNumberMap(Collections.singletonList(userQueryTraceNumber)).get(userQueryTraceNumber);
             error.setRootAgainUserQueryTraceNumber(Objects.toString(rootAgainUserQueryTraceNumber, userQueryTraceNumber));

@@ -67,12 +67,12 @@ public class AiChatWebsearchServiceImpl {
             AiChatWebsearchRequest aiChatRequest = new AiChatWebsearchRequest(resultVO, user);
             List<UrlReadTools.ProxyVO> proxyList = resultVO.getProxyList();
             String proxyString = proxyList != null ? proxyList.stream().map(e -> e == null ? UrlReadTools.NO_PROXY : e.toAddressString()).filter(StringUtils::hasText).collect(Collectors.joining(",")) : "";
-            aiChatRequest.setSearchProxy(StringUtils.substring(proxyString, 255, true));
+            aiChatRequest.setSearchProxy(StringUtils.left(proxyString, 255, true));
             aiChatRequest.setSearchTimeMs(cost);
             aiChatRequest.setUserQueryTraceNumber(userQueryTraceNumber);
             aiChatRequest.setProviderName(providerName);
             aiChatRequest.setQuestion(question);
-            aiChatRequest.setSourceEnum(StringUtils.substring(sourceEnum, 30, true));
+            aiChatRequest.setSourceEnum(StringUtils.left(sourceEnum, 30, true));
             aiChatRequest.setCreateTime(new Date());
             // 防止问答过猛
             while (!insertRequestQueue.offer(aiChatRequest)) {
@@ -105,15 +105,15 @@ public class AiChatWebsearchServiceImpl {
 
                     insertResult.setAiChatId(request.getAiChatId());
                     insertResult.setUserChatHistoryId(request.getUserChatHistoryId());
-                    insertResult.setPageUrl(StringUtils.substring(row.getUrl(), 255, true));
-                    insertResult.setPageTitle(StringUtils.substring(row.getTitle(), 255, true));
-                    insertResult.setPageTime(StringUtils.substring(row.getTime(), 50, true));
-                    insertResult.setPageSource(StringUtils.substring(row.getSource(), 50, true));
-                    insertResult.setPageContent(StringUtils.substring(row.getContent(), 65000, true));
+                    insertResult.setPageUrl(StringUtils.left(row.getUrl(), 255, true));
+                    insertResult.setPageTitle(StringUtils.left(row.getTitle(), 255, true));
+                    insertResult.setPageTime(StringUtils.left(row.getTime(), 50, true));
+                    insertResult.setPageSource(StringUtils.left(row.getSource(), 50, true));
+                    insertResult.setPageContent(StringUtils.left(row.getContent(), 65000, true));
                     Long urlReadTimeCost = row.getUrlReadTimeCost();
                     insertResult.setUrlReadTimeCost(urlReadTimeCost == null ? 0L : urlReadTimeCost);
                     UrlReadTools.ProxyVO proxyVO = row.getProxy();
-                    insertResult.setUrlReadProxy(StringUtils.substring(proxyVO != null ? proxyVO.toAddressString() : UrlReadTools.NO_PROXY, 35, true));
+                    insertResult.setUrlReadProxy(StringUtils.left(proxyVO != null ? proxyVO.toAddressString() : UrlReadTools.NO_PROXY, 35, true));
                     request.resultList.add(insertResult);
                 }
             } catch (Exception e) {

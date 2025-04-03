@@ -28,10 +28,6 @@ public class UniqueKeyGenerator {
     // 当前的计算值
     private static long CURRENT_SEQ = 0;
 
-    public static void main(String[] args) {
-        System.out.println("唯一的Key：" + nextId());
-    }
-
     public static synchronized String nextId() {
         String timestamp = timeGen();
         String nextId = timestamp + distributedId;

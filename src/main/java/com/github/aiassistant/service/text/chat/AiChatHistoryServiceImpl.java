@@ -382,7 +382,7 @@ public class AiChatHistoryServiceImpl {
             vo.setCreateTime(message.getCreateTime());
             vo.setStartTime(message.getStartTime());
             vo.setMessageTypeEnum(Objects.toString(message.getType().getCode(), ""));
-            vo.setMessageText(StringUtils.substring(text, 65000, true));
+            vo.setMessageText(StringUtils.left(text, 65000, true));
             vo.setTextCharLength(Objects.toString(text, "").length());
             vo.setMessageIndex(message.getMessageIndex());
             vo.setAgainUserQueryTraceNumber(Objects.toString(againUserQueryTraceNumber, ""));

@@ -7,16 +7,12 @@ import com.github.aiassistant.service.text.tools.functioncall.BingWebSearchTools
 import com.github.aiassistant.service.text.tools.functioncall.SogouWebSearchTools;
 import com.github.aiassistant.service.text.tools.functioncall.UrlReadTools;
 import com.github.aiassistant.util.FutureUtil;
+import com.github.aiassistant.util.HttpClient;
 import com.github.aiassistant.util.StringUtils;
 
 import java.net.Proxy;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.function.Consumer;
 
 public class WebSearchService {
     private final BaiduWebSearchTools baiduWebSearchTools = new BaiduWebSearchTools();
@@ -31,25 +27,30 @@ public class WebSearchService {
 
     public WebSearchService(List<Proxy> proxyList) {
         if (proxyList == null || proxyList.isEmpty()) {
-            urlReadTools.add(new UrlReadTools("link-read", 200, 500, 1));
+            urlReadTools.add(new UrlReadTools(
+                    System.getProperty("aiassistant.WebSearchService.threadNamePrefix", "link-read"),
+                    Integer.getInteger("aiassistant.WebSearchService.clients", 6),
+                    Integer.getInteger("aiassistant.WebSearchService.connectTimeout", 200),
+                    Integer.getInteger("aiassistant.WebSearchService.readTimeout", 500),
+                    Integer.getInteger("aiassistant.WebSearchService.max302", 1),
+                    null
+            ));
         } else {
             for (Proxy proxy : proxyList) {
-                urlReadTools.add(new UrlReadTools("link-read", 200, 500, 1, proxy));
+                String name = Optional.ofNullable(proxy)
+                        .map(HttpClient::parseAddress)
+                        .map(e -> e.getHostString() + "_" + e.getPort())
+                        .map(e -> "link-read-" + e)
+                        .orElse("link-read");
+                urlReadTools.add(new UrlReadTools(
+                        System.getProperty("aiassistant.WebSearchService.threadNamePrefix", name),
+                        Integer.getInteger("aiassistant.WebSearchService.clients", 6),
+                        Integer.getInteger("aiassistant.WebSearchService.connectTimeout", 200),
+                        Integer.getInteger("aiassistant.WebSearchService.readTimeout", 500),
+                        Integer.getInteger("aiassistant.WebSearchService.max302", 1),
+                        proxy));
             }
         }
-    }
-
-    public static void main(String[] args) throws ExecutionException, InterruptedException {
-        WebSearchService webSearchService = new WebSearchService();
-        CompletableFuture<WebSearchResultVO> read = webSearchService.webSearchRead("菜鸟无忧", 5, 10000, false, EventListener.EMPTY);
-        read.thenAccept(new Consumer<WebSearchResultVO>() {
-            @Override
-            public void accept(WebSearchResultVO resultVO) {
-                System.out.println("resultVO = " + resultVO);
-            }
-        });
-        WebSearchResultVO vo = read.get();
-        System.out.println("vo = " + vo);
     }
 
     private static String mergeContent(String before, String after) {
@@ -132,7 +133,7 @@ public class WebSearchService {
                                 eventListener.beforeUrlRead(providerName, q, u, row);
                                 futures.add(u.readString(url).thenAccept(text -> {
                                     row.setProxy(proxy);
-                                    String merge = StringUtils.substring(mergeContent(row.getContent(), text), itemLimit, true);
+                                    String merge = StringUtils.left(mergeContent(row.getContent(), text), itemLimit, true);
                                     long urlReadCost = System.currentTimeMillis() - startUrl;
                                     row.setUrlReadTimeCost(urlReadCost);
                                     eventListener.afterUrlRead(providerName, q, u, row, text, merge, urlReadCost);

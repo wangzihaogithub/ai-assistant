@@ -356,7 +356,7 @@ public class AiUtil {
     }
 
     public static String toAiXmlString(String key, String value) {
-        String key64 = StringUtils.substring(key, 64, true);
+        String key64 = StringUtils.left(key, 64, true);
         return "<" + key64 + ">" + value + "</" + key64 + ">";
     }
 

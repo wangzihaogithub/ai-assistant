@@ -98,7 +98,7 @@ public class AiChatReasoningServiceImpl {
                 Integer userChatHistoryId = user.getUserChatHistoryId(aiChatHistoryMapper).get();
 
                 request.setAiChatId(user.getId());
-                request.setQuestion(StringUtils.substring(request.question, 3950, true));
+                request.setQuestion(StringUtils.left(request.question, 3950, true));
                 request.setNeedSplittingFlag(request.reason.needSplitting);
                 request.setUserChatHistoryId(userChatHistoryId);
                 if (request.plan != null) {
@@ -108,12 +108,12 @@ public class AiChatReasoningServiceImpl {
                     AiChatReasoningPlan insertPlan = new AiChatReasoningPlan();
                     insertPlan.setAiChatId(request.getAiChatId());
                     insertPlan.setUserChatHistoryId(request.getUserChatHistoryId());
-                    insertPlan.setTask(StringUtils.substring(plan.getTask(), 512, true));
-                    insertPlan.setFailMessage(StringUtils.substring(plan.getResult().failMessage, 2000, true));
-                    insertPlan.setAnswer(StringUtils.substring(plan.getResult().answer, 65000, true));
-                    insertPlan.setAiQuestion(StringUtils.substring(plan.getResult().aiQuestion, 512, true));
+                    insertPlan.setTask(StringUtils.left(plan.getTask(), 512, true));
+                    insertPlan.setFailMessage(StringUtils.left(plan.getResult().failMessage, 2000, true));
+                    insertPlan.setAnswer(StringUtils.left(plan.getResult().answer, 65000, true));
+                    insertPlan.setAiQuestion(StringUtils.left(plan.getResult().aiQuestion, 512, true));
                     Collection<String> websearchKeyword = plan.getResult().websearchKeyword;
-                    insertPlan.setWebsearchKeyword(websearchKeyword == null || websearchKeyword.isEmpty() ? "" : StringUtils.substring(objectWriter.writeValueAsString(websearchKeyword), 1024, true));
+                    insertPlan.setWebsearchKeyword(websearchKeyword == null || websearchKeyword.isEmpty() ? "" : StringUtils.left(objectWriter.writeValueAsString(websearchKeyword), 1024, true));
                     insertPlan.setResolvedFlag(plan.getResult().resolved);
                     insertPlan.setPlanIndex(plan.getIndex());
 
