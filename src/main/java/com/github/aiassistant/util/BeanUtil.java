@@ -3,6 +3,7 @@ package com.github.aiassistant.util;
 import java.beans.BeanInfo;
 import java.beans.Introspector;
 import java.beans.PropertyDescriptor;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -10,6 +11,17 @@ import java.util.Map;
 import java.util.Optional;
 
 public class BeanUtil {
+
+    public static <T> T newInstance(Class<T> clazz) {
+        try {
+            Constructor<T> declaredConstructor = clazz.getDeclaredConstructor();
+            declaredConstructor.setAccessible(true);
+            return declaredConstructor.newInstance();
+        } catch (Throwable e) {
+            ThrowableUtil.sneakyThrows(e);
+            return null;
+        }
+    }
 
     /**
      * 将source对象的属性值复制到target对象中
