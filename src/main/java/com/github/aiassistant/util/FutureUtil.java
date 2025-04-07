@@ -260,7 +260,21 @@ public class FutureUtil {
      * @return 需要等待一次的扁平格式（等待全部结束）
      */
     public static <V> CompletableFuture<V> allOf(CompletableFuture<CompletableFuture<V>> future, Executor scheduled) {
-        Executor scheduledNotNull = scheduled == null ? Runnable::run : scheduled;
+        Executor scheduledNotNull = scheduled == null ? Runnable::run : e -> {
+            boolean[] run = new boolean[1];
+            try {
+                scheduled.execute(() -> {
+                    run[0] = true;
+                    e.run();
+                });
+            } catch (Throwable r) {
+                if (run[0]) {
+                    log.error("FutureUtil allOf Error while executing future {}", r.toString(), r);
+                } else {
+                    e.run();
+                }
+            }
+        };
         CompletableFuture<V> result = new CompletableFuture<>();
         future.whenComplete((future1, throwable) -> {
             if (throwable != null) {
@@ -278,7 +292,7 @@ public class FutureUtil {
                             try {
                                 result.completeExceptionally(throwable1);
                             } catch (Throwable t) {
-                                log.error("FutureUtil allOf Error while executing future {}", t.toString(), t);
+                                log.error("FutureUtil allOf Error while executing future {}", throwable1.toString(), throwable1);
                             }
                         });
                     } else {
