@@ -36,6 +36,7 @@ public class SseEmitterResponseHandler implements ChatStreamingResponseHandler {
     private final boolean debug;
     private final List<OnWebSearchRead> onWebSearchReadList = new ArrayList<>();
     private final Boolean websearch;
+    private final String userQueryTraceNumber;
     private int baseMessageIndex;
     private int addMessageCount;
     private boolean sendComplete = false;
@@ -53,6 +54,7 @@ public class SseEmitterResponseHandler implements ChatStreamingResponseHandler {
         this.emitter = emitter;
         this.debug = debug;
         this.websearch = websearch;
+        this.userQueryTraceNumber = userQueryTraceNumber;
         sendToClient(emitter, "session-create",
                 "userQueryTraceNumber", userQueryTraceNumber);
     }
@@ -63,6 +65,34 @@ public class SseEmitterResponseHandler implements ChatStreamingResponseHandler {
         errorMap.put("error", error);
         emitter.send(null, "api-error", errorMap);
         emitter.send(null, "complete", Collections.singletonMap("finishReason", "API_ERROR"));
+    }
+
+    public Emitter getEmitter() {
+        return emitter;
+    }
+
+    public boolean isSendComplete() {
+        return sendComplete;
+    }
+
+    public boolean isAcceptReasoningEvent() {
+        return acceptReasoningEvent;
+    }
+
+    public boolean isClose() {
+        return close;
+    }
+
+    public String getUserQueryTraceNumber() {
+        return userQueryTraceNumber;
+    }
+
+    public Boolean getWebsearch() {
+        return websearch;
+    }
+
+    public boolean isDebug() {
+        return debug;
     }
 
     public int generateCount() {
@@ -443,6 +473,8 @@ public class SseEmitterResponseHandler implements ChatStreamingResponseHandler {
             if (log.isDebugEnabled()) {
                 log.debug("Error completing emitter {}", e.toString(), e);
             }
+        } finally {
+            this.close = true;
         }
     }
 
