@@ -3,6 +3,7 @@ package dev.langchain4j.service;
 import com.github.aiassistant.entity.model.chat.WebSearchResultVO;
 import com.github.aiassistant.enums.AiWebSearchSourceEnum;
 import com.github.aiassistant.service.text.ChatStreamingResponseHandler;
+import com.github.aiassistant.service.text.sseemitter.AiMessageString;
 import com.github.aiassistant.service.text.tools.Tools;
 import com.github.aiassistant.service.text.tools.functioncall.UrlReadTools;
 import com.github.aiassistant.util.ReflectUtil;
@@ -275,6 +276,7 @@ public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
         return executor;
     }
 
+    @Override
     public T build() {
 
         performBasicValidation();
@@ -640,7 +642,7 @@ public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
         private final boolean isSupportChineseToolName;
         private final Object memoryId;
         private final String modelName;
-        private Consumer<String> tokenHandler;
+        private Consumer<AiMessageString> tokenHandler;
         private Consumer<List<Content>> contentsHandler;
         private Consumer<Throwable> errorHandler;
         private Consumer<Response<AiMessage>> completionHandler;
@@ -674,6 +676,12 @@ public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
 
         @Override
         public TokenStream onNext(Consumer<String> tokenHandler) {
+            this.tokenHandler = aiMessageString -> tokenHandler.accept(aiMessageString.getChatString());
+            this.onNextInvoked++;
+            return this;
+        }
+
+        public TokenStream onNext0(Consumer<AiMessageString> tokenHandler) {
             this.tokenHandler = tokenHandler;
             this.onNextInvoked++;
             return this;
@@ -777,7 +785,7 @@ public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
                 }
 
                 @Override
-                public void onToken(String token, int baseMessageIndex, int addMessageCount) {
+                public void onToken(AiMessageString token, int baseMessageIndex, int addMessageCount) {
                     if (tokenHandler != null) {
                         tokenHandler.accept(token);
                     }

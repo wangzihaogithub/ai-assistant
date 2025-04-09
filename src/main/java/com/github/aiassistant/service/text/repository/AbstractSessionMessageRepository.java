@@ -2,6 +2,7 @@ package com.github.aiassistant.service.text.repository;
 
 import com.github.aiassistant.entity.model.chat.*;
 import com.github.aiassistant.enums.MessageTypeEnum;
+import com.github.aiassistant.service.text.sseemitter.AiMessageString;
 import com.github.aiassistant.util.AiUtil;
 import dev.langchain4j.data.message.*;
 
@@ -113,7 +114,7 @@ public abstract class AbstractSessionMessageRepository<MEMORY_ID, U> implements 
     }
 
     @Override
-    public void afterToken(String token) {
+    public void afterToken(AiMessageString token) {
         if (firstTokenTime == 0) {
             this.firstTokenTime = System.currentTimeMillis();
         }

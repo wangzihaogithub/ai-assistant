@@ -108,14 +108,14 @@ public class SseEmitterResponseHandler implements ChatStreamingResponseHandler {
     }
 
     @Override
-    public void onToken(String token, int baseMessageIndex, int addMessageCount) {
+    public void onToken(AiMessageString token, int baseMessageIndex, int addMessageCount) {
         this.baseMessageIndex = baseMessageIndex;
         this.addMessageCount = addMessageCount;
         sendToClient(emitter, "token-chunk",
                 "baseMessageIndex", baseMessageIndex,
                 "addMessageCount", addMessageCount,
                 "messageIndex", baseMessageIndex + addMessageCount,
-                "token", token);
+                "token", token.getChatString());
     }
 
     @Override

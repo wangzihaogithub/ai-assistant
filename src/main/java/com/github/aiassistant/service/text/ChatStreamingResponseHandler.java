@@ -8,6 +8,7 @@ import com.github.aiassistant.enums.AiWebSearchSourceEnum;
 import com.github.aiassistant.enums.UserTriggerEventEnum;
 import com.github.aiassistant.service.jsonschema.ReasoningJsonSchema;
 import com.github.aiassistant.service.text.acting.ActingService;
+import com.github.aiassistant.service.text.sseemitter.AiMessageString;
 import com.github.aiassistant.service.text.sseemitter.SseHttpResponse;
 import com.github.aiassistant.service.text.tools.WebSearchService;
 import com.github.aiassistant.service.text.tools.functioncall.UrlReadTools;
@@ -51,7 +52,7 @@ public interface ChatStreamingResponseHandler {
             }
 
             @Override
-            public void onToken(String token, int baseMessageIndex, int addMessageCount) {
+            public void onToken(AiMessageString token, int baseMessageIndex, int addMessageCount) {
                 for (ChatStreamingResponseHandler h : list) {
                     h.onToken(token, baseMessageIndex, addMessageCount);
                 }
@@ -266,7 +267,7 @@ public interface ChatStreamingResponseHandler {
     default void onTokenBegin(int baseMessageIndex, int addMessageCount, int generateCount) {
     }
 
-    default void onToken(String token, int baseMessageIndex, int addMessageCount) {
+    default void onToken(AiMessageString token, int baseMessageIndex, int addMessageCount) {
     }
 
     default void onTokenEnd(Response<AiMessage> response, int baseMessageIndex, int addMessageCount, int generateCount) {

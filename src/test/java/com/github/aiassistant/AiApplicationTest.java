@@ -10,6 +10,7 @@ import com.github.aiassistant.enums.AiChatUidTypeEnum;
 import com.github.aiassistant.platform.SpringWebSseEmitterResponseHandler;
 import com.github.aiassistant.service.text.FunctionCallStreamingResponseHandler;
 import com.github.aiassistant.service.text.repository.JdbcSessionMessageRepository;
+import com.github.aiassistant.service.text.sseemitter.AiMessageString;
 import com.github.aiassistant.service.text.tools.Tools;
 import com.github.aiassistant.serviceintercept.AccessUserServiceIntercept;
 import com.github.aiassistant.serviceintercept.ServiceIntercept;
@@ -113,7 +114,7 @@ public class AiApplicationTest {
         // 业务处理
         SpringWebSseEmitterResponseHandler responseHandler = new SpringWebSseEmitterResponseHandler(emitter, false, chatQueryRequest.getUserQueryTraceNumber(), chatQueryRequest.getWebsearch()) {
             @Override
-            public void onToken(String token, int baseMessageIndex, int addMessageCount) {
+            public void onToken(AiMessageString token, int baseMessageIndex, int addMessageCount) {
                 super.onToken(token, baseMessageIndex, addMessageCount);
                 System.out.println(token);
             }

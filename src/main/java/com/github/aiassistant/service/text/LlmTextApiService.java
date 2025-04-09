@@ -17,6 +17,7 @@ import com.github.aiassistant.service.text.reasoning.ReasoningService;
 import com.github.aiassistant.service.text.repository.ConsumerTokenWindowChatMemory;
 import com.github.aiassistant.service.text.repository.JsonSchemaTokenWindowChatMemory;
 import com.github.aiassistant.service.text.repository.SessionMessageRepository;
+import com.github.aiassistant.service.text.sseemitter.AiMessageString;
 import com.github.aiassistant.service.text.sseemitter.SseHttpResponse;
 import com.github.aiassistant.service.text.tools.QueryBuilderUtil;
 import com.github.aiassistant.service.text.tools.Tools;
@@ -797,7 +798,7 @@ public class LlmTextApiService {
         }
 
         @Override
-        public void onToken(String token, int baseMessageIndex, int addMessageCount) {
+        public void onToken(AiMessageString token, int baseMessageIndex, int addMessageCount) {
             repository.afterToken(token);
         }
 

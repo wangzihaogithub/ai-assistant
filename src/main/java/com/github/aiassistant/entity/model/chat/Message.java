@@ -47,8 +47,16 @@ public class Message<U> {
     }
 
     public String getOpenAiRequestId() {
-        if (source instanceof IDAiMessage) {
-            return ((IDAiMessage) source).getId();
+        if (source instanceof MetadataAiMessage) {
+            return ((MetadataAiMessage) source).getOpenAiRequestId();
+        } else {
+            return null;
+        }
+    }
+
+    public String getMemoryString() {
+        if (source instanceof MetadataAiMessage) {
+            return ((MetadataAiMessage) source).getMemoryString();
         } else {
             return null;
         }

@@ -11,7 +11,11 @@ public interface SseHttpResponse {
      *
      * @param next 部分AI回复
      */
-    void write(String next);
+    default void write(String next) {
+        write(new AiMessageString(next));
+    }
+
+    void write(AiMessageString next);
 
     boolean isClose();
 
@@ -26,6 +30,11 @@ public interface SseHttpResponse {
      * @param error 异常
      */
     void close(Throwable error);
+
+    default void close(AiMessageString next) {
+        write(next);
+        close();
+    }
 
     default void close(String next) {
         write(next);

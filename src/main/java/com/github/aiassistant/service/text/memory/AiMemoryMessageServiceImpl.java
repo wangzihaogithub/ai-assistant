@@ -80,6 +80,7 @@ public class AiMemoryMessageServiceImpl {
 
     /**
      * 预测Token消耗数量
+     *
      * @param text text
      * @return Token消耗数量
      */
@@ -89,6 +90,7 @@ public class AiMemoryMessageServiceImpl {
 
     /**
      * 预测Token消耗数量
+     *
      * @param messages messages
      * @return Token消耗数量
      */
@@ -98,7 +100,8 @@ public class AiMemoryMessageServiceImpl {
 
     /**
      * 查询记忆
-     * @param memoryId memoryId
+     *
+     * @param memoryId                  memoryId
      * @param againUserQueryTraceNumber againUserQueryTraceNumber
      * @return 记忆
      */
@@ -116,10 +119,11 @@ public class AiMemoryMessageServiceImpl {
 
     /**
      * 提交记忆
-     * @param now now
-     * @param requestTrace requestTrace
+     *
+     * @param now                       now
+     * @param requestTrace              requestTrace
      * @param againUserQueryTraceNumber againUserQueryTraceNumber
-     * @param websearch websearch
+     * @param websearch                 websearch
      * @return 提交成功后
      */
     public CompletableFuture<AiMemoryVO> insert(Date now, RequestTrace<MemoryIdVO, AiAccessUserVO> requestTrace,
@@ -147,6 +151,7 @@ public class AiMemoryMessageServiceImpl {
 
     /**
      * 如果重新回答，将过去的回复删除
+     *
      * @param messageVOList messageVOList
      */
     private void setDeleteTimeIfAgainQuery(List<AiMemoryMessageVO> messageVOList) {
@@ -167,6 +172,7 @@ public class AiMemoryMessageServiceImpl {
 
     /**
      * 查询原始问题编号（重新回答会复用）
+     *
      * @param againUserQueryTraceNumberList againUserQueryTraceNumberList
      * @return 原始问题编号
      */
@@ -187,6 +193,7 @@ public class AiMemoryMessageServiceImpl {
 
     /**
      * 持久化记忆
+     *
      * @param list list
      */
     public void insert(List<AiMemoryVO> list) {
@@ -275,13 +282,16 @@ public class AiMemoryMessageServiceImpl {
             List<ChatMessage> sourceMessages = Collections.singletonList(message.getSource());
             int tokenCount = estimateTokenCountInMessages(sourceMessages);
 //            List<KnJobVO> jobList = message.getJobList();
-            String toolRequestId = message.getToolRequestId();
+            String memoryString = message.getMemoryString();
+            if (memoryString == null || memoryString.isEmpty()) {
+                memoryString = message.getText();
+            }
             List<ToolRequest> toolRequests = message.getToolRequests();
 
             AiMemoryMessageVO vo = new AiMemoryMessageVO();
             vo.setAiMemoryId(memoryId);
             vo.setMessageIndex(message.getMessageIndex());
-            vo.setMessageText(StringUtils.left(message.getText(), 65000, true));
+            vo.setMessageText(StringUtils.left(memoryString, 65000, true));
             vo.setMessageTypeEnum(message.getType().getCode());
             vo.setUserQueryFlag(userQueryFlag);
             vo.setCreateTime(message.getCreateTime());

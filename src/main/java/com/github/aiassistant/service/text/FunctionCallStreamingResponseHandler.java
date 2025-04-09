@@ -1,11 +1,12 @@
 package com.github.aiassistant.service.text;
 
-import com.github.aiassistant.entity.model.chat.IDAiMessage;
 import com.github.aiassistant.entity.model.chat.LangChainUserMessage;
 import com.github.aiassistant.entity.model.chat.MemoryIdVO;
+import com.github.aiassistant.entity.model.chat.MetadataAiMessage;
 import com.github.aiassistant.enums.AiErrorTypeEnum;
 import com.github.aiassistant.service.jsonschema.LlmJsonSchemaApiService;
 import com.github.aiassistant.service.jsonschema.WhetherWaitingForAiJsonSchema;
+import com.github.aiassistant.service.text.sseemitter.AiMessageString;
 import com.github.aiassistant.service.text.sseemitter.SseHttpResponse;
 import com.github.aiassistant.service.text.tools.ResultToolExecutor;
 import com.github.aiassistant.service.text.tools.Tools;
@@ -142,6 +143,10 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
 
     @Override
     public void onNext(String token) {
+        onNext(new AiMessageString(token));
+    }
+
+    private void onNext(AiMessageString token) {
         if (readTimeoutFuture == null && readTimeoutMs != null) {
             synchronized (this) {
                 if (readTimeoutFuture == null) {
@@ -320,7 +325,7 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
     }
 
     private void onTokenEnd(Response<AiMessage> response) {
-        addMessage(IDAiMessage.convert(response));
+        addMessage(MetadataAiMessage.convert(response));
         bizHandler.onTokenEnd(response, baseMessageIndex, addMessageCount.get(), generateCount());
     }
 
@@ -428,7 +433,8 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
     public static class SseHttpResponseImpl implements SseHttpResponse {
         private final FunctionCallStreamingResponseHandler handler;
         private final Response<AiMessage> lastResponse;
-        private final StringBuilder builder = new StringBuilder();
+        private final StringBuilder chatStringBuilder = new StringBuilder();
+        private final StringBuilder memoryStringBuilder = new StringBuilder();
         private final LinkedBlockingQueue<Runnable> pendingEventList = new LinkedBlockingQueue<>();
         private final AtomicBoolean closeFlag = new AtomicBoolean(false);
         private volatile boolean toolMessageReady;
@@ -469,7 +475,7 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
         }
 
         @Override
-        public void write(String next) {
+        public void write(AiMessageString next) {
             empty = false;
             if (!toolMessageReady) {
                 pendingEventList.add(() -> write(next));
@@ -478,7 +484,14 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
             if (next == null || next.isEmpty()) {
                 return;
             }
-            builder.append(next);
+            String chatString = next.getChatString();
+            String memoryString = next.getMemoryString();
+            if (chatString != null && !chatString.isEmpty()) {
+                chatStringBuilder.append(chatString);
+            }
+            if (memoryString != null && !memoryString.isEmpty()) {
+                memoryStringBuilder.append(memoryString);
+            }
             handler.onNext(next);
         }
 
@@ -498,20 +511,24 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
             if (!closeFlag.compareAndSet(false, true)) {
                 throw new IllegalStateException("close() has already been called");
             }
-            if (tokenEnd == null && builder.length() > 0) {
-                AiMessage aiMessage = new AiMessage(builder.toString());
+            if (tokenEnd == null && chatStringBuilder.length() > 0) {
+                AiMessage aiMessage = new AiMessage(chatStringBuilder.toString());
                 TokenUsage tokenUsage;
                 FinishReason finishReason;
-                Map<String, Object> metadata;
+                Map<String, Object> metadata = new HashMap<>();
                 if (lastResponse != null) {
                     tokenUsage = lastResponse.tokenUsage();
                     finishReason = lastResponse.finishReason();
-                    metadata = lastResponse.metadata();
+                    Map<String, Object> lastMetadata = lastResponse.metadata();
+                    if (lastMetadata != null) {
+                        metadata.putAll(lastMetadata);
+                    }
                 } else {
                     tokenUsage = new TokenUsage(0, 0, 0);
                     finishReason = FinishReason.STOP;
-                    metadata = new HashMap<>();
                 }
+                String memoryString = memoryStringBuilder.toString();
+                metadata.put(MetadataAiMessage.METADATA_KEY_MEMORY_STRING, memoryString);
                 tokenEnd = new Response<>(aiMessage, tokenUsage, finishReason, metadata);
                 handler.onTokenEnd(tokenEnd);
             }

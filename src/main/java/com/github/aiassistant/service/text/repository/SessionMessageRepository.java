@@ -6,6 +6,7 @@ import com.github.aiassistant.entity.model.chat.WebSearchResultVO;
 import com.github.aiassistant.enums.AiWebSearchSourceEnum;
 import com.github.aiassistant.service.jsonschema.ReasoningJsonSchema;
 import com.github.aiassistant.service.text.acting.ActingService;
+import com.github.aiassistant.service.text.sseemitter.AiMessageString;
 import dev.langchain4j.data.message.ChatMessage;
 
 import java.util.List;
@@ -27,7 +28,7 @@ public interface SessionMessageRepository {
      *
      * @param token token
      */
-    default void afterToken(String token) {
+    default void afterToken(AiMessageString token) {
     }
 
     /**
