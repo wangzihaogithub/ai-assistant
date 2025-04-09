@@ -71,15 +71,18 @@ public class AiQuestionClassifyService {
 
     /**
      * 进行问题分类
-     * @param question question
+     *
+     * @param question   question
      * @param memoryIdVO memoryIdVO
      * @return 问题分类
      */
     public CompletableFuture<QuestionClassifyListVO> classify(String question, MemoryIdVO memoryIdVO) {
         // 查询定义的问题分类
-        List<AiQuestionClassify> classifyList = selectListVO(memoryIdVO.getAiAssistant().getId());
-
+        List<AiQuestionClassify> classifyList = aiQuestionClassifyMapper.selectEnableList(memoryIdVO.getAiAssistant().getId());
         QuestionClassifyListVO result = convert(classifyList);
+        if (classifyList.isEmpty()) {
+            return CompletableFuture.completedFuture(result);
+        }
         QuestionClassifySchema schema = llmJsonSchemaApiService.getQuestionClassifySchema(memoryIdVO);
         if (schema == null) {
             return CompletableFuture.completedFuture(result);
@@ -91,8 +94,8 @@ public class AiQuestionClassifyService {
                 // 这个集合的长度一般为1，基本都是只归到一个类型上
                 Collection<QuestionClassifyListVO.ClassifyVO> classifyResultList = result.getClassifyResultList();
                 if (!classifyResultList.isEmpty()) {
-                    Set<Integer> aiQuestionClassifyAssistantId = classifyResultList.stream().map(QuestionClassifyListVO.ClassifyVO::getAiQuestionClassifyAssistantId).collect(Collectors.toSet());
-                    Map<Integer, AiQuestionClassifyAssistant> classifyAssistantMap = aiQuestionClassifyAssistantMapper.selectBatchIds(aiQuestionClassifyAssistantId).stream()
+                    Set<Integer> aiQuestionClassifyAssistantId = classifyResultList.stream().map(QuestionClassifyListVO.ClassifyVO::getAiQuestionClassifyAssistantId).filter(Objects::nonNull).collect(Collectors.toSet());
+                    Map<Integer, AiQuestionClassifyAssistant> classifyAssistantMap = aiQuestionClassifyAssistantId.isEmpty() ? Collections.emptyMap() : aiQuestionClassifyAssistantMapper.selectBatchIds(aiQuestionClassifyAssistantId).stream()
                             .collect(Collectors.toMap(AiQuestionClassifyAssistant::getId, o -> o));
                     for (QuestionClassifyListVO.ClassifyVO classifyVO : classifyResultList) {
                         classifyVO.setAssistant(classifyAssistantMap.get(classifyVO.getAiQuestionClassifyAssistantId()));
@@ -101,10 +104,6 @@ public class AiQuestionClassifyService {
                 return result;
             });
         }
-    }
-
-    private List<AiQuestionClassify> selectListVO(String aiAssistantId) {
-        return aiQuestionClassifyMapper.selectEnableList(aiAssistantId);
     }
 
 }
