@@ -24,10 +24,7 @@ import com.github.aiassistant.service.text.tools.Tools;
 import com.github.aiassistant.service.text.tools.WebSearchService;
 import com.github.aiassistant.service.text.variables.AiVariablesService;
 import com.github.aiassistant.serviceintercept.LlmTextApiServiceIntercept;
-import com.github.aiassistant.util.AiUtil;
-import com.github.aiassistant.util.BeanUtil;
-import com.github.aiassistant.util.FutureUtil;
-import com.github.aiassistant.util.StringUtils;
+import com.github.aiassistant.util.*;
 import dev.ai4j.openai4j.chat.ResponseFormatType;
 import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.data.message.SystemMessage;
@@ -229,7 +226,7 @@ public class LlmTextApiService {
      * @param websearch           websearch
      * @param reasoning           reasoning
      * @param memoryId            memoryId
-     * @param userResponseHandler userResponseHandler
+     * @param responseHandler userResponseHandler
      * @return 提问结果
      */
     public CompletableFuture<FunctionCallStreamingResponseHandler> question(AiAccessUserVO user,
@@ -238,9 +235,11 @@ public class LlmTextApiService {
                                                                             Boolean websearch,
                                                                             Boolean reasoning,
                                                                             MemoryIdVO memoryId,
-                                                                            ChatStreamingResponseHandler userResponseHandler) {
+                                                                            ChatStreamingResponseHandler responseHandler) {
         try {
-            ChatStreamingResponseHandler responseHandler = ChatStreamingResponseHandler.merge(Arrays.asList(userResponseHandler, new RepositoryChatStreamingResponseHandler(repository)), userResponseHandler);
+            ChatStreamingResponseHandler mergeResponseHandler = new MergeChatStreamingResponseHandler(
+                    Arrays.asList(responseHandler, new RepositoryChatStreamingResponseHandler(repository)),
+                    responseHandler);
             // 历史记录
             Collection<ChatMessage> hl = repository.getHistoryList();
             List<ChatMessage> historyList = AiUtil.removeSystemMessage(hl);
@@ -250,24 +249,24 @@ public class LlmTextApiService {
             String lastQuestion = StringUtils.hasText(question) ? question : getLastUserQuestion(historyList);
 
             // 初始化
-            responseHandler.onTokenBegin(baseMessageIndex, addMessageCount, 0);
+            mergeResponseHandler.onTokenBegin(baseMessageIndex, addMessageCount, 0);
             // 查询变量
             AiVariables variables = aiVariablesService.selectVariables(user, historyList, lastQuestion, memoryId, websearch);
             // 绑定会话钩子
-            llmJsonSchemaApiService.putSessionHandler(memoryId, responseHandler, variables, user);
+            llmJsonSchemaApiService.putSessionHandler(memoryId, mergeResponseHandler, variables, user);
             // 进行问题分类
             CompletableFuture<QuestionClassifyListVO> classifyFuture = aiQuestionClassifyService.classify(lastQuestion, memoryId);
             // 构建
             CompletableFuture<CompletableFuture<FunctionCallStreamingResponseHandler>> f = classifyFuture
                     .thenApply(c -> buildHandler(c, user, repository, question, websearch,
-                            reasoning, memoryId, responseHandler, historyList, baseMessageIndex, addMessageCount, lastQuestion, variables));
+                            reasoning, memoryId, mergeResponseHandler, historyList, baseMessageIndex, addMessageCount, lastQuestion, variables));
             // 等待完毕
             return FutureUtil.allOf(f)
                     // 完毕后删除JsonSchema的本地记忆
                     .whenComplete((handler, throwable) -> removeJsonSchemaSession(handler, throwable, memoryId));
         } catch (Throwable e) {
             // 提问报错了
-            return questionError(e, memoryId, userResponseHandler);
+            return questionError(e, memoryId, responseHandler);
         }
     }
 

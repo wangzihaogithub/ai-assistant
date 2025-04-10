@@ -35,12 +35,14 @@ public class AiToolServiceImpl {
     }
 
     private static Method getToolFunctionMethod(Class<?> clazz, String toolFunctionName) {
-        for (Method method : clazz.getDeclaredMethods()) {
-            if (!method.isAnnotationPresent(Tool.class)) {
-                continue;
-            }
-            if (method.getName().equalsIgnoreCase(toolFunctionName)) {
-                return method;
+        for (Class<?> c = clazz; c != null && c != Object.class; c = c.getSuperclass()) {
+            for (Method method : c.getDeclaredMethods()) {
+                if (!method.isAnnotationPresent(Tool.class)) {
+                    continue;
+                }
+                if (method.getName().equalsIgnoreCase(toolFunctionName)) {
+                    return method;
+                }
             }
         }
         return null;
@@ -72,7 +74,7 @@ public class AiToolServiceImpl {
                 log.warn("tool {} name {} not exist!", toolEnum, aiTool.getToolFunctionEnum());
                 continue;
             }
-            String[] parameterNames = ParameterNamesUtil.getParameterNames(functionMethod, e-> e.isAnnotationPresent(P.class));
+            String[] parameterNames = ParameterNamesUtil.getParameterNames(functionMethod, e -> e.isAnnotationPresent(P.class));
             Map<String, AiToolParameter> parameterMap = parameters.get(aiTool.getId());
             Map<String, String> parameterDefaultValueMap = new HashMap<>();
             if (parameterMap != null) {
