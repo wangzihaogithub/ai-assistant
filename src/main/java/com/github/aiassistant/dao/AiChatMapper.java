@@ -40,4 +40,9 @@ public interface AiChatMapper {
                                          Integer offset, Integer pageSize,
                                          String uidType, Serializable createUid,
                                          String startTime, String endTime, String chatTimeColumnName);
+
+    Integer selectCountByUid(String keyword,
+                             String uidType, Serializable createUid,
+                             String startTime, String endTime, String chatTimeColumnName);
+
 }

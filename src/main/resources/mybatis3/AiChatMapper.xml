@@ -65,6 +65,28 @@
         limit #{arg1}, #{arg2}
     </select>
 
+    <select id="selectCountByUid" resultType="java.lang.Integer">
+        SELECT
+        ifnull(count(*),0) ct
+        FROM ai_chat ac
+        <if test="arg0 != null and arg0 != ''">
+        LEFT JOIN ai_chat_history ach ON ach.ai_chat_id = ac.id and ach.delete_time is null
+        </if>
+        where ac.create_uid = #{arg4}
+        and ac.uid_type = #{arg3}
+        and ac.delete_time is null
+        <if test="arg0 != null and arg0 != ''">
+            and ( ac.`name` LIKE concat('%',#{arg0},'%')
+            OR ach.`message_text` LIKE concat('%',#{arg0},'%') )
+        </if>
+        <if test="arg5 != null and arg5 != ''">
+            and ac.${arg7} >= #{arg5}
+        </if>
+        <if test="arg6 != null and arg6 != ''">
+            and ac.${arg7} &lt;= #{arg6}
+        </if>
+    </select>
+
     <select id="selectById" resultType="com.github.aiassistant.entity.AiChat">
         select *
         from ai_chat

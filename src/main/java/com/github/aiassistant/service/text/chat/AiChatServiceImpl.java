@@ -86,6 +86,20 @@ public class AiChatServiceImpl {
         return aiChatMapper.updateDeleteTimeById(chatId, new Date()) > 0;
     }
 
+    public int selectCount(String keyword,
+                           String startTime,
+                           String endTime,
+                           AiChatTimeEnum chatTimeEnum,
+                           Serializable createUid,
+                           AiChatUidTypeEnum uidTypeEnum) {
+        if (chatTimeEnum == null) {
+            chatTimeEnum = AiChatTimeEnum.lastChatTime;
+        }
+        Integer ct = aiChatMapper.selectCountByUid(keyword, uidTypeEnum.getCode(), createUid,
+                startTime, endTime, chatTimeEnum.getColumnName());
+        return ct == null ? 0 : ct;
+    }
+
     public List<AiChatListResp> selectList(String keyword,
                                            Integer pageNum,
                                            Integer pageSize,
@@ -100,7 +114,6 @@ public class AiChatServiceImpl {
         int offset = Math.max(0, (pageNum - 1) * pageSize);
         List<AiChatListResp> list = aiChatMapper.selectListByUid(keyword, offset, pageSize, uidTypeEnum.getCode(), createUid,
                 startTime, endTime, chatTimeEnum.getColumnName());
-
         List<Integer> historyIdList = list.stream().map(AiChatListResp::getAiChatHistoryId).collect(Collectors.toList());
         if (!historyIdList.isEmpty()) {
             Map<Integer, AiChatHistory> historyMap = aiChatHistoryMapper.selectBatchIds(historyIdList).stream()
