@@ -8,6 +8,8 @@ import java.util.function.Predicate;
 
 public class AiErrorTypeEnum {
     public static final String onTokenReadTimeout = "onTokenReadTimeout";
+    public static final String userQuestionEmpty = "user question is empty!";
+
     private static final Map<String, AiErrorTypeEnum> CODE_VALUES = Collections.synchronizedMap(new LinkedHashMap<>());
     public static final AiErrorTypeEnum limit_requests = create("limit_requests", "限流", "当前使用人数较多，建议等待片刻后重新提问。", e -> {
         return e.contains("limit_requests");
@@ -18,9 +20,13 @@ public class AiErrorTypeEnum {
     public static final AiErrorTypeEnum token_read_timeout = create("token_read_timeout", "读取超时", "当前问题处理超时，建议您稍后重新尝试提问。", e -> {
         return e.contains(AiErrorTypeEnum.onTokenReadTimeout);
     });
+    public static final AiErrorTypeEnum user_question_empty = create("user_question_empty", "用户问题不能为空", "用户问题不能为空。", e -> {
+        return e.contains(AiErrorTypeEnum.userQuestionEmpty);
+    });
     public static final AiErrorTypeEnum unknown_error = create("unknown_error", "未知异常", "当前问题处理超时，建议您稍后重新尝试提问。", e -> {
         return false;
     });
+
     //    student("student", "学生"),
 //    sys_user("sys_user", "员工");
     private final String code;

@@ -4,6 +4,7 @@ import com.github.aiassistant.entity.AiAssistantKn;
 import com.github.aiassistant.entity.model.chat.*;
 import com.github.aiassistant.entity.model.user.AiAccessUserVO;
 import com.github.aiassistant.enums.AiAssistantKnTypeEnum;
+import com.github.aiassistant.enums.AiErrorTypeEnum;
 import com.github.aiassistant.enums.AiWebSearchSourceEnum;
 import com.github.aiassistant.service.jsonschema.LlmJsonSchemaApiService;
 import com.github.aiassistant.service.jsonschema.ReasoningJsonSchema;
@@ -248,7 +249,7 @@ public class LlmTextApiService {
             // 当前问题，如果是重新回答需要获取最后一次问题getLastUserQuestion
             String lastQuestion = StringUtils.hasText(question) ? question : getLastUserQuestion(historyList);
             if (!StringUtils.hasText(lastQuestion)) {
-                throw new IllegalArgumentException("user question is empty!");
+                throw new IllegalArgumentException(AiErrorTypeEnum.userQuestionEmpty);
             }
 
             // 初始化
