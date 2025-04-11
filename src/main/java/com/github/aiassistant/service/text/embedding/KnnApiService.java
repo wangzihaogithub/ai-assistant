@@ -15,6 +15,7 @@ import org.elasticsearch.client.*;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -272,10 +273,10 @@ public class KnnApiService {
             }
 
             List<T> l = list;
-            List<Function<List<T>, List<T>>> afterList = knnQuery.getResponseAfterList();
+            List<BiFunction<List<T>,Map, List<T>>> afterList = knnQuery.getResponseAfterList();
             if (afterList != null) {
-                for (Function<List<T>, List<T>> after : afterList) {
-                    l = after.apply(l);
+                for (BiFunction<List<T>,Map, List<T>> after : afterList) {
+                    l = after.apply(l, content);
                 }
             }
             return filter(l);
