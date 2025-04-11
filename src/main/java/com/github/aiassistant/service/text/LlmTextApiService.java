@@ -220,12 +220,12 @@ public class LlmTextApiService {
     /**
      * 提问
      *
-     * @param user                user
-     * @param repository          repository
-     * @param question            question
-     * @param websearch           websearch
-     * @param reasoning           reasoning
-     * @param memoryId            memoryId
+     * @param user            user
+     * @param repository      repository
+     * @param question        question
+     * @param websearch       websearch
+     * @param reasoning       reasoning
+     * @param memoryId        memoryId
      * @param responseHandler userResponseHandler
      * @return 提问结果
      */
@@ -247,6 +247,9 @@ public class LlmTextApiService {
             int addMessageCount = 1;// 为什么是1？因为第0个是内置的SystemMessage，所以至少要有一个。
             // 当前问题，如果是重新回答需要获取最后一次问题getLastUserQuestion
             String lastQuestion = StringUtils.hasText(question) ? question : getLastUserQuestion(historyList);
+            if (!StringUtils.hasText(lastQuestion)) {
+                throw new IllegalArgumentException("user question is empty!");
+            }
 
             // 初始化
             mergeResponseHandler.onTokenBegin(baseMessageIndex, addMessageCount, 0);

@@ -11,16 +11,18 @@ import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.model.output.Response;
 
-import java.nio.charset.StandardCharsets;
+import java.nio.charset.Charset;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.stream.Collectors;
 
 public class EmbeddingModelClient {
     // 弱引用根据值触发GC，不能用String触发GC
-    private static final Map<float[], String> GLOABL_CACHE_VECTOR_MAP = Collections.synchronizedMap(new WeakHashMap<>(256));
+    private static final Map<String, Map<float[], String>> GLOABL_CACHE_VECTOR_MAP = new ConcurrentHashMap<>();
+    private static final Charset UTF_8 = Charset.forName("UTF-8");
     private final EmbeddingModel model;
     private final LinkedBlockingQueue<EmbeddingCompletableFuture> futureList = new LinkedBlockingQueue<>();
     private final int maxRequestSize;
@@ -33,7 +35,10 @@ public class EmbeddingModelClient {
     private long cost;
     private int insertPartitionSize = 100;
 
-    public EmbeddingModelClient(EmbeddingModel model, String modelName, int dimensions, Integer maxRequestSize, AiEmbeddingMapper aiEmbeddingMapper, Executor executor) {
+    public EmbeddingModelClient(EmbeddingModel model,
+                                String modelName, int dimensions,
+                                Integer maxRequestSize,
+                                AiEmbeddingMapper aiEmbeddingMapper, Executor executor) {
         this.model = model;
         this.modelName = modelName;
         this.dimensions = dimensions;
@@ -43,11 +48,15 @@ public class EmbeddingModelClient {
     }
 
     private static String md5(String keyword) {
-        return DigestUtils.md5DigestAsHex(keyword.getBytes(StandardCharsets.UTF_8));
+        return DigestUtils.md5DigestAsHex(keyword.getBytes(UTF_8));
     }
 
     public long getCost() {
         return cost;
+    }
+
+    public void resetCost() {
+        this.cost = 0;
     }
 
     public CompletableFuture<List<float[]>> addEmbedList(Collection<String> keywordList) {
@@ -83,10 +92,17 @@ public class EmbeddingModelClient {
         return list;
     }
 
+    private Map<float[], String> getModelCache() {
+        return GLOABL_CACHE_VECTOR_MAP.computeIfAbsent(modelName + "_" + dimensions,
+                k -> Collections.synchronizedMap(new WeakHashMap<>(256)));
+    }
+
     private Map<String, float[]> getCacheMap(Collection<String> keywordList) {
         Set<String> queryKeywordList = new HashSet<>(keywordList);
         Map<String, float[]> vectorMap = new HashMap<>();
-        GLOABL_CACHE_VECTOR_MAP.forEach((key, value) -> {
+
+        Map<float[], String> modelCache = getModelCache();
+        modelCache.forEach((key, value) -> {
             if (key == null || value == null) {
                 return;
             }
@@ -157,7 +173,8 @@ public class EmbeddingModelClient {
     }
 
     private void putCache(Map<String, float[]> vectorMap) {
-        vectorMap.forEach((key, value) -> GLOABL_CACHE_VECTOR_MAP.put(value, key));
+        Map<float[], String> modelCache = getModelCache();
+        vectorMap.forEach((key, value) -> modelCache.put(value, key));
 
         if (aiEmbeddingMapper != null) {
             Date now = new Date();
@@ -220,7 +237,7 @@ public class EmbeddingModelClient {
 
     @Override
     public String toString() {
-        return modelName;
+        return modelName + "[" + dimensions + "]";
     }
 
     private static class EmbeddingCompletableFuture extends CompletableFuture<List<float[]>> {
