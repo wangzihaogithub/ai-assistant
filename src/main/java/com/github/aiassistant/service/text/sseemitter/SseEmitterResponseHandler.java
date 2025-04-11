@@ -343,10 +343,11 @@ public class SseEmitterResponseHandler implements ChatStreamingResponseHandler {
             CompleteEvent completeEvent = this.completeEvent;
             if (completeEvent != null) {
                 Response<AiMessage> response = completeEvent.response;
+                FinishReason finishReason = response != null ? response.finishReason() : FinishReason.STOP;
                 int baseMessageIndex = completeEvent.baseMessageIndex;
                 int addMessageCount = completeEvent.addMessageCount;
                 sendToClient(emitter, "complete",
-                        "finishReason", response.finishReason().name(),
+                        "finishReason", finishReason.name(),
                         "baseMessageIndex", baseMessageIndex,
                         "addMessageCount", addMessageCount,
                         "messageIndex", baseMessageIndex + addMessageCount);
