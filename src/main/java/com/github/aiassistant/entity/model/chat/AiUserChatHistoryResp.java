@@ -3,10 +3,9 @@ package com.github.aiassistant.entity.model.chat;
 import com.github.aiassistant.entity.AiChatAbort;
 import com.github.aiassistant.entity.AiMemoryError;
 import com.github.aiassistant.enums.AiErrorTypeEnum;
-import com.github.aiassistant.util.AiUtil;
+import com.github.aiassistant.platform.JsonUtil;
 import com.github.aiassistant.util.BeanUtil;
 import com.github.aiassistant.util.StringUtils;
-import com.github.aiassistant.platform.JsonUtil;
 
 import java.util.*;
 import java.util.function.Function;
@@ -257,6 +256,21 @@ public class AiUserChatHistoryResp {
         // @ApiModelProperty(value = "终止前文本", example = "之前的文本内容")
         private String beforeText;
 
+        public Date getCreateTime() {
+            return createTime;
+        }
+
+        public void setCreateTime(Date createTime) {
+            this.createTime = createTime;
+        }
+
+        public String getBeforeText() {
+            return beforeText;
+        }
+
+        public void setBeforeText(String beforeText) {
+            this.beforeText = beforeText;
+        }
     }
 
     // @Data
