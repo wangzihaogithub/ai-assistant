@@ -12,6 +12,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class PlatformDependentUtil {
+    private static final Pattern URI_TEMPLATE_EXPAND_PATTERN = Pattern.compile("\\{([^{}]+)\\}");
     private static final boolean SUPPORT_JSOUP;
     private static final boolean SUPPORT_SPRING_WEB_ASYNC_REST_TEMPLATE;
     private static final boolean SUPPORT_APACHE_HTTP_CLIENT;
@@ -65,8 +66,7 @@ public class PlatformDependentUtil {
     public static URI uriTemplateExpand(String baseUriTemplate, Map<String, ?> variables) throws URISyntaxException {
         URI uri = springUriBuilderExpand(baseUriTemplate, variables);
         if (uri == null) {
-            Pattern pattern = Pattern.compile("\\{([^{}]+)\\}");
-            Matcher matcher = pattern.matcher(baseUriTemplate);
+            Matcher matcher = URI_TEMPLATE_EXPAND_PATTERN.matcher(baseUriTemplate);
             StringBuffer sb = new StringBuffer();
             while (matcher.find()) {
                 String variableName = matcher.group(1);

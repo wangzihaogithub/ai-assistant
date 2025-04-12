@@ -13,31 +13,12 @@ import java.security.SecureRandom;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public class JdkHttpClient implements HttpClient {
     private Integer connectTimeout;
     private Integer readTimeout;
     private Boolean ignoreHttpsValidation;
     private Proxy proxy;
-
-    public static URL expand(String template, Map<String, ?> variables) throws MalformedURLException {
-        Pattern pattern = Pattern.compile("\\{([^{}]+)\\}");
-        Matcher matcher = pattern.matcher(template);
-        StringBuffer sb = new StringBuffer();
-
-        while (matcher.find()) {
-            String variableName = matcher.group(1);
-            Object replacement = variables == null ? null : variables.get(variableName);
-            if (replacement == null) {
-                replacement = "";
-            }
-            matcher.appendReplacement(sb, Matcher.quoteReplacement(replacement.toString()));
-        }
-        matcher.appendTail(sb);
-        return new URL(sb.toString());
-    }
 
     @Override
     public void setConnectTimeout(int connectTimeout) {
