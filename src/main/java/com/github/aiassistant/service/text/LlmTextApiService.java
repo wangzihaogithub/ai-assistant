@@ -270,6 +270,7 @@ public class LlmTextApiService {
                     .whenComplete((handler, throwable) -> removeJsonSchemaSession(handler, throwable, memoryId));
         } catch (Throwable e) {
             // 提问报错了
+            removeJsonSchemaSession(null, e, memoryId);
             return questionError(e, memoryId, responseHandler);
         }
     }
