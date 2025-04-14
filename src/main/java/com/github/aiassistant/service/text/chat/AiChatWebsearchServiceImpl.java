@@ -176,11 +176,13 @@ public class AiChatWebsearchServiceImpl {
                         log.info("AiChatWebsearchServiceImpl InterruptedException {}", e.toString(), e);
                         return;
                     }
-                } else {
-                    insertRequestQueue.drainTo(list);
                 }
+                insertRequestQueue.drainTo(list);
                 try {
                     insert(list);
+                    if (log.isDebugEnabled()) {
+                        log.debug("AiChatWebsearchServiceImpl insert request queue  {}", list.size());
+                    }
                 } catch (Exception e) {
                     log.error("AiChatWebsearchServiceImpl insert request queue error {}", e.toString(), e);
                 }

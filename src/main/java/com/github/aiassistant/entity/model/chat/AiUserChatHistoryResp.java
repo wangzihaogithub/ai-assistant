@@ -91,6 +91,7 @@ public class AiUserChatHistoryResp {
                 errorVO.setAttachmentJson(attachment);
                 errorVO.setErrorType(errorType);
                 errorVO.setMessageText(cast.getMessageText());
+                resp.setAiHistoryList(new ArrayList<>());
                 resp.setError(errorVO);
                 respQueryTraceNumber = cast.getUserQueryTraceNumber();
             } else {

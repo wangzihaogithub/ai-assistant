@@ -477,11 +477,13 @@ public class AiMemoryMessageServiceImpl {
                         log.info("AiMemoryMessageServiceImpl InterruptedException {}", e.toString(), e);
                         return;
                     }
-                } else {
-                    insertRequestQueue.drainTo(list);
                 }
+                insertRequestQueue.drainTo(list);
                 try {
                     insert(list);
+                    if (log.isDebugEnabled()) {
+                        log.debug("AiMemoryMessageServiceImpl insert request queue  {}", list.size());
+                    }
                 } catch (Exception e) {
                     log.error("AiMemoryMessageServiceImpl insert request queue error {}", e.toString(), e);
                 }
