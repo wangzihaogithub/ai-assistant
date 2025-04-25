@@ -13,6 +13,12 @@ public class AiQuestionClassifyAssistant implements AssistantConfig {
         this.id = id;
     }
 
+    @Override
+    public String getTableName() {
+        return "ai_question_classify_assistant";
+    }
+
+    @Override
     public String getName() {
         return name;
     }
@@ -141,4 +147,26 @@ public class AiQuestionClassifyAssistant implements AssistantConfig {
 
     private Double temperature;
 
+    // // @ApiModelProperty(value = "KN提示文本", required = true)
+    private String knPromptText;
+
+    private String mstatePromptText;
+
+    @Override
+    public String getKnPromptText() {
+        return knPromptText;
+    }
+
+    public void setKnPromptText(String knPromptText) {
+        this.knPromptText = knPromptText;
+    }
+
+    @Override
+    public String getMstatePromptText() {
+        return mstatePromptText;
+    }
+
+    public void setMstatePromptText(String mstatePromptText) {
+        this.mstatePromptText = mstatePromptText;
+    }
 }

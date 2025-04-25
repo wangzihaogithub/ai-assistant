@@ -149,12 +149,11 @@ public class AiApplication {
         this.aiMemoryErrorService = new AiMemoryErrorServiceImpl(aiMemoryErrorMapper, aiChatHistoryService);
         this.aiChatAbortService = new AiChatAbortServiceImpl(aiChatAbortMapper, aiChatHistoryService);
         this.aiMemoryMstateService = new AiMemoryMstateServiceImpl(aiMemoryMstateMapper);
-        this.accessUserService = new AccessUserService(aiChatMapper, aiAssistantJsonschemaMapper, aiAssistantMstateMapper, aiAssistantMapper, aiAssistantKnMapper, aiAssistantFewshotMapper, aiToolService, aiChatHistoryService, getServiceInterceptSupplier(AccessUserServiceIntercept.class, interceptMap));
+        this.accessUserService = new AccessUserService(aiChatMapper, aiAssistantMapper, aiAssistantKnMapper, aiChatHistoryService, getServiceInterceptSupplier(AccessUserServiceIntercept.class, interceptMap));
 
         this.aiVariablesService = new AiVariablesService(aiMemoryMstateService, aiVariablesMapper, getServiceInterceptSupplier(AiVariablesServiceIntercept.class, interceptMap));
-        this.llmTextApiService = new LlmTextApiService(llmJsonSchemaApiService, aiQuestionClassifyService, aiVariablesService, knnApiService, actingService, reasoningService, knSettingWebsearchBlacklistServiceImpl,
+        this.llmTextApiService = new LlmTextApiService(llmJsonSchemaApiService, aiQuestionClassifyService, aiAssistantJsonschemaMapper, aiAssistantFewshotMapper, aiToolService, aiVariablesService, knnApiService, actingService, reasoningService, knSettingWebsearchBlacklistServiceImpl,
                 Math.max(Runtime.getRuntime().availableProcessors() * 2, 6), getServiceInterceptSupplier(LlmTextApiServiceIntercept.class, interceptMap));
-
     }
 
     private static <T extends ServiceIntercept> Supplier<Collection<T>> getServiceInterceptSupplier(Class<T> clazz, Function<Class<? extends ServiceIntercept>, Collection<ServiceIntercept>> interceptMap) {
@@ -371,6 +370,7 @@ public class AiApplication {
     public JdbcSessionMessageRepository newJdbcSessionMessageRepository(ChatQueryRequest chatQueryRequest,
                                                                         MemoryIdVO memoryId, AiAccessUserVO user) {
         return new JdbcSessionMessageRepository(chatQueryRequest, memoryId, user,
+                aiAssistantMstateMapper,
                 aiMemoryMessageService, aiChatHistoryService,
                 llmJsonSchemaApiService, aiMemoryMstateService,
                 aiChatReasoningService, aiChatWebsearchService,

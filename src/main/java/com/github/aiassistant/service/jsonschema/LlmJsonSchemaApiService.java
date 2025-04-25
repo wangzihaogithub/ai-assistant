@@ -103,6 +103,37 @@ public class LlmJsonSchemaApiService {
         session.user = userVO;
     }
 
+    public void putSessionJsonSchema(MemoryIdVO memoryIdVO,
+                                     Collection<AiJsonschema> jsonschemaList) {
+        Session session = getSession(memoryIdVO, true);
+        session.jsonschemaList = jsonschemaList;
+    }
+
+    public boolean isEnableJsonschema(MemoryIdVO memoryIdVO, String jsonSchemaEnum) {
+        Session session = getSession(memoryIdVO, false);
+        if (session == null) {
+            return false;
+        }
+        Collection<AiJsonschema> jsonschemaList = session.jsonschemaList;
+        return jsonschemaList != null && jsonschemaList.stream()
+                .anyMatch(e -> Objects.equals(jsonSchemaEnum, e.getJsonSchemaEnum()) && Boolean.TRUE.equals(e.getEnableFlag()));
+    }
+
+    public AiJsonschema getJsonschema(MemoryIdVO memoryIdVO, String jsonSchemaEnum) {
+        Session session = getSession(memoryIdVO, false);
+        if (session == null) {
+            return null;
+        }
+        Collection<AiJsonschema> jsonschemaList = session.jsonschemaList;
+        if (jsonschemaList == null || jsonschemaList.isEmpty()) {
+            return null;
+        }
+        return jsonschemaList.stream()
+                .filter(e -> Objects.equals(jsonSchemaEnum, e.getJsonSchemaEnum()) && Boolean.TRUE.equals(e.getEnableFlag()))
+                .findFirst()
+                .orElse(null);
+    }
+
     /**
      * 提示词中是否使用了变量
      *
@@ -112,7 +143,7 @@ public class LlmJsonSchemaApiService {
      * @return 使用了变量
      */
     public boolean existPromptVariableKey(MemoryIdVO memoryIdVO, String jsonSchemaEnum, String... varKeys) {
-        AiJsonschema jsonschema = memoryIdVO.getJsonschema(jsonSchemaEnum);
+        AiJsonschema jsonschema = getJsonschema(memoryIdVO, jsonSchemaEnum);
         if (jsonschema == null) {
             return false;
         }
@@ -143,7 +174,7 @@ public class LlmJsonSchemaApiService {
     }
 
     public <T> T getSchema(MemoryIdVO memoryIdVO, String jsonSchemaEnum, Class<T> type, boolean memory) {
-        AiJsonschema jsonschema = memoryIdVO.getJsonschema(jsonSchemaEnum);
+        AiJsonschema jsonschema = getJsonschema(memoryIdVO, jsonSchemaEnum);
         if (jsonschema == null) {
             return null;
         }
@@ -316,5 +347,7 @@ public class LlmJsonSchemaApiService {
         AiVariables variables;
         ChatStreamingResponseHandler responseHandler;
         JsonSchemaTokenWindowChatMemory chatMemory;
+        Collection<AiJsonschema> jsonschemaList;
+        Collection<Tools.ToolMethod> toolMethods;
     }
 }

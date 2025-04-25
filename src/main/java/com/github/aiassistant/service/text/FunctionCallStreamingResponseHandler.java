@@ -3,7 +3,7 @@ package com.github.aiassistant.service.text;
 import com.github.aiassistant.entity.model.chat.LangChainUserMessage;
 import com.github.aiassistant.entity.model.chat.MemoryIdVO;
 import com.github.aiassistant.entity.model.chat.MetadataAiMessage;
-import com.github.aiassistant.enums.AiErrorTypeEnum;
+import com.github.aiassistant.exception.TokenReadTimeoutException;
 import com.github.aiassistant.service.jsonschema.LlmJsonSchemaApiService;
 import com.github.aiassistant.service.jsonschema.WhetherWaitingForAiJsonSchema;
 import com.github.aiassistant.service.text.sseemitter.AiMessageString;
@@ -202,7 +202,9 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
             readTimeoutFuture.cancel(false);
         } else if ((System.currentTimeMillis() - lastReadTimestamp) >= readTimeoutMs) {
             readTimeoutFuture.cancel(false);
-            onTokenReadTimeout(System.currentTimeMillis() - lastReadTimestamp, readTimeoutMs);
+            long timeout = System.currentTimeMillis() - lastReadTimestamp;
+            TokenReadTimeoutException exception = new TokenReadTimeoutException(String.format("llm error! tokenReadTimeout modelName '%s' readTimeout %s/ms, config '%sms'", modelName, timeout, readTimeoutMs), timeout, readTimeoutMs);
+            exceptionally(exception);
         }
     }
 
@@ -422,11 +424,6 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
             });
         }
         return future;
-    }
-
-    private void onTokenReadTimeout(long timeout, long readTimeoutMs) {
-        TimeoutException exception = new TimeoutException(String.format("llm error! %s modelName '%s' readTimeout %s/ms, config '%sms'", AiErrorTypeEnum.onTokenReadTimeout, modelName, timeout, readTimeoutMs));
-        exceptionally(exception);
     }
 
     private void exceptionally(Throwable exception) {

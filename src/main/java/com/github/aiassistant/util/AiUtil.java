@@ -8,6 +8,7 @@ import com.github.aiassistant.entity.model.chat.FewshotUserMessage;
 import com.github.aiassistant.entity.model.chat.KnowledgeAiMessage;
 import com.github.aiassistant.entity.model.user.AiAccessUserVO;
 import com.github.aiassistant.enums.MessageTypeEnum;
+import com.github.aiassistant.exception.FewshotConfigException;
 import com.github.aiassistant.platform.JsonUtil;
 import com.github.aiassistant.service.text.tools.Tools;
 import com.github.aiassistant.service.text.tools.WebSearch;
@@ -322,12 +323,12 @@ public class AiUtil {
         return score == null ? null : score / 100D;
     }
 
-    public static Prompt toPrompt(String promptMessage, Map<String, Object> variables) {
+    public static Prompt toPrompt(String promptMessage, Map<String, Object> variables) throws IllegalArgumentException {
         return PromptTemplate.from(promptMessage).apply(variables);
     }
 
-    public static Prompt toPrompt(String promptMessage, AiVariables variables) {
-        return toPrompt(promptMessage, BeanUtil.toMap(variables));
+    public static Prompt toPrompt(String promptMessage, AiVariables variables) throws IllegalArgumentException {
+        return PromptTemplate.from(promptMessage).apply(BeanUtil.toMap(variables));
     }
 
     public static int sumUserLength(Collection<ChatMessage> list) {
@@ -421,7 +422,7 @@ public class AiUtil {
         return message != null && message.getClass() == UserMessage.class;
     }
 
-    public static List<ChatMessage> deserializeFewshot(List<AiAssistantFewshot> dbList, AiVariables variables) {
+    public static List<ChatMessage> deserializeFewshot(List<AiAssistantFewshot> dbList, AiVariables variables) throws FewshotConfigException {
         List<ChatMessage> list = new ArrayList<>();
         if (dbList.isEmpty()) {
             return list;
@@ -433,8 +434,13 @@ public class AiUtil {
             MessageTypeEnum typeEnum = MessageTypeEnum.getByCode(messageTypeEnum);
             ChatMessage message;
             if (StringUtils.hasText(text)) {
-                Prompt prompt = toPrompt(text, variablesMap);
-                String promptText = prompt.text();
+                String promptText;
+                try {
+                    promptText = toPrompt(text, variablesMap).text();
+                } catch (Exception e) {
+                    throw new FewshotConfigException(String.format("ai_assistant_fewshot[message_text] config error! messageTypeEnum:[%s], ID[%s], detail:%s", messageTypeEnum, db.getId(), e.toString()),
+                            e, db);
+                }
                 switch (typeEnum) {
                     case Ai: {
                         message = new FewshotAiMessage(promptText);

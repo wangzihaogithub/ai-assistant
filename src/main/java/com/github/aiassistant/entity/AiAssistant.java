@@ -70,6 +70,12 @@ public class AiAssistant implements AssistantConfig {
         this.id = id;
     }
 
+    @Override
+    public String getTableName() {
+        return "ai_assistant";
+    }
+
+    @Override
     public String getName() {
         return name;
     }

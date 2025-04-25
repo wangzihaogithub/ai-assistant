@@ -1,11 +1,16 @@
 package com.github.aiassistant.service.text;
 
+import com.github.aiassistant.dao.AiAssistantFewshotMapper;
+import com.github.aiassistant.dao.AiAssistantJsonschemaMapper;
 import com.github.aiassistant.entity.AiAssistantKn;
+import com.github.aiassistant.entity.AiJsonschema;
 import com.github.aiassistant.entity.model.chat.*;
 import com.github.aiassistant.entity.model.user.AiAccessUserVO;
 import com.github.aiassistant.enums.AiAssistantKnTypeEnum;
-import com.github.aiassistant.enums.AiErrorTypeEnum;
 import com.github.aiassistant.enums.AiWebSearchSourceEnum;
+import com.github.aiassistant.exception.AssistantConfigException;
+import com.github.aiassistant.exception.FewshotConfigException;
+import com.github.aiassistant.exception.QuestionEmptyException;
 import com.github.aiassistant.service.jsonschema.LlmJsonSchemaApiService;
 import com.github.aiassistant.service.jsonschema.ReasoningJsonSchema;
 import com.github.aiassistant.service.jsonschema.WebsearchReduceJsonSchema;
@@ -20,6 +25,7 @@ import com.github.aiassistant.service.text.repository.JsonSchemaTokenWindowChatM
 import com.github.aiassistant.service.text.repository.SessionMessageRepository;
 import com.github.aiassistant.service.text.sseemitter.AiMessageString;
 import com.github.aiassistant.service.text.sseemitter.SseHttpResponse;
+import com.github.aiassistant.service.text.tools.AiToolServiceImpl;
 import com.github.aiassistant.service.text.tools.QueryBuilderUtil;
 import com.github.aiassistant.service.text.tools.Tools;
 import com.github.aiassistant.service.text.tools.WebSearchService;
@@ -48,6 +54,7 @@ import java.util.stream.Collectors;
  * Text类型的聊天模型服务
  */
 public class LlmTextApiService {
+    public static final String MESSAGE_TEXT_BLACK_LIST_QUESTION = "根据相关规定，我无法回答这个问题，换个话题吧。";
     private static final Logger log = LoggerFactory.getLogger(LlmTextApiService.class);
     /**
      * 估计各种文本类型（如文本、提示、文本段等）中的标记计数的接口
@@ -71,6 +78,10 @@ public class LlmTextApiService {
      * AI变量服务
      */
     private final AiVariablesService aiVariablesService;
+    private final AiToolServiceImpl aiToolService;
+    private final AiAssistantJsonschemaMapper aiAssistantJsonschemaMapper;
+    // @Resource
+    private final AiAssistantFewshotMapper aiAssistantFewshotMapper;
     /**
      * 向量模型服务
      */
@@ -95,6 +106,9 @@ public class LlmTextApiService {
 
     public LlmTextApiService(LlmJsonSchemaApiService llmJsonSchemaApiService,
                              AiQuestionClassifyService aiQuestionClassifyService,
+                             AiAssistantJsonschemaMapper aiAssistantJsonschemaMapper,
+                             AiAssistantFewshotMapper aiAssistantFewshotMapper,
+                             AiToolServiceImpl aiToolService,
                              AiVariablesService aiVariablesService,
                              KnnApiService knnApiService,
                              ActingService actingService, ReasoningService reasoningService,
@@ -109,6 +123,9 @@ public class LlmTextApiService {
             thread.setDaemon(true);
             return thread;
         }, new ThreadPoolExecutor.CallerRunsPolicy());
+        this.aiAssistantFewshotMapper = aiAssistantFewshotMapper;
+        this.aiToolService = aiToolService;
+        this.aiAssistantJsonschemaMapper = aiAssistantJsonschemaMapper;
         this.llmJsonSchemaApiService = llmJsonSchemaApiService;
         this.aiQuestionClassifyService = aiQuestionClassifyService;
         this.aiVariablesService = aiVariablesService;
@@ -249,7 +266,7 @@ public class LlmTextApiService {
             // 当前问题，如果是重新回答需要获取最后一次问题getLastUserQuestion
             String lastQuestion = StringUtils.hasText(question) ? question : getLastUserQuestion(historyList);
             if (!StringUtils.hasText(lastQuestion)) {
-                throw new IllegalArgumentException(AiErrorTypeEnum.userQuestionEmpty);
+                throw new QuestionEmptyException("user question is empty!");
             }
 
             // 初始化
@@ -324,9 +341,9 @@ public class LlmTextApiService {
             AiVariables variables) {
         CompletableFuture<FunctionCallStreamingResponseHandler> handlerFuture = new CompletableFuture<>();
         try {
-            String knPromptText = memoryId.getAiAssistant().getKnPromptText();
-            String mstatePromptText = memoryId.getAiAssistant().getMstatePromptText();
             AssistantConfig assistantConfig = AssistantConfig.select(memoryId.getAiAssistant(), classifyListVO.getClassifyAssistant());
+            String knPromptText = assistantConfig.getKnPromptText();
+            String mstatePromptText = assistantConfig.getMstatePromptText();
 
             // 问题分类完成通知
             responseHandler.onQuestionClassify(classifyListVO, lastQuestion, variables);
@@ -381,32 +398,38 @@ public class LlmTextApiService {
                         responseHandler.onKnowledge(qaKnVOList, lastQuestion);
 
                         // ToolCallStreamingResponseHandler
-                        FunctionCallStreamingResponseHandler handler = newFunctionCallStreamingResponseHandler(
-                                classifyListVO,
-                                assistantConfig,
-                                mstatePromptText,
-                                knPromptText,
-                                user,
-                                variables,
-                                qaKnVOList,
-                                interceptRepository != null ? null : repository,
-                                question,
-                                memoryId,
-                                responseHandler,
-                                lastQuestion,
-                                historyList,
-                                addMessageCount,
-                                baseMessageIndex
-                        );
+                        FunctionCallStreamingResponseHandler handler;
+                        try {
+                            handler = newFunctionCallStreamingResponseHandler(
+                                    classifyListVO,
+                                    assistantConfig,
+                                    mstatePromptText,
+                                    knPromptText,
+                                    user,
+                                    variables,
+                                    qaKnVOList,
+                                    interceptRepository != null ? null : repository,
+                                    question,
+                                    memoryId,
+                                    responseHandler,
+                                    lastQuestion,
+                                    historyList,
+                                    addMessageCount,
+                                    baseMessageIndex
+                            );
+                        } catch (AssistantConfigException | FewshotConfigException e) {
+                            handlerFuture.completeExceptionally(e);
+                            responseHandler.onError(e, baseMessageIndex, addMessageCount, 0);
+                            return;
+                        }
                         // 完毕前
                         responseHandler.onBeforeQuestionLlm(lastQuestion);
-
                         // 无法回答
                         if (classifyListVO.isWfhd()) {
                             SseHttpResponse response = handler.toResponse();
                             responseHandler.onBlacklistQuestion(response, lastQuestion, classifyListVO);
                             if (response.isEmpty()) {
-                                response.close("根据相关规定，我无法回答这个问题，换个话题吧。");
+                                response.close(MESSAGE_TEXT_BLACK_LIST_QUESTION);
                             }
                         }
                         CompletableFuture<Void> interruptAfter = null;
@@ -421,9 +444,6 @@ public class LlmTextApiService {
                         } else {
                             handlerFuture.complete(handler);
                         }
-                        // 开始让AI回答
-//                        handler.addMessage(new AiMessage("嗯,让我先思考一下，用户到问题是\""+lastQuestion+"\""));
-//                        handler.generate();
                     })
                     .exceptionally(throwable -> {
                         handlerFuture.completeExceptionally(throwable);
@@ -496,13 +516,19 @@ public class LlmTextApiService {
             List<ChatMessage> historyList,
             int rootAddMessageCount,
             int baseMessageIndex
-    ) {
-        Long readTimeoutMs = classifyListVO.getReadTimeoutMs();
+    ) throws AssistantConfigException, FewshotConfigException {
+        // jsonschema模型
+        Collection<AiJsonschema> jsonschemaList = Optional.ofNullable(assistantConfig.getAiJsonschemaIds())
+                .filter(StringUtils::hasText)
+                .map(e -> Arrays.asList(e.split(",")))
+                .map(aiAssistantJsonschemaMapper::selectBatchIds)
+                .orElseGet(Collections::emptyList);
+        llmJsonSchemaApiService.putSessionJsonSchema(memoryId, jsonschemaList);
 
         // 系统消息
-        SystemMessage systemMessage = buildSystemMessage(assistantConfig.getSystemPromptText(), responseHandler, variables);
+        SystemMessage systemMessage = buildSystemMessage(assistantConfig.getSystemPromptText(), responseHandler, variables, assistantConfig);
         // 少样本学习
-        List<ChatMessage> fewshotMessageList = AiUtil.deserializeFewshot(memoryId.getFewshotList(), variables);
+        List<ChatMessage> fewshotMessageList = AiUtil.deserializeFewshot(aiAssistantFewshotMapper.selectListByAssistantId(memoryId.getAiAssistantId()), variables);
         AiUtil.addToHistoryList(historyList, systemMessage, fewshotMessageList);
 
         // 记忆
@@ -517,9 +543,9 @@ public class LlmTextApiService {
         // 用户消息
         ChatMessage userMessage = StringUtils.hasText(question) ? new UserMessage(question) : null;
         // 知识库消息
-        ChatMessage knowledge = buildKnowledge(variables, lastQuestion, qaKnVOList, knPromptText);
+        ChatMessage knowledge = buildKnowledge(variables, lastQuestion, qaKnVOList, knPromptText, assistantConfig);
         // 记忆消息
-        ChatMessage mstate = knowledge != null ? null : buildMstate(variables, mstatePromptText);
+        ChatMessage mstate = knowledge != null ? null : buildMstate(variables, mstatePromptText, assistantConfig);
 
         // 合并消息请求大模型
         List<ChatMessage> questionList = mergeMessageList(userMessage, knowledge, mstate);
@@ -537,12 +563,12 @@ public class LlmTextApiService {
 
         // 获取模型
         AiModel aiModel = memoryId.indexAt(getModels(assistantConfig));
-
-        List<Tools.ToolMethod> toolMethodList = AiUtil.initTool(memoryId.getToolMethodList(), variables, user);
+        // 可用工具集
+        List<Tools.ToolMethod> toolMethodList = AiUtil.initTool(aiToolService.selectToolMethodList(StringUtils.split(assistantConfig.getAiToolIds(), ",")), variables, user);
         // 处理异步回调
         return new FunctionCallStreamingResponseHandler(aiModel.modelName, aiModel.streaming, chatMemory, responseHandler,
                 llmJsonSchemaApiService, toolMethodList, aiModel.isSupportChineseToolName(),
-                baseMessageIndex, addMessageCount, readTimeoutMs, threadPoolTaskExecutor);
+                baseMessageIndex, addMessageCount, classifyListVO.getReadTimeoutMs(), threadPoolTaskExecutor);
     }
 
     private CompletableFuture<ActingService.Plan> reasoningAndActing(CompletableFuture<List<List<QaKnVO>>> knnFuture,
@@ -651,19 +677,27 @@ public class LlmTextApiService {
     }
 
     private ChatMessage buildMstate(AiVariables variables,
-                                    String mstatePromptText) {
+                                    String mstatePromptText,
+                                    AssistantConfig assistantConfig) throws AssistantConfigException {
         // 记忆状态
         if (!StringUtils.hasText(mstatePromptText)) {
             return null;
         }
-        Prompt prompt = AiUtil.toPrompt(mstatePromptText, variables);
-        return new MstateAiMessage(prompt.text());
+
+        try {
+            Prompt prompt = AiUtil.toPrompt(mstatePromptText, variables);
+            return new MstateAiMessage(prompt.text());
+        } catch (IllegalArgumentException e) {
+            throw new AssistantConfigException(String.format("%s %s[mstate_prompt_text] config error! detail:%s", assistantConfig.getName(), assistantConfig.getTableName(), e.toString()),
+                    e, assistantConfig);
+        }
     }
 
     private ChatMessage buildKnowledge(AiVariables variables,
                                        String question,
                                        List<List<QaKnVO>> qaKnVOList,
-                                       String knPromptText) {
+                                       String knPromptText,
+                                       AssistantConfig assistantConfig) throws AssistantConfigException {
         // 知识库消息
         if (qaKnVOList == null || qaKnVOList.isEmpty() || !StringUtils.hasText(knPromptText)) {
             return null;
@@ -671,8 +705,13 @@ public class LlmTextApiService {
         // 知识库提问
         Map<String, Object> var = BeanUtil.toMap(variables);
         var.put("documents", QaKnVO.qaToString(qaKnVOList));
-        String text = AiUtil.toPrompt(knPromptText, var).text();
-        return new KnowledgeAiMessage(new KnowledgeTextContent(text, question, question, qaKnVOList));
+        try {
+            String text = AiUtil.toPrompt(knPromptText, var).text();
+            return new KnowledgeAiMessage(new KnowledgeTextContent(text, question, question, qaKnVOList));
+        } catch (IllegalArgumentException e) {
+            throw new AssistantConfigException(String.format("%s %s[kn_prompt_text] config error! detail:%s", assistantConfig.getName(), assistantConfig.getTableName(), e.toString()),
+                    e, assistantConfig);
+        }
     }
 
     /**
@@ -731,17 +770,24 @@ public class LlmTextApiService {
      * @param promptText      promptText
      * @param responseHandler responseHandler
      * @param variables       variables
+     * @param assistantConfig assistantConfig
      * @return 系统提示词
      */
     private SystemMessage buildSystemMessage(String promptText,
                                              ChatStreamingResponseHandler responseHandler,
-                                             AiVariables variables) {
+                                             AiVariables variables,
+                                             AssistantConfig assistantConfig) throws AssistantConfigException {
         if (!StringUtils.hasText(promptText)) {
             return null;
         }
-        Prompt prompt = AiUtil.toPrompt(promptText, variables);
-        responseHandler.onSystemMessage(prompt.text(), variables, promptText);
-        return prompt.toSystemMessage();
+        try {
+            Prompt prompt = AiUtil.toPrompt(promptText, variables);
+            responseHandler.onSystemMessage(prompt.text(), variables, promptText);
+            return prompt.toSystemMessage();
+        } catch (IllegalArgumentException e) {
+            throw new AssistantConfigException(String.format("%s %s[system_prompt_text] config error! detail:%s", assistantConfig.getName(), assistantConfig.getTableName(), e.toString()),
+                    e, assistantConfig);
+        }
     }
 
     /**

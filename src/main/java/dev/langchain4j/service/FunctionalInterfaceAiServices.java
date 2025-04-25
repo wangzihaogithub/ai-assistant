@@ -2,6 +2,7 @@ package dev.langchain4j.service;
 
 import com.github.aiassistant.entity.model.chat.WebSearchResultVO;
 import com.github.aiassistant.enums.AiWebSearchSourceEnum;
+import com.github.aiassistant.exception.JsonschemaConfigException;
 import com.github.aiassistant.service.text.ChatStreamingResponseHandler;
 import com.github.aiassistant.service.text.sseemitter.AiMessageString;
 import com.github.aiassistant.service.text.tools.Tools;
@@ -541,14 +542,14 @@ public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
         return (T) proxyInstance;
     }
 
-    private Optional<SystemMessage> prepareSystemMessage(Object memoryId, Method method, Object[] args) {
+    private Optional<SystemMessage> prepareSystemMessage(Object memoryId, Method method, Object[] args) throws JsonschemaConfigException {
         Optional<String> template = findSystemMessageTemplate(memoryId, method);
         try {
             return template.map(systemMessageTemplate -> PromptTemplate.from(systemMessageTemplate)
                     .apply(findTemplateVariables(systemMessageTemplate, method, args))
                     .toSystemMessage());
         } catch (Exception e) {
-            throw new IllegalArgumentException("prepareSystemMessage " + context.aiServiceClass.getSimpleName() + " failed. template=" + template.orElse("") + ", cause=" + e.getMessage(), e);
+            throw new JsonschemaConfigException(String.format("%s ai_jsonschema[user_prompt_text] config error! detail:%s", context.aiServiceClass.getSimpleName(), e.toString()), e, context.aiServiceClass);
         }
     }
 
@@ -584,14 +585,14 @@ public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
         return variables;
     }
 
-    private UserMessage prepareUserMessage(Method method, Object[] args) {
+    private UserMessage prepareUserMessage(Method method, Object[] args) throws JsonschemaConfigException {
         String template = getUserMessageTemplate(method, args);
         Map<String, Object> variables = findTemplateVariables(template, method, args);
         Prompt prompt;
         try {
             prompt = PromptTemplate.from(template).apply(variables);
-        } catch (Exception e) {
-            throw new IllegalArgumentException("prepareSystemMessage " + context.aiServiceClass.getSimpleName() + " failed. template=" + template + ", cause=" + e.getMessage(), e);
+        } catch (IllegalArgumentException e) {
+            throw new JsonschemaConfigException(String.format("%s ai_jsonschema[user_prompt_text] config error! detail:%s", context.aiServiceClass.getSimpleName(), e.toString()), e, context.aiServiceClass);
         }
 
         Optional<String> maybeUserName = findUserName(method.getParameters(), args);

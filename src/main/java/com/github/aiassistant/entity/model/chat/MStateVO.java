@@ -19,6 +19,10 @@ public class MStateVO {
         return new MStateVO(new LinkedHashMap<>(), new LinkedHashMap<>());
     }
 
+    public boolean isEmpty() {
+        return (knownState == null || knownState.isEmpty()) && (unknownState == null || unknownState.isEmpty());
+    }
+
     public Map<String, String> getKnownState() {
         return knownState;
     }

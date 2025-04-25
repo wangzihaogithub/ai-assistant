@@ -123,9 +123,8 @@ public class SseEmitterResponseHandler implements ChatStreamingResponseHandler {
         this.baseMessageIndex = baseMessageIndex;
         this.addMessageCount = addMessageCount;
         this.generateCount = generateCount;
-        String errorString = error.toString();
 
-        AiErrorTypeEnum errorTypeEnum = AiErrorTypeEnum.parseErrorType(errorString);
+        AiErrorTypeEnum errorTypeEnum = AiErrorTypeEnum.parseErrorType(error);
         sendToClient(emitter, "api-error",
                 "errorType", errorTypeEnum.getCode(),
                 "messageText", errorTypeEnum.getMessageText(),

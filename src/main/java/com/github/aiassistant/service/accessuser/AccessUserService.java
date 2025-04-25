@@ -1,7 +1,8 @@
 package com.github.aiassistant.service.accessuser;
 
-import com.github.aiassistant.dao.*;
-import com.github.aiassistant.entity.AiAssistant;
+import com.github.aiassistant.dao.AiAssistantKnMapper;
+import com.github.aiassistant.dao.AiAssistantMapper;
+import com.github.aiassistant.dao.AiChatMapper;
 import com.github.aiassistant.entity.AiAssistantKn;
 import com.github.aiassistant.entity.AiChat;
 import com.github.aiassistant.entity.model.chat.AiChatQuestionPermissionResp;
@@ -11,12 +12,9 @@ import com.github.aiassistant.entity.model.chat.MemoryIdVO;
 import com.github.aiassistant.entity.model.user.AiAccessUserVO;
 import com.github.aiassistant.enums.AiChatUidTypeEnum;
 import com.github.aiassistant.service.text.chat.AiChatHistoryServiceImpl;
-import com.github.aiassistant.service.text.tools.AiToolServiceImpl;
 import com.github.aiassistant.serviceintercept.AccessUserServiceIntercept;
-import com.github.aiassistant.util.StringUtils;
 
 import java.io.Serializable;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -30,37 +28,23 @@ public class AccessUserService {
     // @Resource
     private final AiChatMapper aiChatMapper;
     // @Resource
-    private final AiAssistantJsonschemaMapper aiAssistantJsonschemaMapper;
-    // @Resource
-    private final AiAssistantMstateMapper aiAssistantMstateMapper;
-    // @Resource
     private final AiAssistantMapper aiAssistantMapper;
     // @Resource
     private final AiAssistantKnMapper aiAssistantKnMapper;
-    // @Resource
-    private final AiAssistantFewshotMapper aiAssistantFewshotMapper;
+
     // @Autowired
-    private final AiToolServiceImpl aiToolService;
     private final AiChatHistoryServiceImpl aiChatHistoryService;
     private final Supplier<Collection<AccessUserServiceIntercept>> interceptList;
 
     public AccessUserService(AiChatMapper aiChatMapper,
-                             AiAssistantJsonschemaMapper aiAssistantJsonschemaMapper,
-                             AiAssistantMstateMapper aiAssistantMstateMapper,
                              AiAssistantMapper aiAssistantMapper,
                              AiAssistantKnMapper aiAssistantKnMapper,
-                             AiAssistantFewshotMapper aiAssistantFewshotMapper,
-                             AiToolServiceImpl aiToolService,
                              AiChatHistoryServiceImpl aiChatHistoryService,
                              Supplier<Collection<AccessUserServiceIntercept>> interceptList) {
         this.aiChatMapper = aiChatMapper;
-        this.aiAssistantJsonschemaMapper = aiAssistantJsonschemaMapper;
-        this.aiAssistantMstateMapper = aiAssistantMstateMapper;
         this.aiAssistantMapper = aiAssistantMapper;
         this.aiAssistantKnMapper = aiAssistantKnMapper;
-        this.aiAssistantFewshotMapper = aiAssistantFewshotMapper;
         this.aiChatHistoryService = aiChatHistoryService;
-        this.aiToolService = aiToolService;
         this.interceptList = interceptList;
     }
 
@@ -122,19 +106,11 @@ public class AccessUserService {
         }
         AiChat aiChat = aiChatMapper.selectById(chatId);
         if (uidTypeEnum.hasPermission(aiChat, createUid)) {
-            AiAssistant assistant = aiAssistantMapper.selectById(aiChat.getAssistantId());
-            String aiJsonschemaIds = assistant.getAiJsonschemaIds();
             MemoryIdVO vo = new MemoryIdVO();
             vo.setAiChat(aiChat);
-            vo.setAiAssistant(assistant);
-            if (StringUtils.hasText(aiJsonschemaIds)) {
-                vo.setJsonschemaList(aiAssistantJsonschemaMapper.selectBatchIds(Arrays.asList(aiJsonschemaIds.split(","))));
-            }
-            vo.setMstateList(aiAssistantMstateMapper.selectListByAssistantId(assistant.getId()));
-            vo.setAssistantKnMap(aiAssistantKnMapper.selectListByAssistantId(assistant.getId()).stream()
+            vo.setAiAssistant(aiAssistantMapper.selectById(aiChat.getAssistantId()));
+            vo.setAssistantKnMap(aiAssistantKnMapper.selectListByAssistantId(aiChat.getAssistantId()).stream()
                     .collect(Collectors.groupingBy(AiAssistantKn::getKnTypeEnum)));
-            vo.setFewshotList(aiAssistantFewshotMapper.selectListByAssistantId(assistant.getId()));
-            vo.setToolMethodList(aiToolService.selectToolMethodList(StringUtils.split(assistant.getAiToolIds(),",")));
             for (AccessUserServiceIntercept intercept : interceptList.get()) {
                 vo = intercept.afterMemoryId(vo, chatId, createUid, uidTypeEnum);
             }

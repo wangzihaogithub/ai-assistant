@@ -60,7 +60,7 @@ public class AiMemoryMstateServiceImpl {
     public MStateVO selectMstate(Integer memoryId) {
         List<AiMemoryMstate> mstateList = aiMemoryMstateMapper.selectLastByAiMemoryId(memoryId);
         if (mstateList.isEmpty()) {
-            return null;
+            return MStateVO.empty();
         }
         Map<String, String> knownState = new LinkedHashMap<>();
         Map<String, String> unknownState = new LinkedHashMap<>();

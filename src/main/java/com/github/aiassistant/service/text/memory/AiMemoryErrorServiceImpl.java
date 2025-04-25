@@ -60,7 +60,7 @@ public class AiMemoryErrorServiceImpl {
         error.setCreateTime(new Date());
         error.setSessionTime(requestTrace.getCreateTime());
 
-        AiErrorTypeEnum errorTypeEnum = AiErrorTypeEnum.parseErrorType(throwable.toString());
+        AiErrorTypeEnum errorTypeEnum = AiErrorTypeEnum.parseErrorType(throwable);
         error.setErrorType(errorTypeEnum.getCode());
         error.setMessageText(StringUtils.left(errorTypeEnum.getMessageText(), 512, true));
         error.setAttachmentJson("");

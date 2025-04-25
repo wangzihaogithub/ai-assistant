@@ -78,7 +78,7 @@ public class AiQuestionClassifyService {
      */
     public CompletableFuture<QuestionClassifyListVO> classify(String question, MemoryIdVO memoryIdVO) {
         // 查询定义的问题分类
-        List<AiQuestionClassify> classifyList = aiQuestionClassifyMapper.selectEnableList(memoryIdVO.getAiAssistant().getId());
+        List<AiQuestionClassify> classifyList = aiQuestionClassifyMapper.selectEnableList(memoryIdVO.getAiAssistantId());
         QuestionClassifyListVO result = convert(classifyList);
         if (classifyList.isEmpty()) {
             return CompletableFuture.completedFuture(result);

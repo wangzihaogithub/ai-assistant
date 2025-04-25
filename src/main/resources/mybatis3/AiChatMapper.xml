@@ -72,18 +72,18 @@
         <if test="arg0 != null and arg0 != ''">
         LEFT JOIN ai_chat_history ach ON ach.ai_chat_id = ac.id and ach.delete_time is null
         </if>
-        where ac.create_uid = #{arg4}
-        and ac.uid_type = #{arg3}
+        where ac.create_uid = #{arg2}
+        and ac.uid_type = #{arg1}
         and ac.delete_time is null
         <if test="arg0 != null and arg0 != ''">
             and ( ac.`name` LIKE concat('%',#{arg0},'%')
             OR ach.`message_text` LIKE concat('%',#{arg0},'%') )
         </if>
-        <if test="arg5 != null and arg5 != ''">
-            and ac.${arg7} >= #{arg5}
+        <if test="arg3 != null and arg3 != ''">
+            and ac.${arg5} >= #{arg3}
         </if>
-        <if test="arg6 != null and arg6 != ''">
-            and ac.${arg7} &lt;= #{arg6}
+        <if test="arg4 != null and arg4 != ''">
+            and ac.${arg5} &lt;= #{arg4}
         </if>
     </select>
 

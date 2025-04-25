@@ -1,5 +1,7 @@
 package com.github.aiassistant.service.text.repository;
 
+import com.github.aiassistant.dao.AiAssistantMstateMapper;
+import com.github.aiassistant.entity.AiAssistantMstate;
 import com.github.aiassistant.entity.model.chat.*;
 import com.github.aiassistant.entity.model.user.AiAccessUserVO;
 import com.github.aiassistant.enums.AiWebSearchSourceEnum;
@@ -22,10 +24,7 @@ import dev.langchain4j.data.message.ChatMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -37,6 +36,8 @@ public class JdbcSessionMessageRepository extends AbstractSessionMessageReposito
     private static final Logger log = LoggerFactory.getLogger(JdbcSessionMessageRepository.class);
     private final ChatQueryRequest chatQueryRequest;
     private final CompletableFuture<AiChatHistoryServiceImpl.AiChatRequest> userChat = new CompletableFuture<>();
+    // @Resource
+    private final AiAssistantMstateMapper aiAssistantMstateMapper;
     //    // @Resource
     private final AiMemoryMessageServiceImpl aiMemoryMessageService;
     //    // @Resource
@@ -59,6 +60,7 @@ public class JdbcSessionMessageRepository extends AbstractSessionMessageReposito
 
     // @Autowired(required = false)
     public JdbcSessionMessageRepository(ChatQueryRequest chatQueryRequest, MemoryIdVO memoryId, AiAccessUserVO user,
+                                        AiAssistantMstateMapper aiAssistantMstateMapper,
                                         AiMemoryMessageServiceImpl aiMemoryMessageService,
                                         AiChatHistoryServiceImpl aiChatHistoryService,
                                         LlmJsonSchemaApiService llmJsonSchemaApiService,
@@ -69,6 +71,7 @@ public class JdbcSessionMessageRepository extends AbstractSessionMessageReposito
                                         AiChatClassifyServiceImpl aiChatClassifyService) {
         super(memoryId, user, chatQueryRequest.userQueryTraceNumber(), chatQueryRequest.timestamp());
         this.chatQueryRequest = chatQueryRequest;
+        this.aiAssistantMstateMapper = aiAssistantMstateMapper;
         this.aiMemoryMessageService = aiMemoryMessageService;
         this.aiChatHistoryService = aiChatHistoryService;
         this.llmJsonSchemaApiService = llmJsonSchemaApiService;
@@ -77,6 +80,17 @@ public class JdbcSessionMessageRepository extends AbstractSessionMessageReposito
         this.aiChatWebsearchService = aiChatWebsearchService;
         this.aiMemoryErrorService = aiMemoryErrorService;
         this.aiChatClassifyService = aiChatClassifyService;
+    }
+
+    public static String getMstateJsonPrompt(Collection<AiAssistantMstate> mstateList) {
+        if (mstateList == null || mstateList.isEmpty()) {
+            return null;
+        }
+        Map<String, String> map = new LinkedHashMap<>();
+        for (AiAssistantMstate mstate : mstateList) {
+            map.put(mstate.getStateKey(), mstate.getPromptText());
+        }
+        return AiUtil.toJsonString(map);
     }
 
     /**
@@ -211,20 +225,28 @@ public class JdbcSessionMessageRepository extends AbstractSessionMessageReposito
     public MStateAiParseVO parseState(MemoryIdVO memoryId,
                                       MStateKnownJsonSchema knownJsonSchema,
                                       MStateUnknownJsonSchema unknownJsonSchema) {
-        String mstateJsonPrompt = memoryId.getMstateJsonPrompt();
-        MStateVO mStateVO = aiMemoryMstateService.selectMstate(memoryId.getMemoryId());
-        if (mStateVO == null) {
-            mStateVO = MStateVO.empty();
-        }
+        MStateVO mStateVO = null;
+        Collection<AiAssistantMstate> mstateList;
         CompletableFuture<Map<String, Object>> known;
-        if (knownJsonSchema != null && StringUtils.hasText(mstateJsonPrompt)) {
-            known = knownJsonSchema.future(mstateJsonPrompt, AiUtil.toJsonString(mStateVO.getKnownState()));
-        } else {
+        if (knownJsonSchema == null) {
             known = CompletableFuture.completedFuture(null);
+        } else if ((mstateList = aiAssistantMstateMapper.selectListByAssistantId(memoryId.getAiAssistantId())).isEmpty()) {
+            known = CompletableFuture.completedFuture(null);
+        } else {
+            String mstateJsonPrompt = getMstateJsonPrompt(mstateList);
+            mStateVO = aiMemoryMstateService.selectMstate(memoryId.getMemoryId());
+            known = knownJsonSchema.future(mstateJsonPrompt, AiUtil.toJsonString(mStateVO.getKnownState()));
         }
         CompletableFuture<Map<String, Object>> unknown;
         if (unknownJsonSchema != null) {
-            unknown = unknownJsonSchema.future(AiUtil.toJsonString(mStateVO.getUnknownState()));
+            if (mStateVO == null) {
+                mStateVO = aiMemoryMstateService.selectMstate(memoryId.getMemoryId());
+            }
+            if (mStateVO.isEmpty()) {
+                unknown = CompletableFuture.completedFuture(null);
+            } else {
+                unknown = unknownJsonSchema.future(AiUtil.toJsonString(mStateVO.getUnknownState()));
+            }
         } else {
             unknown = CompletableFuture.completedFuture(null);
         }

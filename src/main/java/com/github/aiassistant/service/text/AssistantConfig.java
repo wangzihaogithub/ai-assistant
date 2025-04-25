@@ -8,6 +8,10 @@ public interface AssistantConfig {
         return classifyAssistant != null ? classifyAssistant : assistant;
     }
 
+    String getTableName();
+
+    String getName();
+
     public String getSystemPromptText();
 
     public String getAiToolIds();
@@ -27,4 +31,8 @@ public interface AssistantConfig {
     public String getChatModelName();
 
     public Double getTemperature();
+
+    String getKnPromptText();
+
+    String getMstatePromptText();
 }

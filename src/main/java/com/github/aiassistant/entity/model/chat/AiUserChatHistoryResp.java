@@ -73,9 +73,6 @@ public class AiUserChatHistoryResp {
             } else if (lastEvent instanceof AiMemoryError) {
                 AiMemoryError cast = (AiMemoryError) lastEvent;
                 String errorType = cast.getErrorType();
-                if (!StringUtils.hasText(errorType)) {
-                    errorType = AiErrorTypeEnum.parseErrorType(errorType).getCode();
-                }
                 String attachmentJson = cast.getAttachmentJson();
                 Object attachment = null;
                 if (StringUtils.hasText(attachmentJson)) {
