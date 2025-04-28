@@ -29,6 +29,10 @@ public class AiUserChatHistoryResp {
     private String messageText;
     // @ApiModelProperty(value = "用户问题聊天追踪号", example = "101")
     private String userQueryTraceNumber;
+    /**
+     * 重新回答时，取这个参数传过来againUserQueryTraceNumber
+     */
+    private String lastUserQueryTraceNumber;
     private Boolean websearchFlag;
     /**
      * 是否思考
@@ -63,12 +67,12 @@ public class AiUserChatHistoryResp {
             Object lastEvent = getLastEvent(abort, error, historyList);
             List<AiChatHistoryResp> historyRespList = null;
             AiUserChatHistoryResp resp = BeanUtil.toBean(user, AiUserChatHistoryResp.class);
-            String respQueryTraceNumber;
+            String lastUserQueryTraceNumber;
             if (lastEvent instanceof AiChatAbort) {
                 AiChatAbort cast = (AiChatAbort) lastEvent;
                 resp.setAbort(BeanUtil.toBean(lastEvent, Abort.class));
                 resp.setAiHistoryList(new ArrayList<>());
-                respQueryTraceNumber = cast.getUserQueryTraceNumber();
+                lastUserQueryTraceNumber = cast.getUserQueryTraceNumber();
             } else if (lastEvent instanceof AiMemoryError) {
                 AiMemoryError cast = (AiMemoryError) lastEvent;
                 String errorType = cast.getErrorType();
@@ -89,16 +93,16 @@ public class AiUserChatHistoryResp {
                 errorVO.setMessageText(cast.getMessageText());
                 resp.setAiHistoryList(new ArrayList<>());
                 resp.setError(errorVO);
-                respQueryTraceNumber = cast.getUserQueryTraceNumber();
+                lastUserQueryTraceNumber = cast.getUserQueryTraceNumber();
             } else {
                 historyRespList = historyList.stream()
                         .filter(e -> e != user)
                         .collect(Collectors.toList());
                 resp.setAiHistoryList(historyRespList);
-                respQueryTraceNumber = historyList.isEmpty() ? userQueryTraceNumber : historyList.get(historyList.size() - 1).getUserQueryTraceNumber();
+                lastUserQueryTraceNumber = historyList.isEmpty() ? userQueryTraceNumber : historyList.get(historyList.size() - 1).getUserQueryTraceNumber();
             }
-
-            resp.setWebsearch(websearchMap.getOrDefault(respQueryTraceNumber, Collections.emptyList()));
+            resp.setLastUserQueryTraceNumber(lastUserQueryTraceNumber);
+            resp.setWebsearch(websearchMap.getOrDefault(lastUserQueryTraceNumber, Collections.emptyList()));
             if (historyRespList == null || !historyRespList.isEmpty()) {
                 // historyRespList == null的情况是终止或出错。
                 // !historyRespList.isEmpty()的情况是已回复完成
@@ -236,12 +240,25 @@ public class AiUserChatHistoryResp {
         this.websearch = websearch;
     }
 
+    public String getLastUserQueryTraceNumber() {
+        return lastUserQueryTraceNumber;
+    }
+
+    public void setLastUserQueryTraceNumber(String lastUserQueryTraceNumber) {
+        this.lastUserQueryTraceNumber = lastUserQueryTraceNumber;
+    }
+
     public Integer getWebsearchResultCount() {
         return websearch == null ? 0 : websearch.stream()
                 .map(AiChatWebsearchResp::getResultCount)
                 .filter(Objects::nonNull)
                 .mapToInt(e -> e)
                 .sum();
+    }
+
+    @Override
+    public String toString() {
+        return id + "#" + messageText;
     }
 
     // @Data
@@ -273,11 +290,6 @@ public class AiUserChatHistoryResp {
         public String toString() {
             return beforeText;
         }
-    }
-
-    @Override
-    public String toString() {
-        return id + "#" + messageText;
     }
 
     // @Data
