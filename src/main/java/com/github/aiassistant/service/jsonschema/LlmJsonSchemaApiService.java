@@ -1,5 +1,6 @@
 package com.github.aiassistant.service.jsonschema;
 
+import com.github.aiassistant.dao.AiAssistantJsonschemaMapper;
 import com.github.aiassistant.entity.AiJsonschema;
 import com.github.aiassistant.entity.model.chat.AiModel;
 import com.github.aiassistant.entity.model.chat.AiVariables;
@@ -22,6 +23,7 @@ import dev.langchain4j.service.FunctionalInterfaceAiServices;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 import static java.time.Duration.ofSeconds;
 
@@ -103,10 +105,20 @@ public class LlmJsonSchemaApiService {
         session.user = userVO;
     }
 
-    public void putSessionJsonSchema(MemoryIdVO memoryIdVO,
-                                     Collection<AiJsonschema> jsonschemaList) {
+    public void addSessionJsonSchema(MemoryIdVO memoryIdVO,
+                                     String aiJsonschemaIds,
+                                     AiAssistantJsonschemaMapper aiAssistantJsonschemaMapper) {
         Session session = getSession(memoryIdVO, true);
-        session.jsonschemaList = jsonschemaList;
+        Collection<AiJsonschema> jsonschemaList = Optional.ofNullable(aiJsonschemaIds)
+                .filter(StringUtils::hasText)
+                .map(e -> Arrays.asList(e.split(",")))
+                .map(e -> e.stream().filter(o -> !session.jsonschemaMap.containsKey(o)).collect(Collectors.toList()))
+                .filter(e -> !e.isEmpty())
+                .map(aiAssistantJsonschemaMapper::selectBatchIds)
+                .orElseGet(Collections::emptyList);
+        for (AiJsonschema jsonschema : jsonschemaList) {
+            session.jsonschemaMap.put(Objects.toString(jsonschema.getId(), ""), jsonschema);
+        }
     }
 
     public boolean isEnableJsonschema(MemoryIdVO memoryIdVO, String jsonSchemaEnum) {
@@ -114,8 +126,8 @@ public class LlmJsonSchemaApiService {
         if (session == null) {
             return false;
         }
-        Collection<AiJsonschema> jsonschemaList = session.jsonschemaList;
-        return jsonschemaList != null && jsonschemaList.stream()
+        Collection<AiJsonschema> jsonschemaList = session.jsonschemaMap.values();
+        return jsonschemaList.stream()
                 .anyMatch(e -> Objects.equals(jsonSchemaEnum, e.getJsonSchemaEnum()) && Boolean.TRUE.equals(e.getEnableFlag()));
     }
 
@@ -124,8 +136,8 @@ public class LlmJsonSchemaApiService {
         if (session == null) {
             return null;
         }
-        Collection<AiJsonschema> jsonschemaList = session.jsonschemaList;
-        if (jsonschemaList == null || jsonschemaList.isEmpty()) {
+        Collection<AiJsonschema> jsonschemaList = session.jsonschemaMap.values();
+        if (jsonschemaList.isEmpty()) {
             return null;
         }
         return jsonschemaList.stream()
@@ -343,11 +355,10 @@ public class LlmJsonSchemaApiService {
     }
 
     public static class Session {
+        final Map<String, AiJsonschema> jsonschemaMap = new ConcurrentHashMap<>();
         AiAccessUserVO user;
         AiVariables variables;
         ChatStreamingResponseHandler responseHandler;
         JsonSchemaTokenWindowChatMemory chatMemory;
-        Collection<AiJsonschema> jsonschemaList;
-        Collection<Tools.ToolMethod> toolMethods;
     }
 }

@@ -3,7 +3,6 @@ package com.github.aiassistant.service.text;
 import com.github.aiassistant.dao.AiAssistantFewshotMapper;
 import com.github.aiassistant.dao.AiAssistantJsonschemaMapper;
 import com.github.aiassistant.entity.AiAssistantKn;
-import com.github.aiassistant.entity.AiJsonschema;
 import com.github.aiassistant.entity.model.chat.*;
 import com.github.aiassistant.entity.model.user.AiAccessUserVO;
 import com.github.aiassistant.enums.AiAssistantKnTypeEnum;
@@ -255,6 +254,9 @@ public class LlmTextApiService {
                                                                             MemoryIdVO memoryId,
                                                                             ChatStreamingResponseHandler responseHandler) {
         try {
+            // jsonschema模型
+            llmJsonSchemaApiService.addSessionJsonSchema(memoryId, memoryId.getAiAssistant().getAiJsonschemaIds(), aiAssistantJsonschemaMapper);
+            // 持久化
             ChatStreamingResponseHandler mergeResponseHandler = new MergeChatStreamingResponseHandler(
                     Arrays.asList(responseHandler, new RepositoryChatStreamingResponseHandler(repository)),
                     responseHandler);
@@ -268,7 +270,6 @@ public class LlmTextApiService {
             if (!StringUtils.hasText(lastQuestion)) {
                 throw new QuestionEmptyException("user question is empty!");
             }
-
             // 初始化
             mergeResponseHandler.onTokenBegin(baseMessageIndex, addMessageCount, 0);
             // 查询变量
@@ -518,12 +519,7 @@ public class LlmTextApiService {
             int baseMessageIndex
     ) throws AssistantConfigException, FewshotConfigException {
         // jsonschema模型
-        Collection<AiJsonschema> jsonschemaList = Optional.ofNullable(assistantConfig.getAiJsonschemaIds())
-                .filter(StringUtils::hasText)
-                .map(e -> Arrays.asList(e.split(",")))
-                .map(aiAssistantJsonschemaMapper::selectBatchIds)
-                .orElseGet(Collections::emptyList);
-        llmJsonSchemaApiService.putSessionJsonSchema(memoryId, jsonschemaList);
+        llmJsonSchemaApiService.addSessionJsonSchema(memoryId, assistantConfig.getAiJsonschemaIds(), aiAssistantJsonschemaMapper);
 
         // 系统消息
         SystemMessage systemMessage = buildSystemMessage(assistantConfig.getSystemPromptText(), responseHandler, variables, assistantConfig);
