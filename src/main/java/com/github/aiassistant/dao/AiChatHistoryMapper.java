@@ -25,14 +25,14 @@ public interface AiChatHistoryMapper {
     int sumTodayCharLength(String uidType, Serializable uid);
 
     /**
-     * 是否满足轮数
+     * 查询问答轮数
      *
-     * @param uidType 用户类型
-     * @param uid     用户id
-     * @param rounds  轮数
+     * @param uidType   用户类型
+     * @param uid       用户id
+     * @param maxRounds 查几轮就够了（减少查询数据量）
      * @return true=满足轮数
      */
-    boolean selectEnoughRoundsFlag(String uidType, Serializable uid, Integer rounds);
+    int selectQaRounds(String uidType, Serializable uid, Integer maxRounds);
 
     List<String> selectAgainTraceNumberList(List<String> userQueryTraceNumberList);
 

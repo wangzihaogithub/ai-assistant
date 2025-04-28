@@ -111,8 +111,8 @@
         </foreach>
     </select>
 
-    <select id="selectEnoughRoundsFlag" resultType="java.lang.Boolean">
-        select ifnull((count(*) = ${arg2}),0) 's'
+    <select id="selectQaRounds" resultType="java.lang.Integer">
+        select ifnull((count(*)),0) 's'
         from (
             SELECT
                 distinct ach.user_chat_history_id

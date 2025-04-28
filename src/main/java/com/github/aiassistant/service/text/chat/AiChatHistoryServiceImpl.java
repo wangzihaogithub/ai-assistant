@@ -110,11 +110,24 @@ public class AiChatHistoryServiceImpl {
      *
      * @param uidTypeEnum 用户类型
      * @param createUid   用户id
-     * @param rounds      轮数
+     * @param maxRounds   轮数
      * @return true=满足轮数
      */
-    public boolean isEnoughRoundsFlag(Serializable createUid, AiChatUidTypeEnum uidTypeEnum, Integer rounds) {
-        return aiChatHistoryMapper.selectEnoughRoundsFlag(uidTypeEnum.getCode(), createUid, rounds);
+    public boolean isEnoughRoundsFlag(Serializable createUid, AiChatUidTypeEnum uidTypeEnum, Integer maxRounds) {
+        int i = aiChatHistoryMapper.selectQaRounds(uidTypeEnum.getCode(), createUid, maxRounds);
+        return i == maxRounds;
+    }
+
+    /**
+     * 是否满足问答轮数（一问一答算一轮，重新回答不计数）
+     *
+     * @param uidTypeEnum 用户类型
+     * @param createUid   用户id
+     * @param maxRounds   最大轮数（查几轮就够了，减少查询数据量）
+     * @return min(轮数, maxRounds)
+     */
+    public int countRounds(Serializable createUid, AiChatUidTypeEnum uidTypeEnum, Integer maxRounds) {
+        return aiChatHistoryMapper.selectQaRounds(uidTypeEnum.getCode(), createUid, maxRounds);
     }
 
     /**
