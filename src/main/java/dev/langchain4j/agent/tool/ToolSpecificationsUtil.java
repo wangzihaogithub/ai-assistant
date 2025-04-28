@@ -15,8 +15,9 @@ public class ToolSpecificationsUtil {
     public static ToolParameters toolParameters(Method method,
                                                 Collection<String> requiredSet,
                                                 Set<String> disabledSet,
-                                                String[] parameterNames,
-                                                Map<String, String> parameterDescriptions) {
+                                                String[] methodParameterNames,
+                                                Map<String, String> parameterDescriptions,
+                                                Collection<String> addParamNames) {
         ToolSpecification.Builder builder = ToolSpecification.builder()
                 .name("name")
                 .description("description");
@@ -30,7 +31,7 @@ public class ToolSpecificationsUtil {
             if (p == null) {
                 continue;
             }
-            String parameterName = parameterNames[i];
+            String parameterName = methodParameterNames[i];
             if (disabledSet.contains(parameterName)) {
                 continue;
             }
@@ -38,10 +39,28 @@ public class ToolSpecificationsUtil {
                 continue;
             }
             String parameterDescription = parameterDescriptions.get(parameterName);
+            if (parameterDescription == null || parameterDescription.isEmpty()) {
+                parameterDescription = parameterName;
+            }
+            Iterable<JsonSchemaProperty> propertyList = toJsonSchemaPropertiesV2(parameter, parameterDescription);
             if (requiredSet.contains(parameterName)) {
-                builder.addParameter(parameterName, toJsonSchemaPropertiesV2(parameter, parameterDescription));
+                builder.addParameter(parameterName, propertyList);
             } else {
-                builder.addOptionalParameter(parameterName, toJsonSchemaPropertiesV2(parameter, parameterDescription));
+                builder.addOptionalParameter(parameterName, propertyList);
+            }
+        }
+        if (addParamNames != null) {
+            for (String parameterName : addParamNames) {
+                String parameterDescription = parameterDescriptions.get(parameterName);
+                if (parameterDescription == null || parameterDescription.isEmpty()) {
+                    parameterDescription = parameterName;
+                }
+                Collection<JsonSchemaProperty> propertyList = Arrays.asList(STRING, description(parameterDescription));
+                if (requiredSet.contains(parameterName)) {
+                    builder.addParameter(parameterName, propertyList);
+                } else {
+                    builder.addOptionalParameter(parameterName, propertyList);
+                }
             }
         }
         return builder.build().parameters();

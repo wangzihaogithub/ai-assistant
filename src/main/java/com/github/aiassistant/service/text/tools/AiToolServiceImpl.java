@@ -74,20 +74,20 @@ public class AiToolServiceImpl {
                 log.warn("tool {} name {} not exist!", toolEnum, aiTool.getToolFunctionEnum());
                 continue;
             }
-            String[] parameterNames = ParameterNamesUtil.getParameterNames(functionMethod, e -> e.isAnnotationPresent(P.class));
+            String[] methodParameterNames = ParameterNamesUtil.getParameterNames(functionMethod, e -> e.isAnnotationPresent(P.class));
             Map<String, AiToolParameter> parameterMap = parameters.get(aiTool.getId());
             Map<String, String> parameterDefaultValueMap = new HashMap<>();
             if (parameterMap != null) {
                 parameterMap.forEach((k, v) -> parameterDefaultValueMap.put(k, v.getDefaultValue()));
             }
 
-            ToolParameters toolParameters = convert(parameterMap, functionMethod, parameterNames);
+            ToolParameters toolParameters = convert(parameterMap, functionMethod, methodParameterNames);
             ToolSpecification rewriteToolSpecification = ToolSpecification.builder()
                     .name(toolFunctionName)
                     .description(aiTool.getToolFunctionDescription())
                     .parameters(toolParameters)
                     .build();
-            Tools.ToolMethod toolMethod = new Tools.ToolMethod(tool, rewriteToolSpecification, englishName, parameterNames, functionMethod, parameterDefaultValueMap);
+            Tools.ToolMethod toolMethod = new Tools.ToolMethod(tool, rewriteToolSpecification, englishName, methodParameterNames, functionMethod, parameterDefaultValueMap);
             if (result.put(toolMethod.name(), toolMethod) != null) {
                 log.warn("tool name {} exist!", toolMethod.name());
             }
@@ -110,13 +110,15 @@ public class AiToolServiceImpl {
         return toolList;
     }
 
-    private ToolParameters convert(Map<String, AiToolParameter> parameterMap, Method method, String[] parameterNames) {
-        if (parameterMap == null || parameterMap.isEmpty()) {
+    private ToolParameters convert(Map<String, AiToolParameter> dbParameterMap, Method method, String[] methodParameterNames) {
+        if (dbParameterMap == null || dbParameterMap.isEmpty()) {
             return null;
         }
-        Set<String> disabledSet = parameterMap.values().stream().filter(e -> !Boolean.TRUE.equals(e.getEnableFlag())).map(AiToolParameter::getParameterEnum).collect(Collectors.toSet());
-        Set<String> requiredSet = parameterMap.values().stream().filter(e -> Boolean.TRUE.equals(e.getRequiredFlag())).map(AiToolParameter::getParameterEnum).collect(Collectors.toSet());
-        Map<String, String> parameterDescriptions = parameterMap.values().stream().filter(e -> StringUtils.hasText(e.getParameterDescription())).collect(Collectors.toMap(AiToolParameter::getParameterEnum, AiToolParameter::getParameterDescription));
-        return ToolSpecificationsUtil.toolParameters(method, requiredSet, disabledSet, parameterNames, parameterDescriptions);
+        HashSet<String> parameterNameSet = new HashSet<>(Arrays.asList(methodParameterNames));
+        Collection<String> dbAddParamNames = dbParameterMap.keySet().stream().filter(e -> !parameterNameSet.contains(e)).collect(Collectors.toList());
+        Set<String> disabledSet = dbParameterMap.values().stream().filter(e -> !Boolean.TRUE.equals(e.getEnableFlag())).map(AiToolParameter::getParameterEnum).collect(Collectors.toSet());
+        Set<String> requiredSet = dbParameterMap.values().stream().filter(e -> Boolean.TRUE.equals(e.getRequiredFlag())).map(AiToolParameter::getParameterEnum).collect(Collectors.toSet());
+        Map<String, String> parameterDescriptions = dbParameterMap.values().stream().filter(e -> StringUtils.hasText(e.getParameterDescription())).collect(Collectors.toMap(AiToolParameter::getParameterEnum, AiToolParameter::getParameterDescription));
+        return ToolSpecificationsUtil.toolParameters(method, requiredSet, disabledSet, methodParameterNames, parameterDescriptions, dbAddParamNames);
     }
 }

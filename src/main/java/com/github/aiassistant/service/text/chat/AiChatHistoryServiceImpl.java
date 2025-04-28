@@ -106,6 +106,18 @@ public class AiChatHistoryServiceImpl {
     }
 
     /**
+     * 是否满足问答轮数（一问一答算一轮，重新回答不计数）
+     *
+     * @param uidTypeEnum 用户类型
+     * @param createUid   用户id
+     * @param rounds      轮数
+     * @return true=满足轮数
+     */
+    public boolean isEnoughRoundsFlag(Serializable createUid, AiChatUidTypeEnum uidTypeEnum, Integer rounds) {
+        return aiChatHistoryMapper.selectEnoughRoundsFlag(uidTypeEnum.getCode(), createUid, rounds);
+    }
+
+    /**
      * 查询最后一次聊天号
      *
      * @param chatId chatId

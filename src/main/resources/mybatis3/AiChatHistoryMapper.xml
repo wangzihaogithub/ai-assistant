@@ -110,4 +110,17 @@
             #{item}
         </foreach>
     </select>
+
+    <select id="selectEnoughRoundsFlag" resultType="java.lang.Boolean">
+        select ifnull((count(*) = ${arg2}),0) 's'
+        from (
+            SELECT
+                distinct ach.user_chat_history_id
+            FROM ai_chat_history ach
+            WHERE ach.ai_chat_id in (SELECT id FROM ai_chat ac WHERE ac.create_uid = #{arg1} AND ac.uid_type = #{arg0} )
+              AND ach.user_chat_history_id IS NOT NULL
+              AND ach.delete_time IS NULL
+            limit ${arg2}
+         ) t
+    </select>
 </mapper>
