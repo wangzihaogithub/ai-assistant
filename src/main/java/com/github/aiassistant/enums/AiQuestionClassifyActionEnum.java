@@ -72,4 +72,9 @@ public class AiQuestionClassifyActionEnum {
     public boolean isDefaultEnable() {
         return defaultEnable;
     }
+
+    @Override
+    public String toString() {
+        return code;
+    }
 }

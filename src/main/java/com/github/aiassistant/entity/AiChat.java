@@ -114,4 +114,9 @@ public class AiChat {
     public void setUidType(String uidType) {
         this.uidType = uidType;
     }
+
+    @Override
+    public String toString() {
+        return id + "#" + name;
+    }
 }

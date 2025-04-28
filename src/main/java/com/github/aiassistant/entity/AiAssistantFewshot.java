@@ -69,4 +69,9 @@ public class AiAssistantFewshot {
     public void setMessageTypeEnum(String messageTypeEnum) {
         this.messageTypeEnum = messageTypeEnum;
     }
+
+    @Override
+    public String toString() {
+        return id + "#" + aiAssistantId + "." + messageText;
+    }
 }

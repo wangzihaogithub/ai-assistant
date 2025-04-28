@@ -73,4 +73,8 @@ public class AiEmbedding {
     private String modelName;
     private Integer dimensions;
 
+    @Override
+    public String toString() {
+        return keyword;
+    }
 }

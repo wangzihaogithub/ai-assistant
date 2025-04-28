@@ -92,4 +92,9 @@ public class AiMemory {
     private Integer userCharLength;
     private Integer knowledgeCharLength;
     private Integer aiCharLength;
+
+    @Override
+    public String toString() {
+        return id + "#" + createTime;
+    }
 }

@@ -137,4 +137,9 @@ public class AiChatWebsearchResp {
      * 结果数量
      */
     private Integer resultCount;
+
+    @Override
+    public String toString() {
+        return id + "#" + question;
+    }
 }

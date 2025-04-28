@@ -131,4 +131,8 @@ public class AiQuestionClassify {
      */
     private Integer aiQuestionClassifyAssistantId;
 
+    @Override
+    public String toString() {
+        return id + "#" + classifyName;
+    }
 }

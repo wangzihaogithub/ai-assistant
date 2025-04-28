@@ -139,4 +139,9 @@ public class AiChatWebsearchResult {
      * 读取内容的代理
      */
     private String urlReadProxy;
+
+    @Override
+    public String toString() {
+        return id + "#" + pageTitle;
+    }
 }

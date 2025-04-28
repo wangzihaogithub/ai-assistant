@@ -101,4 +101,8 @@ public class AiToolParameter {
      */
     private Boolean aiUseFlag;
 
+    @Override
+    public String toString() {
+        return id + "#" + parameterEnum;
+    }
 }

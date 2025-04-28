@@ -58,4 +58,9 @@ public class AiChatUidTypeEnum {
         }
         return code.equals(aiChat.getUidType()) && Objects.equals(Objects.toString(uid, null), Objects.toString(aiChat.getCreateUid(), null));
     }
+
+    @Override
+    public String toString() {
+        return code;
+    }
 }

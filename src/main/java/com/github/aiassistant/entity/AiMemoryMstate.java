@@ -91,4 +91,9 @@ public class AiMemoryMstate {
     public void setUserQueryTraceNumber(String userQueryTraceNumber) {
         this.userQueryTraceNumber = userQueryTraceNumber;
     }
+
+    @Override
+    public String toString() {
+        return id + "#" + stateKey;
+    }
 }

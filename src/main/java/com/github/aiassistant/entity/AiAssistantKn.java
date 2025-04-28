@@ -160,4 +160,8 @@ public class AiAssistantKn {
     private Integer embeddingDimensions;
     private Integer embeddingMaxRequestSize;
 
+    @Override
+    public String toString() {
+        return id + "#" + assistantId + "." + knIndexName;
+    }
 }

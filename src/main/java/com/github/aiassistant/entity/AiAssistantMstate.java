@@ -61,4 +61,9 @@ public class AiAssistantMstate {
     public void setUpdateTime(Date updateTime) {
         this.updateTime = updateTime;
     }
+
+    @Override
+    public String toString() {
+        return id + "#" + stateKey;
+    }
 }

@@ -19,4 +19,9 @@ public class AiModel {
     public boolean isSupportChineseToolName() {
         return !modelName.startsWith("deepseek");
     }
+
+    @Override
+    public String toString() {
+        return modelName;
+    }
 }

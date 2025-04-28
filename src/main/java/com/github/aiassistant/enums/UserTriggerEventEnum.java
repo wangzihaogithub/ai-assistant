@@ -52,4 +52,9 @@ public class UserTriggerEventEnum<T> {
     public Class<T> getPayloadClass() {
         return payloadClass;
     }
+
+    @Override
+    public String toString() {
+        return code;
+    }
 }

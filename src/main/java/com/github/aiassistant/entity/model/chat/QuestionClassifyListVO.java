@@ -13,6 +13,11 @@ public class QuestionClassifyListVO {
     private QuestionClassifySchema.Result classifyResult;
     private List<ClassifyVO> classifyList;
 
+    @Override
+    public String toString() {
+        return Optional.ofNullable(classifyResult).map(e -> e.classifyList).map(Object::toString).orElse("empty");
+    }
+
     public QuestionClassifySchema.Result getClassifyResult() {
         return classifyResult;
     }

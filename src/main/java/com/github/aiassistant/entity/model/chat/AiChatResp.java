@@ -74,4 +74,9 @@ public class AiChatResp {
     public void setLastWebsearchFlag(Boolean lastWebsearchFlag) {
         this.lastWebsearchFlag = lastWebsearchFlag;
     }
+
+    @Override
+    public String toString() {
+        return id + "#" + name;
+    }
 }

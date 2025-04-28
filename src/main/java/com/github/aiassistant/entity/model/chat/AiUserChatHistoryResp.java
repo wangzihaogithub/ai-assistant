@@ -2,7 +2,6 @@ package com.github.aiassistant.entity.model.chat;
 
 import com.github.aiassistant.entity.AiChatAbort;
 import com.github.aiassistant.entity.AiMemoryError;
-import com.github.aiassistant.enums.AiErrorTypeEnum;
 import com.github.aiassistant.platform.JsonUtil;
 import com.github.aiassistant.util.BeanUtil;
 import com.github.aiassistant.util.StringUtils;
@@ -122,7 +121,7 @@ public class AiUserChatHistoryResp {
                 .filter(e -> StringUtils.hasText(e.getAgainUserQueryTraceNumber())).filter(e -> chatTimeGetter.apply(e) != null)
                 .collect(Collectors.groupingBy(AiChatHistoryResp::getAgainUserQueryTraceNumber))
                 .values().stream()
-                .map(e -> e.stream().min(Comparator.comparing(chatTimeGetter)).orElse(null))
+                .map(e -> e.stream().max(Comparator.comparing(chatTimeGetter)).orElse(null))
                 .filter(Objects::nonNull)
                 .max(Comparator.comparing(chatTimeGetter));
         Optional<AiChatHistoryResp> user = historyList.stream()
@@ -269,6 +268,16 @@ public class AiUserChatHistoryResp {
         public void setBeforeText(String beforeText) {
             this.beforeText = beforeText;
         }
+
+        @Override
+        public String toString() {
+            return beforeText;
+        }
+    }
+
+    @Override
+    public String toString() {
+        return id + "#" + messageText;
     }
 
     // @Data
@@ -281,6 +290,11 @@ public class AiUserChatHistoryResp {
         private String messageText;
         // @ApiModelProperty(value = "附加信息", example = "附加信息")
         private Object attachmentJson;
+
+        @Override
+        public String toString() {
+            return errorType;
+        }
 
         public Date getCreateTime() {
             return createTime;

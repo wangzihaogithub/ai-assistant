@@ -61,4 +61,9 @@ public class AiVariables {
     private Date createTime;
     private Date updateTime;
     private Boolean enableFlag;
+
+    @Override
+    public String toString() {
+        return id + "#" + varKey;
+    }
 }

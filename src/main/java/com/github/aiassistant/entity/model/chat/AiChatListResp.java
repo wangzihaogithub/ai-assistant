@@ -207,4 +207,9 @@ public class AiChatListResp {
             this.userQueryFlag = userQueryFlag;
         }
     }
+
+    @Override
+    public String toString() {
+        return id + "#" + name;
+    }
 }

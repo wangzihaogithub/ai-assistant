@@ -47,4 +47,8 @@ public class KnSettingWebsearchBlacklist {
     // @ApiModelProperty(value = "排序，从小到大，越容易命中的放前面", required = true)
     private Integer sorted;
 
+    @Override
+    public String toString() {
+        return id + "#" + question;
+    }
 }

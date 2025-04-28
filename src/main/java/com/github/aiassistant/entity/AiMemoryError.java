@@ -155,4 +155,8 @@ public class AiMemoryError {
     private String messageText;
     private String attachmentJson;
 
+    @Override
+    public String toString() {
+        return id + "#" + errorClassName;
+    }
 }

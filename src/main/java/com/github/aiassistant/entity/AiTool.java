@@ -107,4 +107,9 @@ public class AiTool {
     private Date updateTime;
     private Integer createUid;
     private Integer updateUid;
+
+    @Override
+    public String toString() {
+        return id + "#" + toolEnum + "." + toolFunctionEnum + ")";
+    }
 }

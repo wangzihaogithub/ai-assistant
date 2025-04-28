@@ -118,4 +118,9 @@ public class AiErrorTypeEnum {
     public String getMessageText() {
         return messageText;
     }
+
+    @Override
+    public String toString() {
+        return code;
+    }
 }

@@ -71,4 +71,9 @@ public class AiMemoryMessageTool {
     public void setAiMemoryId(Integer aiMemoryId) {
         this.aiMemoryId = aiMemoryId;
     }
+
+    @Override
+    public String toString() {
+        return id + "#" + toolName;
+    }
 }

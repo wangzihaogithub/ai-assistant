@@ -135,4 +135,8 @@ public class AiChatClassify {
         this.aiQuestionClassifyAssistantId = aiQuestionClassifyAssistantId;
     }
 
+    @Override
+    public String toString() {
+        return classifyName + "#" + question;
+    }
 }

@@ -160,4 +160,9 @@ public class AiJsonschema {
     public void setRemark(String remark) {
         this.remark = remark;
     }
+
+    @Override
+    public String toString() {
+        return id + "#" + jsonSchemaEnum;
+    }
 }

@@ -97,4 +97,9 @@ public class AiMemoryMessageKn {
     public void setAiMemoryId(Integer aiMemoryId) {
         this.aiMemoryId = aiMemoryId;
     }
+
+    @Override
+    public String toString() {
+        return id + "#" + knAnswerText;
+    }
 }

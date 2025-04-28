@@ -16,6 +16,11 @@ public class ChatQueryRequest {
     private Boolean reasoning = true;
     private Long timestamp;
 
+    @Override
+    public String toString() {
+        return chatId + "#" + question;
+    }
+
     public static String newUserQueryTraceNumber() {
         return UniqueKeyGenerator.nextId();
     }

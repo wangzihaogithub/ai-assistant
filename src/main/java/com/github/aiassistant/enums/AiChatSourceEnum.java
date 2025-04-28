@@ -52,4 +52,8 @@ public class AiChatSourceEnum {
         return code;
     }
 
+    @Override
+    public String toString() {
+        return code;
+    }
 }

@@ -139,4 +139,9 @@ public class AiChatReasoningPlan {
      * 如果任务未被解决，可以在此字段上返回一些搜索关键词，以助于使用搜索引擎
      */
     private String websearchKeyword;
+
+    @Override
+    public String toString() {
+        return id + "#" + task;
+    }
 }

@@ -94,4 +94,9 @@ public class AiChatAbort {
 
     // @ApiModelProperty(value = "第几个消息", example = "101")
     private Integer messageIndex;
+
+    @Override
+    public String toString() {
+        return id + "#" + beforeText;
+    }
 }

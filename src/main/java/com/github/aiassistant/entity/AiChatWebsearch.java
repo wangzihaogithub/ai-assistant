@@ -129,4 +129,9 @@ public class AiChatWebsearch {
      * 每次用户请求的唯一序号
      */
     private String userQueryTraceNumber;
+
+    @Override
+    public String toString() {
+        return id + "#" + providerName + "#" + question;
+    }
 }

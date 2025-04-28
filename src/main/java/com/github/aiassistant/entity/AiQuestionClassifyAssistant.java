@@ -169,4 +169,9 @@ public class AiQuestionClassifyAssistant implements AssistantConfig {
     public void setMstatePromptText(String mstatePromptText) {
         this.mstatePromptText = mstatePromptText;
     }
+
+    @Override
+    public String toString() {
+        return id + "#" + name;
+    }
 }

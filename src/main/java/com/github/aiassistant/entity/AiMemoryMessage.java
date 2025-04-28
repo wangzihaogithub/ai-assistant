@@ -296,4 +296,9 @@ public class AiMemoryMessage {
 
     // @ApiModelProperty(value = "是否联网", example = "101")
     private Boolean websearchFlag;
+
+    @Override
+    public String toString() {
+        return id + "#" + messageText;
+    }
 }

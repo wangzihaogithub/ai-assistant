@@ -13,4 +13,11 @@ public class AiAccessUserVO {
     public void setId(Serializable id) {
         this.id = id;
     }
+
+    @Override
+    public String toString() {
+        return "AiAccessUserVO{" +
+                "id=" + id +
+                '}';
+    }
 }

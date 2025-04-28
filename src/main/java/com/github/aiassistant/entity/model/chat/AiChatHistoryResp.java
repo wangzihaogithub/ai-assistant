@@ -152,4 +152,8 @@ public class AiChatHistoryResp {
         this.againUserQueryTraceNumber = againUserQueryTraceNumber;
     }
 
+    @Override
+    public String toString() {
+        return id + "#" + messageText;
+    }
 }

@@ -182,4 +182,8 @@ public class AiChatHistory {
     private Boolean websearchFlag;
     private Boolean userQueryFlag; // bit(1) 类型在 Java 中通常映射为 boolean
 
+    @Override
+    public String toString() {
+        return id + "#" + messageIndex;
+    }
 }
