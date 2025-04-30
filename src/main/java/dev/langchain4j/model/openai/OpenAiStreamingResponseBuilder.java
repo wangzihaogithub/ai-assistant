@@ -49,21 +49,23 @@ public class OpenAiStreamingResponseBuilder {
             // https://api-docs.deepseek.com/zh-cn/guides/json_mode,在使用 JSON Output 功能时，API 有概率会返回空的 content。我们正在积极优化该问题，您可以尝试修改 prompt 以缓解此类问题。
             return AiUtil.NULL;
         }
+        String contentString = content.toString();
+        content.setLength(0);
         if (state == STATE_THINKING) {
-            if (content.length() == 0) {
+            if (contentString.isEmpty()) {
                 return new ThinkingAiMessage(toolExecutionRequests);
             } else if (toolExecutionRequests == null) {
-                return new ThinkingAiMessage(content.toString());
+                return new ThinkingAiMessage(contentString);
             } else {
-                return new ThinkingAiMessage(content.toString(), toolExecutionRequests);
+                return new ThinkingAiMessage(contentString, toolExecutionRequests);
             }
         } else {
-            if (content.length() == 0) {
+            if (contentString.isEmpty()) {
                 return new AiMessage(toolExecutionRequests);
             } else if (toolExecutionRequests == null) {
-                return new AiMessage(content.toString());
+                return new AiMessage(contentString);
             } else {
-                return new AiMessage(content.toString(), toolExecutionRequests);
+                return new AiMessage(contentString, toolExecutionRequests);
             }
         }
     }
