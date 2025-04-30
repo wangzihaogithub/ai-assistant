@@ -3,6 +3,7 @@ package com.github.aiassistant.service.text;
 import com.github.aiassistant.entity.model.chat.LangChainUserMessage;
 import com.github.aiassistant.entity.model.chat.MemoryIdVO;
 import com.github.aiassistant.entity.model.chat.MetadataAiMessage;
+import com.github.aiassistant.entity.model.chat.QuestionClassifyListVO;
 import com.github.aiassistant.exception.TokenReadTimeoutException;
 import com.github.aiassistant.service.jsonschema.LlmJsonSchemaApiService;
 import com.github.aiassistant.service.jsonschema.WhetherWaitingForAiJsonSchema;
@@ -19,8 +20,8 @@ import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.data.message.ToolExecutionResultMessage;
 import dev.langchain4j.memory.ChatMemory;
-import dev.langchain4j.model.StreamingResponseHandler;
-import dev.langchain4j.model.chat.StreamingChatLanguageModel;
+import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
+import dev.langchain4j.model.openai.ThinkingStreamingResponseHandler;
 import dev.langchain4j.model.output.FinishReason;
 import dev.langchain4j.model.output.Response;
 import dev.langchain4j.model.output.TokenUsage;
@@ -35,7 +36,7 @@ import java.util.stream.Collectors;
 /**
  * 流式处理AI结果（同时调用工具库）
  */
-public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void> implements StreamingResponseHandler<AiMessage> {
+public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void> implements ThinkingStreamingResponseHandler<AiMessage> {
     public static final long READ_DONE = -1L;
     private static final ScheduledThreadPoolExecutor READ_TIMEOUT_SCHEDULED = new ScheduledThreadPoolExecutor(1, new ThreadFactory() {
 
@@ -51,7 +52,7 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
     private final Object memoryId;
     private final ChatMemory chatMemory;
     private final String modelName;
-    private final StreamingChatLanguageModel chatModel;
+    private final OpenAiStreamingChatModel chatModel;
     private final List<Tools> tools;
     private final List<Tools.ToolMethod> toolMethodList;
     private final FunctionCallStreamingResponseHandler parent;
@@ -67,12 +68,19 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
     private final List<SseHttpResponseImpl> aiEmitterList = new ArrayList<>();
     private final boolean isSupportChineseToolName;
     private final Long readTimeoutMs;
+    private final QuestionClassifyListVO classifyListVO;
+    private final Boolean websearch;
+    private final Boolean reasoning;
     private Tools.ParamValidationResult validationResult;
     private Response<AiMessage> lastResponse;
     private volatile long lastReadTimestamp;
     private volatile ScheduledFuture<?> readTimeoutFuture;
+    private Boolean enableSearch;
+    private Map<String, Object> searchOptions;
+    private Boolean enableThinking;
+    private Integer thinkingBudget;
 
-    public FunctionCallStreamingResponseHandler(String modelName, StreamingChatLanguageModel chatModel,
+    public FunctionCallStreamingResponseHandler(String modelName, OpenAiStreamingChatModel chatModel,
                                                 ChatMemory chatMemory,
                                                 ChatStreamingResponseHandler handler,
                                                 LlmJsonSchemaApiService llmJsonSchemaApiService,
@@ -81,6 +89,9 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
                                                 int baseMessageIndex,
                                                 int addMessageCount,
                                                 Long readTimeoutMs,
+                                                QuestionClassifyListVO classifyListVO,
+                                                Boolean websearch,
+                                                Boolean reasoning,
                                                 Executor executor) {
         this.readTimeoutMs = readTimeoutMs;
         this.modelName = modelName;
@@ -98,6 +109,9 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
         this.parent = null;
         this.bizHandler = handler;
         this.baseMessageIndex = baseMessageIndex;
+        this.classifyListVO = classifyListVO;
+        this.websearch = websearch;
+        this.reasoning = reasoning;
         this.addMessageCount = new AtomicInteger(addMessageCount);
         this.generateRemaining = MAX_GENERATE_COUNT;
     }
@@ -117,9 +131,16 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
         this.baseMessageIndex = parent.baseMessageIndex;
         this.addMessageCount = parent.addMessageCount;
         this.llmJsonSchemaApiService = parent.llmJsonSchemaApiService;
+        this.classifyListVO = parent.classifyListVO;
+        this.websearch = parent.websearch;
+        this.reasoning = parent.reasoning;
         this.generateRemaining = parent.generateRemaining - 1;
         this.validationResult = parent.validationResult;
         this.lastResponse = parent.lastResponse;
+        this.enableSearch = parent.enableSearch;
+        this.enableThinking = parent.enableThinking;
+        this.thinkingBudget = parent.thinkingBudget;
+        this.searchOptions = parent.searchOptions;
     }
 
     protected FunctionCallStreamingResponseHandler fork(FunctionCallStreamingResponseHandler parent) {
@@ -162,6 +183,16 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
         } catch (Exception e) {
             onError(e);
         }
+    }
+
+    /**
+     * 思考模型
+     *
+     * @param thinkingToken 思考内容
+     */
+    @Override
+    public void onThinkingToken(String thinkingToken) {
+
     }
 
     /**
@@ -368,16 +399,57 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
      * @return 回复
      */
     public CompletableFuture<Void> generate() {
+        return generate(enableSearch, searchOptions, enableThinking, thinkingBudget);
+    }
+
+    /**
+     * 生成AI回复
+     *
+     * @param enableSearch   # 开启联网搜索的参数
+     * @param searchOptions  search_options = {
+     *                       "forced_search": True, # 强制开启联网搜索
+     *                       "enable_source": True, # 使返回结果包含搜索来源的信息，OpenAI 兼容方式暂不支持返回
+     *                       "enable_citation": True, # 开启角标标注功能
+     *                       "citation_format": "[ref_<number>]", # 角标形式为[ref_i]
+     *                       "search_strategy": "pro" # 模型将搜索10条互联网信息
+     *                       },
+     * @param enableThinking # 是否开启思考模式，适用于 Qwen3 模型。
+     *                       Qwen3 商业版模型默认值为 False，Qwen3 开源版模型默认值为 True。
+     * @param thinkingBudget 参数设置最大推理过程 Token 数，不能超过供应商要求的最大思维链Token数：例：38912。两个参数对 QwQ 与 DeepSeek-R1 模型无效
+     * @return 回复
+     */
+    public CompletableFuture<Void> generate(Boolean enableSearch,
+                                            Map<String, Object> searchOptions,
+                                            Boolean enableThinking,
+                                            Integer thinkingBudget) {
         if (!isDone()) {
+            this.enableSearch = enableSearch;
+            this.searchOptions = searchOptions;
+            this.enableThinking = enableThinking;
+            this.thinkingBudget = thinkingBudget;
             List<ToolSpecification> list = new ArrayList<>(toolMethodList.size());
             for (Tools.ToolMethod wrapper : toolMethodList) {
                 list.add(wrapper.toRequest(isSupportChineseToolName));
             }
             List<ChatMessage> messageList = AiUtil.beforeGenerate(chatMemory.messages());
             FunctionCallStreamingResponseHandler fork = fork(this);
-            executor.execute(() -> chatModel.generate(messageList, list, fork));
+            executor.execute(() -> chatModel.generateV2(messageList, list, fork,
+                    enableSearch, searchOptions,
+                    enableThinking, thinkingBudget, null));
         }
         return this;
+    }
+
+    public QuestionClassifyListVO getClassifyListVO() {
+        return classifyListVO;
+    }
+
+    public Boolean getWebsearch() {
+        return websearch;
+    }
+
+    public Boolean getReasoning() {
+        return reasoning;
     }
 
     private List<ResultToolExecutor> buildToolExecutor(List<ToolExecutionRequest> toolExecutionRequests, Response<AiMessage> response) {

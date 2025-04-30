@@ -7,19 +7,19 @@ import java.util.Date;
 //// @Data
 //// @TableName("ai_assistant")
 public class AiAssistant implements AssistantConfig {
-//    // @TableId(value = "id", type = IdType.NONE)
+    //    // @TableId(value = "id", type = IdType.NONE)
     private String id;
 
-//    // @ApiModelProperty(value = "名称", required = true)
+    //    // @ApiModelProperty(value = "名称", required = true)
     private String name;
 
-//    // @ApiModelProperty(value = "描述", required = true)
+    //    // @ApiModelProperty(value = "描述", required = true)
     private String description;
 
-//    // @ApiModelProperty(value = "打招呼", required = true)
+    //    // @ApiModelProperty(value = "打招呼", required = true)
     private String helloMessage;
 
-//    // @ApiModelProperty(value = "Logo URL", required = true)
+    //    // @ApiModelProperty(value = "Logo URL", required = true)
     private String logoUrl;
 
     // // @ApiModelProperty(value = "系统提示文本", required = true)

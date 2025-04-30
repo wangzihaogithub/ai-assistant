@@ -44,6 +44,13 @@ public class MergeChatStreamingResponseHandler implements ChatStreamingResponseH
     }
 
     @Override
+    public void onThinkingToken(String thinkingToken) {
+        for (ChatStreamingResponseHandler h : list) {
+            h.onThinkingToken(thinkingToken);
+        }
+    }
+
+    @Override
     public void onBlacklistQuestion(SseHttpResponse response, String question, QuestionClassifyListVO classifyListVO) {
         for (ChatStreamingResponseHandler h : list) {
             h.onBlacklistQuestion(response, question, classifyListVO);

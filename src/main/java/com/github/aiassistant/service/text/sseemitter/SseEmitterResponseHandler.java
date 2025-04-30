@@ -119,6 +119,15 @@ public class SseEmitterResponseHandler implements ChatStreamingResponseHandler {
     }
 
     @Override
+    public void onThinkingToken(String thinkingToken) {
+        sendToClient(emitter, "thinking-token",
+                "baseMessageIndex", baseMessageIndex,
+                "addMessageCount", addMessageCount,
+                "messageIndex", baseMessageIndex + addMessageCount,
+                "token", thinkingToken);
+    }
+
+    @Override
     public void onError(Throwable error, int baseMessageIndex, int addMessageCount, int generateCount) {
         this.baseMessageIndex = baseMessageIndex;
         this.addMessageCount = addMessageCount;

@@ -71,7 +71,7 @@ public class OpenAiStreamingResponseBuilder {
         }
 
         String content = delta.content();
-        if (content != null) {
+        if (content != null && !content.isEmpty()) {
             contentBuilder.append(content);
             return;
         }

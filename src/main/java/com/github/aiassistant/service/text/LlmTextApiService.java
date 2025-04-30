@@ -42,6 +42,7 @@ import dev.langchain4j.model.openai.OpenAiTokenizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.function.BiFunction;
@@ -144,12 +145,8 @@ public class LlmTextApiService {
         return messageList.stream().filter(Objects::nonNull).collect(Collectors.toList());
     }
 
-    private static String uniqueKey(String apiKey,
-                                    String baseUrl,
-                                    String modelName,
-                                    Double temperature,
-                                    Integer maxCompletionTokens) {
-        return apiKey + ":" + baseUrl + ":" + modelName + ":" + temperature + ":" + maxCompletionTokens;
+    private static String uniqueKey(Object... keys) {
+        return Arrays.toString(keys);
     }
 
     private static String getLastUserQuestion(List<ChatMessage> historyList) {
@@ -260,6 +257,8 @@ public class LlmTextApiService {
             ChatStreamingResponseHandler mergeResponseHandler = new MergeChatStreamingResponseHandler(
                     Arrays.asList(responseHandler, new RepositoryChatStreamingResponseHandler(repository)),
                     responseHandler);
+            llmJsonSchemaApiService.putSessionHandler(memoryId, websearch, reasoning, mergeResponseHandler, user);
+
             // 历史记录
             Collection<ChatMessage> hl = repository.getHistoryList();
             List<ChatMessage> historyList = AiUtil.removeSystemMessage(hl);
@@ -275,7 +274,7 @@ public class LlmTextApiService {
             // 查询变量
             AiVariables variables = aiVariablesService.selectVariables(user, historyList, lastQuestion, memoryId, websearch);
             // 绑定会话钩子
-            llmJsonSchemaApiService.putSessionHandler(memoryId, mergeResponseHandler, variables, user);
+            llmJsonSchemaApiService.putSessionVariables(memoryId, variables);
             // 进行问题分类
             CompletableFuture<QuestionClassifyListVO> classifyFuture = aiQuestionClassifyService.classify(lastQuestion, memoryId);
             // 构建
@@ -342,6 +341,8 @@ public class LlmTextApiService {
             AiVariables variables) {
         CompletableFuture<FunctionCallStreamingResponseHandler> handlerFuture = new CompletableFuture<>();
         try {
+            llmJsonSchemaApiService.putSessionQuestionClassify(memoryId, classifyListVO);
+
             AssistantConfig assistantConfig = AssistantConfig.select(memoryId.getAiAssistant(), classifyListVO.getClassifyAssistant());
             String knPromptText = assistantConfig.getKnPromptText();
             String mstatePromptText = assistantConfig.getMstatePromptText();
@@ -416,7 +417,9 @@ public class LlmTextApiService {
                                     lastQuestion,
                                     historyList,
                                     addMessageCount,
-                                    baseMessageIndex
+                                    baseMessageIndex,
+                                    websearch,
+                                    reasoning
                             );
                         } catch (AssistantConfigException | FewshotConfigException e) {
                             handlerFuture.completeExceptionally(e);
@@ -516,7 +519,9 @@ public class LlmTextApiService {
             String lastQuestion,
             List<ChatMessage> historyList,
             int rootAddMessageCount,
-            int baseMessageIndex
+            int baseMessageIndex,
+            Boolean websearch,
+            Boolean reasoning
     ) throws AssistantConfigException, FewshotConfigException {
         // jsonschema模型
         llmJsonSchemaApiService.addSessionJsonSchema(memoryId, assistantConfig.getAiJsonschemaIds(), aiAssistantJsonschemaMapper);
@@ -564,7 +569,8 @@ public class LlmTextApiService {
         // 处理异步回调
         return new FunctionCallStreamingResponseHandler(aiModel.modelName, aiModel.streaming, chatMemory, responseHandler,
                 llmJsonSchemaApiService, toolMethodList, aiModel.isSupportChineseToolName(),
-                baseMessageIndex, addMessageCount, classifyListVO.getReadTimeoutMs(), threadPoolTaskExecutor);
+                baseMessageIndex, addMessageCount, classifyListVO.getReadTimeoutMs(),
+                classifyListVO, websearch, reasoning, threadPoolTaskExecutor);
     }
 
     private CompletableFuture<ActingService.Plan> reasoningAndActing(CompletableFuture<List<List<QaKnVO>>> knnFuture,
@@ -748,11 +754,11 @@ public class LlmTextApiService {
                                                      Double temperature,
                                                      Integer maxCompletionTokens) {
         OpenAiStreamingChatModel.OpenAiStreamingChatModelBuilder builder = OpenAiStreamingChatModel.builder()
+                .timeout(Duration.ofSeconds(120))
                 .temperature(temperature)
                 .apiKey(apiKey)
                 .baseUrl(baseUrl)
                 .modelName(modelName)
-                .tokenizer(tokenizer)
                 .responseFormat(ResponseFormatType.TEXT.name());
         if (maxCompletionTokens != null && maxCompletionTokens > 0) {
             builder = builder.maxCompletionTokens(maxCompletionTokens);

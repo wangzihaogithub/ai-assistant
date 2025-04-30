@@ -5,6 +5,30 @@ import com.github.aiassistant.service.text.AssistantConfig;
 // @Data
 // @TableName("ai_question_classify_assistant")
 public class AiQuestionClassifyAssistant implements AssistantConfig {
+    // @TableId(value = "id", type = IdType.NONE)
+    private Integer id;
+    // @ApiModelProperty(value = "名称", required = true)
+    private String name;
+    // @ApiModelProperty(value = "系统提示文本", required = true)
+    private String systemPromptText;
+    // @ApiModelProperty(value = "工具枚举", required = true)
+    private String aiToolIds;
+    // @ApiModelProperty(value = "子智能体", required = true)
+    private String aiJsonschemaIds;
+    // @ApiModelProperty(value = "最大记忆", required = true)
+    private Integer maxMemoryTokens;
+    // @ApiModelProperty(value = "最多记忆几轮对话", required = true)
+    private Integer maxMemoryRounds;
+    // @ApiModelProperty(value = "指令生成的回答中包含的最大token数。例如，如果设置为100，那么模型生成的回答中token数不会超过100个", required = true)
+    private Integer maxCompletionTokens;
+    private String chatApiKey;
+    private String chatBaseUrl;
+    private String chatModelName;
+    private Double temperature;
+    // // @ApiModelProperty(value = "KN提示文本", required = true)
+    private String knPromptText;
+    private String mstatePromptText;
+
     public Integer getId() {
         return id;
     }
@@ -116,41 +140,6 @@ public class AiQuestionClassifyAssistant implements AssistantConfig {
     public void setTemperature(Double temperature) {
         this.temperature = temperature;
     }
-
-    // @TableId(value = "id", type = IdType.NONE)
-    private Integer id;
-
-    // @ApiModelProperty(value = "名称", required = true)
-    private String name;
-
-    // @ApiModelProperty(value = "系统提示文本", required = true)
-    private String systemPromptText;
-
-    // @ApiModelProperty(value = "工具枚举", required = true)
-    private String aiToolIds;
-
-    // @ApiModelProperty(value = "子智能体", required = true)
-    private String aiJsonschemaIds;
-
-    // @ApiModelProperty(value = "最大记忆", required = true)
-    private Integer maxMemoryTokens;
-
-    // @ApiModelProperty(value = "最多记忆几轮对话", required = true)
-    private Integer maxMemoryRounds;
-
-    // @ApiModelProperty(value = "指令生成的回答中包含的最大token数。例如，如果设置为100，那么模型生成的回答中token数不会超过100个", required = true)
-    private Integer maxCompletionTokens;
-
-    private String chatApiKey;
-    private String chatBaseUrl;
-    private String chatModelName;
-
-    private Double temperature;
-
-    // // @ApiModelProperty(value = "KN提示文本", required = true)
-    private String knPromptText;
-
-    private String mstatePromptText;
 
     @Override
     public String getKnPromptText() {

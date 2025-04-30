@@ -1,5 +1,6 @@
 package dev.langchain4j.service;
 
+import com.github.aiassistant.entity.model.chat.QuestionClassifyListVO;
 import com.github.aiassistant.service.jsonschema.LlmJsonSchemaApiService;
 import com.github.aiassistant.service.text.ChatStreamingResponseHandler;
 import com.github.aiassistant.service.text.FunctionCallStreamingResponseHandler;
@@ -8,7 +9,7 @@ import com.github.aiassistant.service.text.tools.Tools;
 import dev.langchain4j.agent.tool.ToolExecutionRequest;
 import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.memory.ChatMemory;
-import dev.langchain4j.model.chat.StreamingChatLanguageModel;
+import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
 import dev.langchain4j.model.output.Response;
 
 import java.util.List;
@@ -20,14 +21,18 @@ import java.util.concurrent.Executor;
 class JsonschemaFunctionCallStreamingResponseHandler extends FunctionCallStreamingResponseHandler {
 
     JsonschemaFunctionCallStreamingResponseHandler(String modelName,
-                                                   StreamingChatLanguageModel chatModel, ChatMemory chatMemory,
+                                                   OpenAiStreamingChatModel chatModel, ChatMemory chatMemory,
                                                    ChatStreamingResponseHandler handler,
                                                    LlmJsonSchemaApiService llmJsonSchemaApiService,
                                                    List<Tools.ToolMethod> toolMethodList,
                                                    boolean isSupportChineseToolName,
-                                                   int baseMessageIndex, int addMessageCount, Long readTimeoutMs, Executor executor) {
+                                                   int baseMessageIndex, int addMessageCount, Long readTimeoutMs,
+                                                   QuestionClassifyListVO classifyListVO,
+                                                   Boolean websearch,
+                                                   Boolean reasoning,
+                                                   Executor executor) {
         super(modelName, chatModel, chatMemory, handler, llmJsonSchemaApiService,
-                toolMethodList, isSupportChineseToolName, baseMessageIndex, addMessageCount, readTimeoutMs, executor);
+                toolMethodList, isSupportChineseToolName, baseMessageIndex, addMessageCount, readTimeoutMs, classifyListVO, websearch, reasoning, executor);
     }
 
     JsonschemaFunctionCallStreamingResponseHandler(FunctionCallStreamingResponseHandler parent) {

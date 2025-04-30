@@ -4,7 +4,7 @@ package com.github.aiassistant.entity;
 //// @TableName("ai_jsonschema")
 public class AiJsonschema {
 
-//    // @TableId(value = "id", type = IdType.AUTO)
+    //    // @TableId(value = "id", type = IdType.AUTO)
     private Integer id;
 
     private String apiKey;
@@ -17,7 +17,6 @@ public class AiJsonschema {
     private String jsonSchemaEnum;
     private String systemPromptText;
     private String userPromptText;
-    private String knPromptText;
 
     private String aiToolIds;
     private Boolean enableFlag;
@@ -103,14 +102,6 @@ public class AiJsonschema {
 
     public void setUserPromptText(String userPromptText) {
         this.userPromptText = userPromptText;
-    }
-
-    public String getKnPromptText() {
-        return knPromptText;
-    }
-
-    public void setKnPromptText(String knPromptText) {
-        this.knPromptText = knPromptText;
     }
 
     public String getAiToolIds() {

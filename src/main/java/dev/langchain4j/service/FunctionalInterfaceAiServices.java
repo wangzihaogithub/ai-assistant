@@ -1,5 +1,6 @@
 package dev.langchain4j.service;
 
+import com.github.aiassistant.entity.model.chat.QuestionClassifyListVO;
 import com.github.aiassistant.entity.model.chat.WebSearchResultVO;
 import com.github.aiassistant.enums.AiWebSearchSourceEnum;
 import com.github.aiassistant.exception.JsonschemaConfigException;
@@ -25,6 +26,7 @@ import dev.langchain4j.model.input.PromptTemplate;
 import dev.langchain4j.model.input.structured.StructuredPrompt;
 import dev.langchain4j.model.input.structured.StructuredPromptProcessor;
 import dev.langchain4j.model.moderation.Moderation;
+import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
 import dev.langchain4j.model.output.Response;
 import dev.langchain4j.model.output.TokenUsage;
 import dev.langchain4j.rag.AugmentationRequest;
@@ -70,23 +72,31 @@ public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
     private final Collection<TokenStreamAdapter> tokenStreamAdapters = loadFactories(TokenStreamAdapter.class);
     private final String systemMessage;
     private final String userMessage;
-    private final String knPromptText;
     private final Map<String, Object> variables;
     private final ChatStreamingResponseHandler responseHandler;
     private final List<Tools.ToolMethod> toolMethodList;
     private final boolean isSupportChineseToolName;
     private final Object memoryId;
     private final String modelName;
+    private final QuestionClassifyListVO classifyListVO;
+    private final Boolean websearch;
+    private final Boolean reasoning;
 
     public FunctionalInterfaceAiServices(AiServiceContext context, String systemMessage,
-                                         String userMessage, String knPromptText,
+                                         String userMessage,
                                          Map<String, Object> variables,
                                          ChatStreamingResponseHandler responseHandler,
                                          List<Tools.ToolMethod> toolMethodList,
                                          boolean isSupportChineseToolName,
+                                         QuestionClassifyListVO classifyListVO,
+                                         Boolean websearch,
+                                         Boolean reasoning,
                                          String modelName,
                                          Object memoryId) {
         super(context);
+        this.classifyListVO = classifyListVO;
+        this.websearch = websearch;
+        this.reasoning = reasoning;
         this.memoryId = memoryId;
         this.modelName = modelName;
         this.isSupportChineseToolName = isSupportChineseToolName;
@@ -98,7 +108,6 @@ public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
         this.responseHandler = responseHandler == null ? ChatStreamingResponseHandler.EMPTY : responseHandler;
         this.systemMessage = systemMessage;
         this.userMessage = userMessage;
-        this.knPromptText = knPromptText;
         this.variables = variables;
     }
 
@@ -391,6 +400,8 @@ public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
                                     memoryId,
                                     userMessage,
                                     systemMessage.orElse(null),
+                                    classifyListVO,
+                                    websearch, reasoning,
                                     responseHandler
                             );
                             // TODO moderation
@@ -643,6 +654,9 @@ public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
         private final boolean isSupportChineseToolName;
         private final Object memoryId;
         private final String modelName;
+        private final QuestionClassifyListVO classifyListVO;
+        private final Boolean websearch;
+        private final Boolean reasoning;
         private Consumer<AiMessageString> tokenHandler;
         private Consumer<List<Content>> contentsHandler;
         private Consumer<Throwable> errorHandler;
@@ -661,7 +675,13 @@ public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
                                     Object memoryId,
                                     UserMessage userMessage,
                                     SystemMessage systemMessage,
+                                    QuestionClassifyListVO classifyListVO,
+                                    Boolean websearch,
+                                    Boolean reasoning,
                                     ChatStreamingResponseHandler responseHandler) {
+            this.classifyListVO = classifyListVO;
+            this.websearch = websearch;
+            this.reasoning = reasoning;
             this.modelName = modelName;
             this.memoryId = memoryId;
             this.isSupportChineseToolName = isSupportChineseToolName;
@@ -797,13 +817,13 @@ public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
             messages.forEach(chatMemory::add);
             JsonschemaFunctionCallStreamingResponseHandler handler = new JsonschemaFunctionCallStreamingResponseHandler(
                     modelName,
-                    context.streamingChatModel,
+                    (OpenAiStreamingChatModel) context.streamingChatModel,
                     chatMemory,
                     csrh,
                     null,
                     toolMethodList,
                     isSupportChineseToolName,
-                    0, 0, null, executor);
+                    0, 0, null, classifyListVO, websearch, reasoning, executor);
 
             if (contentsHandler != null && retrievedContents != null) {
                 contentsHandler.accept(retrievedContents);

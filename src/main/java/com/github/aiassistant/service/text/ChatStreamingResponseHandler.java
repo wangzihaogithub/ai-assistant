@@ -35,6 +35,9 @@ public interface ChatStreamingResponseHandler {
         return this;
     }
 
+    default void onThinkingToken(String thinkingToken) {
+    }
+
     default void onTokenBegin(int baseMessageIndex, int addMessageCount, int generateCount) {
     }
 

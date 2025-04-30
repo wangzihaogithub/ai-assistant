@@ -5,6 +5,7 @@ import com.github.aiassistant.entity.AiJsonschema;
 import com.github.aiassistant.entity.model.chat.AiModel;
 import com.github.aiassistant.entity.model.chat.AiVariables;
 import com.github.aiassistant.entity.model.chat.MemoryIdVO;
+import com.github.aiassistant.entity.model.chat.QuestionClassifyListVO;
 import com.github.aiassistant.entity.model.user.AiAccessUserVO;
 import com.github.aiassistant.service.text.ChatStreamingResponseHandler;
 import com.github.aiassistant.service.text.repository.JsonSchemaTokenWindowChatMemory;
@@ -15,17 +16,15 @@ import com.github.aiassistant.util.BeanUtil;
 import com.github.aiassistant.util.StringUtils;
 import dev.ai4j.openai4j.chat.ResponseFormatType;
 import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
-import dev.langchain4j.model.openai.OpenAiTokenizer;
 import dev.langchain4j.service.AiServiceContext;
 import dev.langchain4j.service.AiServices;
 import dev.langchain4j.service.FunctionalInterfaceAiServices;
 
+import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
-
-import static java.time.Duration.ofSeconds;
 
 /**
  * JsonSchema类型的模型
@@ -54,22 +53,8 @@ public class LlmJsonSchemaApiService {
         this.schemaInstanceCount = schemaInstanceCount;
     }
 
-    private static String uniqueKey(String apiKey,
-                                    String baseUrl,
-                                    String modelName,
-                                    String responseFormat,
-                                    Integer maxCompletionTokens,
-                                    Double temperature,
-                                    Double topP,
-                                    Class<?> type) {
-        return apiKey
-                + ":" + baseUrl
-                + ":" + modelName
-                + ":" + responseFormat
-                + ":" + maxCompletionTokens
-                + ":" + temperature
-                + ":" + topP
-                + ":" + type.getName();
+    private static String uniqueKey(Object... keys) {
+        return Arrays.toString(keys);
     }
 
     public static String toJsonSchemaEnum(Class<?> jsonSchemaType) {
@@ -96,13 +81,26 @@ public class LlmJsonSchemaApiService {
     }
 
     public void putSessionHandler(MemoryIdVO memoryIdVO,
+                                  Boolean websearch,
+                                  Boolean reasoning,
                                   ChatStreamingResponseHandler responseHandler,
-                                  AiVariables variables,
                                   AiAccessUserVO userVO) {
         Session session = getSession(memoryIdVO, true);
         session.responseHandler = responseHandler;
-        session.variables = variables;
+        session.websearch = websearch;
+        session.reasoning = reasoning;
         session.user = userVO;
+    }
+
+    public void putSessionQuestionClassify(MemoryIdVO memoryIdVO, QuestionClassifyListVO classifyListVO) {
+        Session session = getSession(memoryIdVO, true);
+        session.classifyListVO = classifyListVO;
+    }
+
+    public void putSessionVariables(MemoryIdVO memoryIdVO,
+                                    AiVariables variables) {
+        Session session = getSession(memoryIdVO, true);
+        session.variables = variables;
     }
 
     public void addSessionJsonSchema(MemoryIdVO memoryIdVO,
@@ -159,7 +157,7 @@ public class LlmJsonSchemaApiService {
         if (jsonschema == null) {
             return false;
         }
-        String[] ps = {jsonschema.getSystemPromptText(), jsonschema.getUserPromptText(), jsonschema.getKnPromptText()};
+        String[] ps = {jsonschema.getSystemPromptText(), jsonschema.getUserPromptText()};
         for (String p : ps) {
             if (AiUtil.existPromptVariable(p, Arrays.asList(varKeys))) {
                 return true;
@@ -220,25 +218,30 @@ public class LlmJsonSchemaApiService {
         AiAccessUserVO user = null;
         AiVariables variables = null;
         Map<String, Object> variablesMap = new HashMap<>();
+        Boolean websearch = null;
+        Boolean reasoning = null;
+        QuestionClassifyListVO classifyListVO = null;
         if (session != null) {
             user = session.user;
             variables = session.variables;
             responseHandler = session.responseHandler;
+            websearch = session.websearch;
+            reasoning = session.reasoning;
+            classifyListVO = session.classifyListVO;
             variablesMap = BeanUtil.toMap(variables);
         }
 
         List<Tools.ToolMethod> toolMethodList = new ArrayList<>();
         String systemPromptText = null;
         String userPromptText = null;
-        String knPromptText = null;
         if (jsonschema != null) {
             systemPromptText = jsonschema.getSystemPromptText();
             userPromptText = jsonschema.getUserPromptText();
-            knPromptText = jsonschema.getKnPromptText();
             toolMethodList = AiUtil.initTool(aiToolService.selectToolMethodList(StringUtils.split(jsonschema.getAiToolIds(), ",")), variables, user);
         }
         AiServices<T> aiServices = new FunctionalInterfaceAiServices<>(new AiServiceContext(type), systemPromptText, userPromptText,
-                knPromptText, variablesMap, responseHandler, toolMethodList, aiModel.isSupportChineseToolName(), aiModel.modelName, memoryIdVO);
+                variablesMap, responseHandler, toolMethodList, aiModel.isSupportChineseToolName(),
+                classifyListVO, websearch, reasoning, aiModel.modelName, memoryIdVO);
         aiServices.chatLanguageModel(aiModel.model);
         aiServices.streamingChatLanguageModel(aiModel.streaming);
         if (memory) {
@@ -348,8 +351,7 @@ public class LlmJsonSchemaApiService {
                 .baseUrl(baseUrl)
                 .modelName(modelName)
                 .responseFormat(responseFormatType == ResponseFormatType.JSON_SCHEMA ? ResponseFormatType.JSON_OBJECT.name() : responseFormatType.name())
-                .timeout(ofSeconds(60))
-                .tokenizer(new OpenAiTokenizer())
+                .timeout(Duration.ofSeconds(60))
                 .build();
         return new AiModel(baseUrl, modelName, null, streaming);
     }
@@ -358,6 +360,9 @@ public class LlmJsonSchemaApiService {
         final Map<String, AiJsonschema> jsonschemaMap = new ConcurrentHashMap<>();
         AiAccessUserVO user;
         AiVariables variables;
+        Boolean websearch;
+        Boolean reasoning;
+        QuestionClassifyListVO classifyListVO;
         ChatStreamingResponseHandler responseHandler;
         JsonSchemaTokenWindowChatMemory chatMemory;
     }
