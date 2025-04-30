@@ -136,12 +136,12 @@ public class SseEmitterResponseHandler implements ChatStreamingResponseHandler {
     }
 
     @Override
-    public void onAfterModelThinking(String thinkingContent) {
+    public void onAfterModelThinking(Response<AiMessage> thinkingResponse) {
         sendToClient(emitter, "after-model-thinking",
                 "baseMessageIndex", baseMessageIndex,
                 "addMessageCount", addMessageCount,
                 "messageIndex", baseMessageIndex + addMessageCount,
-                "thinkingContent", thinkingContent);
+                "thinkingContent", thinkingResponse.content().text());
     }
 
     @Override
