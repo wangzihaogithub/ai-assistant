@@ -10,7 +10,8 @@ public enum MessageTypeEnum {
     ToolResult("ToolResult"),
     Ai("Ai"),
     MState("MState"),
-    Knowledge("Knowledge");
+    Knowledge("Knowledge"),
+    Thinking("Thinking");
 
     private final String code;
 
@@ -32,6 +33,7 @@ public enum MessageTypeEnum {
     public static boolean isChatType(MessageTypeEnum type) {
         return MessageTypeEnum.User == type
                 || MessageTypeEnum.Ai == type
+                || MessageTypeEnum.Thinking == type
                 || MessageTypeEnum.ToolResult == type
                 ;
     }

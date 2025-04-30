@@ -38,7 +38,11 @@ public abstract class AbstractSessionMessageRepository<MEMORY_ID, U> implements 
         message.setStartTime(new Date(startTime));
         message.setFirstTokenTime(firstTokenTime > 0L ? new Timestamp(firstTokenTime) : null);
         message.setUser(user);
-        if (chatMessage instanceof LangChainUserMessage) {
+        if (chatMessage instanceof ThinkingAiMessage) {
+            ThinkingAiMessage cast = ((ThinkingAiMessage) chatMessage);
+            message.setType(MessageTypeEnum.Thinking);
+            message.setText(cast.text());
+        } else if (chatMessage instanceof LangChainUserMessage) {
             LangChainUserMessage cast = ((LangChainUserMessage) chatMessage);
             message.setType(MessageTypeEnum.LangChainUser);
             message.setText(AiUtil.userMessageToString(cast));

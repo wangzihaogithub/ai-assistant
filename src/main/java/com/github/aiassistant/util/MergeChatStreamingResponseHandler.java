@@ -44,9 +44,23 @@ public class MergeChatStreamingResponseHandler implements ChatStreamingResponseH
     }
 
     @Override
-    public void onThinkingToken(String thinkingToken) {
+    public void onModelThinkingToken(String thinkingToken) {
         for (ChatStreamingResponseHandler h : list) {
-            h.onThinkingToken(thinkingToken);
+            h.onModelThinkingToken(thinkingToken);
+        }
+    }
+
+    @Override
+    public void onAfterModelThinking(Response<AiMessage>  thinkingResponse) {
+        for (ChatStreamingResponseHandler h : list) {
+            h.onAfterModelThinking(thinkingResponse);
+        }
+    }
+
+    @Override
+    public void onBeforeModelThinking() {
+        for (ChatStreamingResponseHandler h : list) {
+            h.onBeforeModelThinking();
         }
     }
 

@@ -487,6 +487,7 @@ public class AiUtil {
                 case Knowledge:
                 case System:
                 case ToolResult:
+                case Thinking:
                 case LangChainUser: {
                     message = NULL;
                     break;

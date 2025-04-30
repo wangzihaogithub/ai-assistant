@@ -1,13 +1,21 @@
 package dev.langchain4j.model.openai;
 
+import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.model.StreamingResponseHandler;
+import dev.langchain4j.model.output.Response;
 
 /**
- * 思考模型
+ * 模型层的思考
  *
  * @param <T> T
  */
 public interface ThinkingStreamingResponseHandler<T> extends StreamingResponseHandler<T> {
+    /**
+     * 开始思考
+     */
+    default void onStartThinking() {
+
+    }
 
     /**
      * 思考模型
@@ -16,4 +24,10 @@ public interface ThinkingStreamingResponseHandler<T> extends StreamingResponseHa
      */
     void onThinkingToken(String thinkingToken);
 
+    /**
+     * 思考完成
+     */
+    default void onCompleteThinking(Response<AiMessage> thinkingContent) {
+
+    }
 }

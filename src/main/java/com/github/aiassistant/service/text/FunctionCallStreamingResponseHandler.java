@@ -25,6 +25,8 @@ import dev.langchain4j.model.openai.ThinkingStreamingResponseHandler;
 import dev.langchain4j.model.output.FinishReason;
 import dev.langchain4j.model.output.Response;
 import dev.langchain4j.model.output.TokenUsage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.*;
@@ -48,6 +50,7 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
             return thread;
         }
     });
+    private static final Logger log = LoggerFactory.getLogger(FunctionCallStreamingResponseHandler.class);
     public static int MAX_GENERATE_COUNT = 10;
     private final Object memoryId;
     private final ChatMemory chatMemory;
@@ -185,14 +188,36 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
         }
     }
 
+    @Override
+    public void onStartThinking() {
+        try {
+            bizHandler.onBeforeModelThinking();
+        } catch (Exception e) {
+            log.error("onBeforeThinking failed {}", e.toString(), e);
+        }
+    }
+
     /**
-     * 思考模型
+     * 思考模型独有的
      *
      * @param thinkingToken 思考内容
      */
     @Override
     public void onThinkingToken(String thinkingToken) {
+        try {
+            bizHandler.onModelThinkingToken(thinkingToken);
+        } catch (Exception e) {
+            log.error("onThinkingToken {} failed {}", e.toString(), thinkingToken, e);
+        }
+    }
 
+    @Override
+    public void onCompleteThinking(Response<AiMessage> thinkingResponse) {
+        try {
+            bizHandler.onAfterModelThinking(thinkingResponse);
+        } catch (Exception e) {
+            log.error("onAfterThinking failed {}. {}", e.toString(), thinkingResponse, e);
+        }
     }
 
     /**

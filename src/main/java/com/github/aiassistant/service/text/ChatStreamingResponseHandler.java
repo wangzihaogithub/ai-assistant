@@ -35,7 +35,15 @@ public interface ChatStreamingResponseHandler {
         return this;
     }
 
-    default void onThinkingToken(String thinkingToken) {
+    default void onBeforeModelThinking() {
+
+    }
+
+    default void onModelThinkingToken(String thinkingToken) {
+    }
+
+    default void onAfterModelThinking(Response<AiMessage> thinkingResponse) {
+
     }
 
     default void onTokenBegin(int baseMessageIndex, int addMessageCount, int generateCount) {

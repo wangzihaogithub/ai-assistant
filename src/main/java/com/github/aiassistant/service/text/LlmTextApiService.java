@@ -32,6 +32,7 @@ import com.github.aiassistant.service.text.variables.AiVariablesService;
 import com.github.aiassistant.serviceintercept.LlmTextApiServiceIntercept;
 import com.github.aiassistant.util.*;
 import dev.ai4j.openai4j.chat.ResponseFormatType;
+import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.UserMessage;
@@ -39,6 +40,7 @@ import dev.langchain4j.model.Tokenizer;
 import dev.langchain4j.model.input.Prompt;
 import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
 import dev.langchain4j.model.openai.OpenAiTokenizer;
+import dev.langchain4j.model.output.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -847,6 +849,11 @@ public class LlmTextApiService {
         @Override
         public void onQuestionClassify(QuestionClassifyListVO questionClassify, String question, AiVariables variables) {
             repository.addQuestionClassify(questionClassify, question);
+        }
+
+        @Override
+        public void onAfterModelThinking(Response<AiMessage> thinkingContent) {
+            repository.add(thinkingContent.content());
         }
 
         @Override

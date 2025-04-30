@@ -119,12 +119,29 @@ public class SseEmitterResponseHandler implements ChatStreamingResponseHandler {
     }
 
     @Override
-    public void onThinkingToken(String thinkingToken) {
-        sendToClient(emitter, "thinking-token",
+    public void onModelThinkingToken(String thinkingToken) {
+        sendToClient(emitter, "token-chunk-model-thinking",
                 "baseMessageIndex", baseMessageIndex,
                 "addMessageCount", addMessageCount,
                 "messageIndex", baseMessageIndex + addMessageCount,
                 "token", thinkingToken);
+    }
+
+    @Override
+    public void onBeforeModelThinking() {
+        sendToClient(emitter, "before-model-thinking",
+                "baseMessageIndex", baseMessageIndex,
+                "addMessageCount", addMessageCount,
+                "messageIndex", baseMessageIndex + addMessageCount);
+    }
+
+    @Override
+    public void onAfterModelThinking(String thinkingContent) {
+        sendToClient(emitter, "after-model-thinking",
+                "baseMessageIndex", baseMessageIndex,
+                "addMessageCount", addMessageCount,
+                "messageIndex", baseMessageIndex + addMessageCount,
+                "thinkingContent", thinkingContent);
     }
 
     @Override

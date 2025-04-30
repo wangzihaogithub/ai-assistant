@@ -1,5 +1,6 @@
 package dev.langchain4j.model.openai;
 
+import com.github.aiassistant.entity.model.chat.ThinkingAiMessage;
 import com.github.aiassistant.util.AiUtil;
 import dev.ai4j.openai4j.chat.*;
 import dev.ai4j.openai4j.completion.CompletionChoice;
@@ -38,6 +39,7 @@ public class OpenAiStreamingResponseBuilder {
     private volatile FinishReason finishReason;
     // hotfix: requestID传下来。wangzihao
     private volatile String id;
+    private boolean reasoningContent;
 
     public void append(ChatCompletionResponse partialResponse) {
         if (partialResponse == null) {
@@ -70,9 +72,17 @@ public class OpenAiStreamingResponseBuilder {
             return;
         }
 
+        String reasoningContent = delta.reasoningContent();
+        if (reasoningContent != null && !reasoningContent.isEmpty()) {
+            contentBuilder.append(reasoningContent);
+            this.reasoningContent = true;
+            return;
+        }
+
         String content = delta.content();
         if (content != null && !content.isEmpty()) {
             contentBuilder.append(content);
+            this.reasoningContent = false;
             return;
         }
 
@@ -110,6 +120,10 @@ public class OpenAiStreamingResponseBuilder {
         }
     }
 
+    public boolean isEmpty() {
+        return contentBuilder.length() == 0;
+    }
+
     public void append(CompletionResponse partialResponse) {
         if (partialResponse == null) {
             return;
@@ -142,11 +156,15 @@ public class OpenAiStreamingResponseBuilder {
     }
 
     public Response<AiMessage> build() {
-
         String content = contentBuilder.toString();
+        contentBuilder.setLength(0);
+        boolean reasoningContent = this.reasoningContent;
+        if (reasoningContent) {
+            this.reasoningContent = false;
+        }
         if (!content.isEmpty()) {
             return Response.from(
-                    AiMessage.from(content),
+                    reasoningContent ? new ThinkingAiMessage(content) : AiMessage.from(content),
                     tokenUsage,
                     finishReason,
                     // hotfix: requestID传下来。wangzihao

@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
@@ -143,7 +144,9 @@ public class OpenAiStreamingChatModel implements StreamingChatLanguageModel {
     }
 
     private static void handle(ChatCompletionResponse partialResponse,
-                               StreamingResponseHandler<AiMessage> handler) {
+                               StreamingResponseHandler<AiMessage> handler,
+                               AtomicBoolean reasoning,
+                               OpenAiStreamingResponseBuilder reasoningResponseBuilder) {
         List<ChatCompletionChoice> choices = partialResponse.choices();
         if (choices == null || choices.isEmpty()) {
             return;
@@ -156,12 +159,23 @@ public class OpenAiStreamingChatModel implements StreamingChatLanguageModel {
         if (delta == null) {
             return;
         }
+        // delta.reasoningContent
         String reasoningContent = delta.reasoningContent();
         if (reasoningContent != null && handler instanceof ThinkingStreamingResponseHandler) {
-            ((ThinkingStreamingResponseHandler<AiMessage>) handler).onThinkingToken(reasoningContent);
+            ThinkingStreamingResponseHandler h = ((ThinkingStreamingResponseHandler<AiMessage>) handler);
+            if (reasoningResponseBuilder.isEmpty()) {
+                h.onStartThinking();
+            }
+            h.onThinkingToken(reasoningContent);
         }
+
+        // delta.content
         String content = delta.content();
         if (content != null) {
+            if (reasoning.get()) {
+                ThinkingStreamingResponseHandler h = ((ThinkingStreamingResponseHandler<AiMessage>) handler);
+                h.onCompleteThinking(reasoningResponseBuilder.build());
+            }
             handler.onNext(content);
         }
     }
@@ -204,7 +218,7 @@ public class OpenAiStreamingChatModel implements StreamingChatLanguageModel {
      *                           输出数据的模态，仅支持 Qwen-Omni 模型指定。可选值：
      *                           ["text","audio"]：输出文本与音频；
      *                           ["text"]：输出文本。
-     * @return ResponseHandle 取消逻辑为客户端取消
+     * @return ResponseHandle 客户端取消处理
      */
     public ResponseHandle generateV2(List<ChatMessage> messages,
                                      List<ToolSpecification> toolSpecifications,
@@ -242,12 +256,11 @@ public class OpenAiStreamingChatModel implements StreamingChatLanguageModel {
 
         AtomicReference<String> responseId = new AtomicReference<>();
         AtomicReference<String> responseModel = new AtomicReference<>();
-
+        AtomicBoolean reasoning = new AtomicBoolean(false);
         return client.chatCompletion(request)
                 .onPartialResponse(partialResponse -> {
+                    handle(partialResponse, handler, reasoning, responseBuilder);
                     responseBuilder.append(partialResponse);
-                    handle(partialResponse, handler);
-
                     if (!isNullOrBlank(partialResponse.id())) {
                         responseId.set(partialResponse.id());
                     }
