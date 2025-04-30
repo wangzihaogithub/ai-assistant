@@ -120,7 +120,7 @@ public class OpenAiStreamingChatModel implements StreamingChatLanguageModel {
                 .customHeaders(customHeaders)
                 .build();
         this.modelName = modelName;
-        this.strictTools = strictTools;
+        this.strictTools = strictTools != null && strictTools;
         this.listeners = listeners == null ? emptyList() : new ArrayList<>(listeners);
         this.requestBuilder = () -> ChatCompletionRequest.builder().stream(true)
                 .streamOptions(StreamOptions.builder()
