@@ -173,7 +173,7 @@ public class OpenAiStreamingChatModel implements StreamingChatLanguageModel {
         // delta.content
         String content = delta.content();
         if (content != null) {
-            if (reasoning.get()) {
+            if (reasoning.compareAndSet(true, false)) {
                 ThinkingStreamingResponseHandler h = ((ThinkingStreamingResponseHandler<AiMessage>) handler);
                 h.onCompleteThinking(reasoningResponseBuilder.build());
             }
