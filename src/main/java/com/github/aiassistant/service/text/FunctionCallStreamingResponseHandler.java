@@ -82,6 +82,7 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
     private Map<String, Object> searchOptions;
     private Boolean enableThinking;
     private Integer thinkingBudget;
+    private String confirmToolCall = "ok";
 
     public FunctionCallStreamingResponseHandler(String modelName, OpenAiStreamingChatModel chatModel,
                                                 ChatMemory chatMemory,
@@ -304,7 +305,7 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
                     onTokenEnd(response);
                     bizHandler.onTokenBegin(baseMessageIndex, addMessageCount.get(), generateCount());
                     // 这里自动帮用户确认，不计聊天记录
-                    addMessage(new LangChainUserMessage("好"));
+                    addMessage(new LangChainUserMessage(confirmToolCall));
                     generate();
                 } else {
                     onTokenEnd(response);
@@ -312,6 +313,10 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
                 }
             });
         }
+    }
+
+    public void setConfirmToolCall(String confirmToolCall) {
+        this.confirmToolCall = confirmToolCall;
     }
 
     private CompletableFuture<Response<AiMessage>> executeToolsValidationAndCall(List<ResultToolExecutor> toolExecutors, Response<AiMessage> response) {
@@ -458,7 +463,7 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
             }
             List<ChatMessage> messageList = AiUtil.beforeGenerate(chatMemory.messages());
             FunctionCallStreamingResponseHandler fork = fork(this);
-            executor.execute(() -> chatModel.generateV2(messageList, list, fork,
+            executor.execute(() -> chatModel.request(messageList, list, fork,
                     enableSearch, searchOptions,
                     enableThinking, thinkingBudget, null));
         }

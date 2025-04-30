@@ -22,6 +22,9 @@ public class AiErrorTypeEnum {
     public static final AiErrorTypeEnum jsonschema_config_error = create("jsonschema_config_error", "json智能体配置错误", "json智能体配置出现错误，请联系相关该智能体相关的产品负责人。", e -> {
         return e instanceof JsonschemaConfigException;
     });
+    public static final AiErrorTypeEnum jsonschema_parse_error = create("jsonschema_parse_error", "json智能体结果解析失败", "json智能体结果解析失败，请联系相关该智能体相关的产品负责人。", e -> {
+        return e instanceof JsonschemaResultParseException;
+    });
     public static final AiErrorTypeEnum fewshot_config_error = create("fewshot_config_error", "fewshot配置错误", "fewshot配置出现错误，请联系相关该智能体相关的产品负责人。", e -> {
         return e instanceof FewshotConfigException;
     });

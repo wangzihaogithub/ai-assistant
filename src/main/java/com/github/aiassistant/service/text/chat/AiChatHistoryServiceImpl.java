@@ -398,8 +398,7 @@ public class AiChatHistoryServiceImpl {
             if (!MessageTypeEnum.isChatType(message.getType())) {
                 continue;
             }
-            String text = MessageTypeEnum.isToolResult(message.getType()) ?
-                    "" : message.getText();
+            String text = message.getText();
             AiChatHistoryVO vo = new AiChatHistoryVO();
             vo.setAiChatId(chatId);
             vo.setUserQueryFlag(message.getUserQueryFlag());

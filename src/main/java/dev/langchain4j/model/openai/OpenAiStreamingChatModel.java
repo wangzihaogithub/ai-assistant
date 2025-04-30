@@ -22,7 +22,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
@@ -145,8 +144,7 @@ public class OpenAiStreamingChatModel implements StreamingChatLanguageModel {
 
     private static void handle(ChatCompletionResponse partialResponse,
                                StreamingResponseHandler<AiMessage> handler,
-                               AtomicBoolean reasoning,
-                               OpenAiStreamingResponseBuilder reasoningResponseBuilder) {
+                               OpenAiStreamingResponseBuilder responseBuilder) {
         List<ChatCompletionChoice> choices = partialResponse.choices();
         if (choices == null || choices.isEmpty()) {
             return;
@@ -159,23 +157,27 @@ public class OpenAiStreamingChatModel implements StreamingChatLanguageModel {
         if (delta == null) {
             return;
         }
-        // delta.reasoningContent
+
+        // h.onThinkingToken
         String reasoningContent = delta.reasoningContent();
-        if (reasoningContent != null && handler instanceof ThinkingStreamingResponseHandler) {
-            reasoning.set(true);
+        if (reasoningContent != null && !reasoningContent.isEmpty() && handler instanceof ThinkingStreamingResponseHandler) {
             ThinkingStreamingResponseHandler h = ((ThinkingStreamingResponseHandler<AiMessage>) handler);
-            if (reasoningResponseBuilder.isEmpty()) {
+            if (responseBuilder.compareAndSet(
+                    OpenAiStreamingResponseBuilder.STATE_OUTPUT,
+                    OpenAiStreamingResponseBuilder.STATE_THINKING)) {
                 h.onStartThinking();
             }
             h.onThinkingToken(reasoningContent);
         }
 
-        // delta.content
+        // handler.onNext
         String content = delta.content();
-        if (content != null) {
-            if (reasoning.compareAndSet(true, false)) {
+        if (content != null && !content.isEmpty()) {
+            if (responseBuilder.compareAndSet(
+                    OpenAiStreamingResponseBuilder.STATE_THINKING,
+                    OpenAiStreamingResponseBuilder.STATE_OUTPUT)) {
                 ThinkingStreamingResponseHandler h = ((ThinkingStreamingResponseHandler<AiMessage>) handler);
-                h.onCompleteThinking(reasoningResponseBuilder.build());
+                h.onCompleteThinking(responseBuilder.build());
             }
             handler.onNext(content);
         }
@@ -221,14 +223,14 @@ public class OpenAiStreamingChatModel implements StreamingChatLanguageModel {
      *                           ["text"]：输出文本。
      * @return ResponseHandle 客户端取消处理
      */
-    public ResponseHandle generateV2(List<ChatMessage> messages,
-                                     List<ToolSpecification> toolSpecifications,
-                                     StreamingResponseHandler<AiMessage> handler,
-                                     Boolean enableSearch,
-                                     Map<String, Object> searchOptions,
-                                     Boolean enableThinking,
-                                     Integer thinkingBudget,
-                                     List<String> modalities) {
+    public ResponseHandle request(List<ChatMessage> messages,
+                                  List<ToolSpecification> toolSpecifications,
+                                  StreamingResponseHandler<AiMessage> handler,
+                                  Boolean enableSearch,
+                                  Map<String, Object> searchOptions,
+                                  Boolean enableThinking,
+                                  Integer thinkingBudget,
+                                  List<String> modalities) {
         ChatCompletionRequest.Builder builder = requestBuilder.get();
         builder.enableSearch(enableSearch);
         builder.searchOptions(searchOptions);
@@ -257,10 +259,9 @@ public class OpenAiStreamingChatModel implements StreamingChatLanguageModel {
 
         AtomicReference<String> responseId = new AtomicReference<>();
         AtomicReference<String> responseModel = new AtomicReference<>();
-        AtomicBoolean reasoning = new AtomicBoolean(false);
         return client.chatCompletion(request)
                 .onPartialResponse(partialResponse -> {
-                    handle(partialResponse, handler, reasoning, responseBuilder);
+                    handle(partialResponse, handler, responseBuilder);
                     responseBuilder.append(partialResponse);
                     if (!isNullOrBlank(partialResponse.id())) {
                         responseId.set(partialResponse.id());

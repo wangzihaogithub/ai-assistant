@@ -3,6 +3,7 @@ package com.github.aiassistant.entity.model.chat;
 import dev.langchain4j.agent.tool.ToolExecutionRequest;
 import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.model.output.Response;
+import dev.langchain4j.model.output.TokenUsage;
 
 import java.util.List;
 import java.util.Map;
@@ -11,50 +12,82 @@ import java.util.Objects;
 public class MetadataAiMessage extends AiMessage {
     public static final String METADATA_KEY_MEMORY_STRING = "memoryString";
 
-    private final String openAiRequestId;
-    private final String memoryString;
+    private final Response<AiMessage> response;
 
-    public MetadataAiMessage(String text, String memoryString, String openAiRequestId) {
+    public MetadataAiMessage(String text, Response<AiMessage> response) {
         super(text);
-        this.openAiRequestId = openAiRequestId;
-        this.memoryString = memoryString;
+        this.response = response;
     }
 
-    public MetadataAiMessage(List<ToolExecutionRequest> toolExecutionRequests, String memoryString, String openAiRequestId) {
+    public MetadataAiMessage(List<ToolExecutionRequest> toolExecutionRequests, Response<AiMessage> response) {
         super(toolExecutionRequests);
-        this.openAiRequestId = openAiRequestId;
-        this.memoryString = memoryString;
+        this.response = response;
     }
 
-    public MetadataAiMessage(String text, List<ToolExecutionRequest> toolExecutionRequests, String memoryString, String openAiRequestId) {
+    public MetadataAiMessage(String text, List<ToolExecutionRequest> toolExecutionRequests, Response<AiMessage> response) {
         super(text, toolExecutionRequests);
-        this.openAiRequestId = openAiRequestId;
-        this.memoryString = memoryString;
+        this.response = response;
     }
 
     public static MetadataAiMessage convert(Response<AiMessage> response) {
-        Map<String, Object> metadata = response.metadata();
-        String openAiRequestId = null;
-        String memoryString = null;
-        if (metadata != null) {
-            openAiRequestId = Objects.toString(metadata.get("id"), null);
-            memoryString = Objects.toString(metadata.get(METADATA_KEY_MEMORY_STRING), null);
-        }
         AiMessage m = response.content();
         if (m.text() != null && m.hasToolExecutionRequests()) {
-            return new MetadataAiMessage(m.text(), m.toolExecutionRequests(), memoryString, openAiRequestId);
+            return new MetadataAiMessage(m.text(), m.toolExecutionRequests(), response);
         } else if (m.text() != null) {
-            return new MetadataAiMessage(m.text(), memoryString, openAiRequestId);
+            return new MetadataAiMessage(m.text(), response);
         } else {
-            return new MetadataAiMessage(m.toolExecutionRequests(), memoryString, openAiRequestId);
+            return new MetadataAiMessage(m.toolExecutionRequests(), response);
         }
     }
 
     public String getOpenAiRequestId() {
+        Map<String, Object> metadata = response.metadata();
+        String openAiRequestId = null;
+        if (metadata != null) {
+            openAiRequestId = Objects.toString(metadata.get("id"), null);
+        }
         return openAiRequestId;
     }
 
     public String getMemoryString() {
+        Map<String, Object> metadata = response.metadata();
+        String memoryString = null;
+        if (metadata != null) {
+            memoryString = Objects.toString(metadata.get(METADATA_KEY_MEMORY_STRING), null);
+        }
         return memoryString;
+    }
+
+    public int getTotalTokenCount() {
+        TokenUsage tokenUsage = response.tokenUsage();
+        int ct;
+        if (tokenUsage != null) {
+            ct = tokenUsage.totalTokenCount();
+        } else {
+            ct = 0;
+        }
+        return ct;
+    }
+
+    public int getInputTokenCount() {
+        TokenUsage tokenUsage = response.tokenUsage();
+        int ct;
+        if (tokenUsage != null) {
+            ct = tokenUsage.inputTokenCount();
+        } else {
+            ct = 0;
+        }
+        return ct;
+    }
+
+    public int getOutputTokenCount() {
+        TokenUsage tokenUsage = response.tokenUsage();
+        int ct;
+        if (tokenUsage != null) {
+            ct = tokenUsage.outputTokenCount();
+        } else {
+            ct = 0;
+        }
+        return ct;
     }
 }

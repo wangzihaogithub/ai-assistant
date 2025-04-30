@@ -62,6 +62,30 @@ public class Message<U> {
         }
     }
 
+    public int getTotalTokenCount() {
+        if (source instanceof MetadataAiMessage) {
+            return ((MetadataAiMessage) source).getTotalTokenCount();
+        } else {
+            return 0;
+        }
+    }
+
+    public int getInputTokenCount() {
+        if (source instanceof MetadataAiMessage) {
+            return ((MetadataAiMessage) source).getInputTokenCount();
+        } else {
+            return 0;
+        }
+    }
+
+    public int getOutputTokenCount() {
+        if (source instanceof MetadataAiMessage) {
+            return ((MetadataAiMessage) source).getOutputTokenCount();
+        } else {
+            return 0;
+        }
+    }
+
     public ChatMessage getSource() {
         return source;
     }

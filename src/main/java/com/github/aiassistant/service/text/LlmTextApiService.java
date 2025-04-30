@@ -852,8 +852,8 @@ public class LlmTextApiService {
         }
 
         @Override
-        public void onAfterModelThinking(Response<AiMessage> thinkingContent) {
-            repository.add(thinkingContent.content());
+        public void onAfterModelThinking(Response<AiMessage> thinkingResponse) {
+            repository.add(MetadataAiMessage.convert(thinkingResponse));
         }
 
         @Override

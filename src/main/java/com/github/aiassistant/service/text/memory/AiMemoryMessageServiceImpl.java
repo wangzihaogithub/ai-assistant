@@ -14,8 +14,6 @@ import com.github.aiassistant.util.AiUtil;
 import com.github.aiassistant.util.Lists;
 import com.github.aiassistant.util.StringUtils;
 import dev.langchain4j.data.message.ChatMessage;
-import dev.langchain4j.model.Tokenizer;
-import dev.langchain4j.model.openai.OpenAiTokenizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,10 +43,6 @@ public class AiMemoryMessageServiceImpl {
 //    private final AiMemoryMessageToolJobMapper aiMemoryMessageToolJobMapper;
     // @Resource
     private final AiMemoryMessageToolMapper aiMemoryMessageToolMapper;
-    /**
-     * 估计各种文本类型（如文本、提示、文本段等）中的标记计数的接口
-     */
-    private final Tokenizer tokenizer = new OpenAiTokenizer();
     private final Supplier<Collection<AiMemoryMessageServiceIntercept>> interceptList;
     private int insertPartitionSize = 100;
 
@@ -76,26 +70,6 @@ public class AiMemoryMessageServiceImpl {
 
     public void setInsertPartitionSize(int insertPartitionSize) {
         this.insertPartitionSize = insertPartitionSize;
-    }
-
-    /**
-     * 预测Token消耗数量
-     *
-     * @param text text
-     * @return Token消耗数量
-     */
-    public int estimateTokenCountInText(String text) {
-        return tokenizer.estimateTokenCountInText(text);
-    }
-
-    /**
-     * 预测Token消耗数量
-     *
-     * @param messages messages
-     * @return Token消耗数量
-     */
-    public int estimateTokenCountInMessages(Iterable<ChatMessage> messages) {
-        return tokenizer.estimateTokenCountInMessages(messages);
     }
 
     /**
@@ -255,32 +229,30 @@ public class AiMemoryMessageServiceImpl {
         aiMemory.setUpdateTime(now);
 
         List<Message<AiAccessUserVO>> messageList;
-        List<ChatMessage> chatMessageList;
         if (requestTrace.isStageRequest()) {
             messageList = requestTrace.getRequestMessageList();
-            chatMessageList = messageList.stream().map(Message::getSource).collect(Collectors.toList());
-            aiMemory.setUserTokenCount(estimateTokenCountInMessages(chatMessageList));
-            aiMemory.setUserCharLength(AiUtil.sumLength(chatMessageList));
-            aiMemory.setAiTokenCount(0);
+            aiMemory.setUserCharLength(AiUtil.sumLength(messageList.stream().map(Message::getSource).collect(Collectors.toList())));
             aiMemory.setAiCharLength(0);
         } else {
             messageList = requestTrace.getResponseMessageList();
-            chatMessageList = messageList.stream().map(Message::getSource).collect(Collectors.toList());
-            aiMemory.setAiTokenCount(estimateTokenCountInMessages(chatMessageList));
-            aiMemory.setAiCharLength(AiUtil.sumLength(chatMessageList));
-            aiMemory.setUserTokenCount(0);
+            aiMemory.setAiCharLength(AiUtil.sumLength(messageList.stream().map(Message::getSource).collect(Collectors.toList())));
             aiMemory.setUserCharLength(0);
         }
+        aiMemory.setUserTokenCount(messageList.stream().mapToInt(Message::getInputTokenCount).sum());
+        aiMemory.setAiTokenCount(messageList.stream().mapToInt(Message::getOutputTokenCount).sum());
+
         List<List<QaKnVO>> knowledgeList = requestTrace.getRequestKnowledgeList();
-        aiMemory.setKnowledgeTokenCount(knowledgeList.stream().flatMap(Collection::stream).map(QaKnVO::getAnswer).mapToInt(this::estimateTokenCountInText).sum());
+        aiMemory.setKnowledgeTokenCount(0);
         aiMemory.setKnowledgeCharLength(knowledgeList.stream().flatMap(Collection::stream).map(QaKnVO::getAnswer).mapToInt(String::length).sum());
 
         for (Message<AiAccessUserVO> message : messageList) {
-            KnowledgeTextContent knowledgeTextContent = message.getKnowledgeTextContent();
             Boolean userQueryFlag = message.getUserQueryFlag();
             ToolResponse toolResponse = message.getToolResponse();
             List<ChatMessage> sourceMessages = Collections.singletonList(message.getSource());
-            int tokenCount = estimateTokenCountInMessages(sourceMessages);
+            Integer tokenCount = message.getTotalTokenCount();
+            Integer inputTokenCount = message.getInputTokenCount();
+            Integer outputTokenCount = message.getOutputTokenCount();
+
 //            List<KnJobVO> jobList = message.getJobList();
             String memoryString = message.getMemoryString();
             if (memoryString == null || memoryString.isEmpty()) {
@@ -302,10 +274,10 @@ public class AiMemoryMessageServiceImpl {
             vo.setReplyToolRequestId(toolResponse != null ? toolResponse.getRequestId() : "");
             vo.setReplyToolName(toolResponse != null ? toolResponse.getToolName() : "");
             vo.setUseToolFlag(toolRequests != null && !toolRequests.isEmpty());
-            vo.setKnowledgeTokenCount(knowledgeTextContent != null ? estimateTokenCountInText(knowledgeTextContent.text()) : 0);
+            vo.setKnowledgeTokenCount(0);
             vo.setTokenCount(tokenCount);
-            vo.setUserTokenCount(userQueryFlag ? tokenCount : 0);
-            vo.setAiTokenCount(userQueryFlag ? 0 : tokenCount);
+            vo.setUserTokenCount(inputTokenCount);
+            vo.setAiTokenCount(outputTokenCount);
             vo.setKnowledgeCharLength(AiUtil.sumKnowledgeLength(sourceMessages));
             vo.setUserCharLength(AiUtil.sumUserLength(sourceMessages));
             vo.setAiCharLength(AiUtil.sumAiLength(sourceMessages));
