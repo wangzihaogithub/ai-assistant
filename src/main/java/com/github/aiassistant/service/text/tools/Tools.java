@@ -24,6 +24,14 @@ public abstract class Tools {
 
     private String beanName;
 
+    @Override
+    public String toString() {
+        if (beanName != null) {
+            return beanName;
+        }
+        return super.toString();
+    }
+
     public AiAccessUserVO getAiAccessUserVO() {
         return aiAccessUserVO;
     }
