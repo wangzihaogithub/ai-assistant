@@ -76,14 +76,12 @@ public class OpenAiStreamingResponseBuilder {
         if (reasoningContent != null && !reasoningContent.isEmpty()) {
             contentBuilder.append(reasoningContent);
             this.reasoningContent = true;
-            return;
         }
 
         String content = delta.content();
         if (content != null && !content.isEmpty()) {
             contentBuilder.append(content);
             this.reasoningContent = false;
-            return;
         }
 
         if (delta.functionCall() != null) {
@@ -162,16 +160,6 @@ public class OpenAiStreamingResponseBuilder {
         if (reasoningContent) {
             this.reasoningContent = false;
         }
-        if (!content.isEmpty()) {
-            return Response.from(
-                    reasoningContent ? new ThinkingAiMessage(content) : AiMessage.from(content),
-                    tokenUsage,
-                    finishReason,
-                    // hotfix: requestID传下来。wangzihao
-                    Collections.singletonMap("id", id)
-            );
-        }
-
         String toolName = toolNameBuilder.toString();
         if (!toolName.isEmpty()) {
             ToolExecutionRequest toolExecutionRequest = ToolExecutionRequest.builder()
@@ -179,7 +167,7 @@ public class OpenAiStreamingResponseBuilder {
                     .arguments(toolArgumentsBuilder.toString())
                     .build();
             return Response.from(
-                    AiMessage.from(toolExecutionRequest),
+                    content.isEmpty() ? AiMessage.from(toolExecutionRequest) : AiMessage.from(content, Collections.singletonList(toolExecutionRequest)),
                     tokenUsage,
                     finishReason,
                     // hotfix: requestID传下来。wangzihao
@@ -196,7 +184,17 @@ public class OpenAiStreamingResponseBuilder {
                             .build())
                     .collect(toList());
             return Response.from(
-                    AiMessage.from(toolExecutionRequests),
+                    content.isEmpty() ? AiMessage.from(toolExecutionRequests) : AiMessage.from(content, toolExecutionRequests),
+                    tokenUsage,
+                    finishReason,
+                    // hotfix: requestID传下来。wangzihao
+                    Collections.singletonMap("id", id)
+            );
+        }
+
+        if (!content.isEmpty()) {
+            return Response.from(
+                    reasoningContent ? new ThinkingAiMessage(content) : AiMessage.from(content),
                     tokenUsage,
                     finishReason,
                     // hotfix: requestID传下来。wangzihao
