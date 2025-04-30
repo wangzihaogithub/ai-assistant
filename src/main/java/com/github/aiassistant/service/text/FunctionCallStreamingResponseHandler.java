@@ -435,7 +435,7 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
      *                       "forced_search": True, # 强制开启联网搜索
      *                       "enable_source": True, # 使返回结果包含搜索来源的信息，OpenAI 兼容方式暂不支持返回
      *                       "enable_citation": True, # 开启角标标注功能
-     *                       "citation_format": "[ref_<number>]", # 角标形式为[ref_i]
+     *                       "citation_format":  # 角标形式为[ref_i]
      *                       "search_strategy": "pro" # 模型将搜索10条互联网信息
      *                       },
      * @param enableThinking # 是否开启思考模式，适用于 Qwen3 模型。
