@@ -90,4 +90,8 @@ public class MetadataAiMessage extends AiMessage {
         }
         return ct;
     }
+
+    public Response<AiMessage> getResponse() {
+        return response;
+    }
 }

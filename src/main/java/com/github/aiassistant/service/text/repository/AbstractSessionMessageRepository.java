@@ -38,40 +38,46 @@ public abstract class AbstractSessionMessageRepository<MEMORY_ID, U> implements 
         message.setStartTime(new Date(startTime));
         message.setFirstTokenTime(firstTokenTime > 0L ? new Timestamp(firstTokenTime) : null);
         message.setUser(user);
-        if (chatMessage instanceof ThinkingAiMessage) {
-            ThinkingAiMessage cast = ((ThinkingAiMessage) chatMessage);
+        ChatMessage source;
+        if (chatMessage instanceof MetadataAiMessage) {
+            source = ((MetadataAiMessage) chatMessage).getResponse().content();
+        } else {
+            source = chatMessage;
+        }
+        if (source instanceof ThinkingAiMessage) {
+            ThinkingAiMessage cast = ((ThinkingAiMessage) source);
             message.setType(MessageTypeEnum.Thinking);
             message.setText(cast.text());
-        } else if (chatMessage instanceof LangChainUserMessage) {
-            LangChainUserMessage cast = ((LangChainUserMessage) chatMessage);
+        } else if (source instanceof LangChainUserMessage) {
+            LangChainUserMessage cast = ((LangChainUserMessage) source);
             message.setType(MessageTypeEnum.LangChainUser);
             message.setText(AiUtil.userMessageToString(cast));
-        } else if (chatMessage instanceof UserMessage) {
-            UserMessage cast = ((UserMessage) chatMessage);
+        } else if (source instanceof UserMessage) {
+            UserMessage cast = ((UserMessage) source);
             message.setType(MessageTypeEnum.User);
             message.setText(AiUtil.userMessageToString(cast));
-        } else if (chatMessage instanceof SystemMessage) {
-            SystemMessage cast = ((SystemMessage) chatMessage);
+        } else if (source instanceof SystemMessage) {
+            SystemMessage cast = ((SystemMessage) source);
             message.setType(MessageTypeEnum.System);
             message.setText(cast.text());
-        } else if (chatMessage instanceof ToolExecutionResultMessage) {
-            ToolExecutionResultMessage cast = ((ToolExecutionResultMessage) chatMessage);
+        } else if (source instanceof ToolExecutionResultMessage) {
+            ToolExecutionResultMessage cast = ((ToolExecutionResultMessage) source);
             message.setType(MessageTypeEnum.ToolResult);
             message.setText(cast.text());
             ToolResponse toolResponse = new ToolResponse();
             toolResponse.setRequestId(cast.id());
             toolResponse.setToolName(cast.toolName());
             message.setToolResponse(toolResponse);
-        } else if (chatMessage instanceof KnowledgeAiMessage) {
-            KnowledgeAiMessage cast = ((KnowledgeAiMessage) chatMessage);
+        } else if (source instanceof KnowledgeAiMessage) {
+            KnowledgeAiMessage cast = ((KnowledgeAiMessage) source);
             message.setType(MessageTypeEnum.Knowledge);
             message.setText(cast.text());
-        } else if (chatMessage instanceof MstateAiMessage) {
-            MstateAiMessage cast = ((MstateAiMessage) chatMessage);
+        } else if (source instanceof MstateAiMessage) {
+            MstateAiMessage cast = ((MstateAiMessage) source);
             message.setType(MessageTypeEnum.MState);
             message.setText(cast.text());
-        } else if (chatMessage instanceof AiMessage) {
-            AiMessage cast = ((AiMessage) chatMessage);
+        } else if (source instanceof AiMessage) {
+            AiMessage cast = ((AiMessage) source);
             message.setType(MessageTypeEnum.Ai);
             message.setText(cast.text());
             if (cast.hasToolExecutionRequests()) {
