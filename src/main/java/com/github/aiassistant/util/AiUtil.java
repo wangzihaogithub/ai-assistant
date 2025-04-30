@@ -19,8 +19,6 @@ import dev.langchain4j.model.input.Prompt;
 import dev.langchain4j.model.input.PromptTemplate;
 import dev.langchain4j.model.output.Response;
 import dev.langchain4j.service.TokenStream;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -35,7 +33,6 @@ public class AiUtil {
     public static final AiMessage NULL = new AiMessage("null");
     private static final Pattern VARIABLE_PATTERN = Pattern.compile("\\{\\{(.+?)\\}\\}");
     private static final Pattern TRAILING_COMMA_PATTERN = Pattern.compile(",(\\s*[}\\]])");
-    private static final Logger log = LoggerFactory.getLogger(AiUtil.class);
 
     /**
      * 是否是联网工具
@@ -67,13 +64,7 @@ public class AiUtil {
     public static CompletableFuture<Boolean> toFutureBoolean(TokenStream tokenStream) {
         CompletableFuture<Boolean> future = new CompletableFuture<>();
         tokenStream.onComplete(response -> {
-                    if (NULL == response.content()) {
-                        // 思考模型会进入这里，这里没有解析思考模型的思考过程。
-                        // 如果不是思考模型进入了这里，就是模型供应商的bug
-                        log.warn("toFutureBoolean NULL_RESPONSE ");
-                    } else {
-                        future.complete("true".equalsIgnoreCase(response.content().text()));
-                    }
+                    future.complete("true".equalsIgnoreCase(response.content().text()));
                 })
                 .onError(future::completeExceptionally)
                 .onNext(string -> {
@@ -86,13 +77,7 @@ public class AiUtil {
     public static CompletableFuture<String> toFutureString(TokenStream tokenStream) {
         CompletableFuture<String> future = new CompletableFuture<>();
         tokenStream.onComplete(response -> {
-                    if (NULL == response.content()) {
-                        // 思考模型会进入这里，这里没有解析思考模型的思考过程。
-                        // 如果不是思考模型进入了这里，就是模型供应商的bug
-                        log.warn("toFutureString NULL_RESPONSE ");
-                    } else {
-                        future.complete(response.content().text());
-                    }
+                    future.complete(response.content().text());
                 })
                 .onError(future::completeExceptionally)
                 .onNext(string -> {
@@ -105,25 +90,19 @@ public class AiUtil {
     public static <T> CompletableFuture<T> toFutureJson(TokenStream tokenStream, Class<T> type, Class<?> jsonSchemaClass) {
         CompletableFuture<T> future = new CompletableFuture<>();
         tokenStream.onComplete(response -> {
-                    if (NULL == response.content()) {
-                        // 思考模型会进入这里，这里没有解析思考模型的思考过程。
-                        // 如果不是思考模型进入了这里，就是模型供应商的bug
-                        log.warn("toFutureJson NULL_RESPONSE ");
-                    } else {
-                        String text = response.content().text();
-                        T json;
-                        try {
-                            json = aiJsonToBean(text, type);
-                        } catch (Exception e) {
-                            future.completeExceptionally(new JsonschemaResultParseException(
-                                    String.format("%s#toFutureJson#aiJsonToBean('%s','%s'); parseError=%s", jsonSchemaClass == null ? null : jsonSchemaClass.getName(), text, type, e), e, jsonSchemaClass));
-                            return;
-                        }
-                        try {
-                            future.complete(json);
-                        } catch (Exception e) {
-                            future.completeExceptionally(e);
-                        }
+                    String text = response.content().text();
+                    T json;
+                    try {
+                        json = aiJsonToBean(text, type);
+                    } catch (Exception e) {
+                        future.completeExceptionally(new JsonschemaResultParseException(
+                                String.format("%s#toFutureJson#aiJsonToBean('%s','%s'); parseError=%s", jsonSchemaClass == null ? null : jsonSchemaClass.getName(), text, type, e), e, jsonSchemaClass));
+                        return;
+                    }
+                    try {
+                        future.complete(json);
+                    } catch (Exception e) {
+                        future.completeExceptionally(e);
                     }
                 })
                 .onError(future::completeExceptionally)
@@ -253,25 +232,20 @@ public class AiUtil {
     public static <T> CompletableFuture<List<T>> toFutureJsonList(TokenStream tokenStream, Class<T> type, Class<?> jsonSchemaClass) {
         CompletableFuture<List<T>> future = new CompletableFuture<>();
         tokenStream.onComplete(response -> {
-                    if (NULL == response.content()) {
-                        // 思考模型会进入这里，这里没有解析思考模型的思考过程。
-                        // 如果不是思考模型进入了这里，就是模型供应商的bug
-                        log.warn("toFutureJsonList NULL_RESPONSE ");
-                    } else {
-                        String text = response.content().text();
-                        List<T> json;
-                        try {
-                            json = aiJsonToList(text, type);
-                        } catch (Exception e) {
-                            future.completeExceptionally(new JsonschemaResultParseException(
-                                    String.format("%s#toFutureJsonList#aiJsonToList('%s','%s'); parseError=%s", jsonSchemaClass == null ? null : jsonSchemaClass.getName(), text, type, e), e, jsonSchemaClass));
-                            return;
-                        }
-                        try {
-                            future.complete(json);
-                        } catch (Exception e) {
-                            future.completeExceptionally(e);
-                        }
+
+                    String text = response.content().text();
+                    List<T> json;
+                    try {
+                        json = aiJsonToList(text, type);
+                    } catch (Exception e) {
+                        future.completeExceptionally(new JsonschemaResultParseException(
+                                String.format("%s#toFutureJsonList#aiJsonToList('%s','%s'); parseError=%s", jsonSchemaClass == null ? null : jsonSchemaClass.getName(), text, type, e), e, jsonSchemaClass));
+                        return;
+                    }
+                    try {
+                        future.complete(json);
+                    } catch (Exception e) {
+                        future.completeExceptionally(e);
                     }
                 })
                 .onError(future::completeExceptionally)
