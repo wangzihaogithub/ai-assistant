@@ -29,7 +29,8 @@ public interface MStateUnknownJsonSchema {
     TokenStream parse(@V("mstate") String mstate);
 
     default CompletableFuture<Map<String, Object>> future(String mstate) {
-        CompletableFuture future = AiUtil.toFutureJson(parse(mstate), LinkedHashMap.class);
+        TokenStream stream = parse(mstate);
+        CompletableFuture future = AiUtil.toFutureJson(stream, LinkedHashMap.class, getClass());
         return future;
     }
 }

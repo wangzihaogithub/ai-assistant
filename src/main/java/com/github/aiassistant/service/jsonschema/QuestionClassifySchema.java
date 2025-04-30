@@ -47,7 +47,8 @@ public interface QuestionClassifySchema {
                       @V("jsonSchema") String jsonSchema);
 
     default CompletableFuture<Result> future(String q, String defineClassifyNames, String defineClassify) {
-        return AiUtil.toFutureJson(parse(q, defineClassifyNames, defineClassify, jsonSchema.toString()), Result.class);
+        TokenStream stream = parse(q, defineClassifyNames, defineClassify, jsonSchema.toString());
+        return AiUtil.toFutureJson(stream, Result.class,getClass());
     }
 
     static class Result {

@@ -45,7 +45,8 @@ public interface ReasoningJsonSchema {
                       @V("jsonSchema") String jsonSchema);
 
     default CompletableFuture<Result> future(String question) {
-        return AiUtil.toFutureJson(parse(question, jsonSchema.toString()), Result.class);
+        TokenStream stream = parse(question, jsonSchema.toString());
+        return AiUtil.toFutureJson(stream, Result.class, getClass());
     }
 
     // @Data

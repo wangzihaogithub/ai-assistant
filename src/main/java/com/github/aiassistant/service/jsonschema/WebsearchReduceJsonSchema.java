@@ -53,7 +53,8 @@ public interface WebsearchReduceJsonSchema {
                       @V("jsonSchema") String jsonSchema);
 
     default CompletableFuture<Result> future(String websearchResult, String question) {
-        return AiUtil.toFutureJson(parse(websearchResult, "10", question, jsonSchema.toString()), Result.class);
+        TokenStream stream = parse(websearchResult, "10", question, jsonSchema.toString());
+        return AiUtil.toFutureJson(stream, Result.class, getClass());
     }
 
     default CompletableFuture<WebSearchResultVO> reduce(List<WebSearchResultVO> flattedWebSearchResult, String question) {
@@ -74,7 +75,8 @@ public interface WebsearchReduceJsonSchema {
             WebSearchResultVO req = new WebSearchResultVO();
             req.setList(prows);
             String websearchString = WebSearchResultVO.toAiString(req);
-            CompletableFuture<WebSearchResultVO> f = AiUtil.toFutureJson(parse(websearchString, String.valueOf(rowTopN), question, jsonSchema.toString()), Result.class)
+            TokenStream stream = parse(websearchString, String.valueOf(rowTopN), question, jsonSchema.toString());
+            CompletableFuture<WebSearchResultVO> f = AiUtil.toFutureJson(stream, Result.class, getClass())
                     .thenApply(results -> {
                         WebSearchResultVO vo = new WebSearchResultVO();
                         List<WebSearchResultVO.Row> rows;

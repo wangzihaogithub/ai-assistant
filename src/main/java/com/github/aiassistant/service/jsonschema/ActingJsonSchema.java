@@ -51,7 +51,8 @@ public interface ActingJsonSchema {
                       @V("jsonSchema") String jsonSchema);
 
     default CompletableFuture<Result> future(String task, String question, String taskList, String taskAnswerList) {
-        return AiUtil.toFutureJson(parse(task, question, taskList, taskAnswerList, jsonSchema.toString()), Result.class);
+        TokenStream stream = parse(task, question, taskList, taskAnswerList, jsonSchema.toString());
+        return AiUtil.toFutureJson(stream, Result.class, getClass());
     }
 
     // @Data

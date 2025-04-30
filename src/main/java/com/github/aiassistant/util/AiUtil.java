@@ -9,6 +9,7 @@ import com.github.aiassistant.entity.model.chat.KnowledgeAiMessage;
 import com.github.aiassistant.entity.model.user.AiAccessUserVO;
 import com.github.aiassistant.enums.MessageTypeEnum;
 import com.github.aiassistant.exception.FewshotConfigException;
+import com.github.aiassistant.exception.JsonschemaResultParseException;
 import com.github.aiassistant.platform.JsonUtil;
 import com.github.aiassistant.service.text.tools.Tools;
 import com.github.aiassistant.service.text.tools.WebSearch;
@@ -101,7 +102,7 @@ public class AiUtil {
         return future;
     }
 
-    public static <T> CompletableFuture<T> toFutureJson(TokenStream tokenStream, Class<T> type) {
+    public static <T> CompletableFuture<T> toFutureJson(TokenStream tokenStream, Class<T> type, Class<?> jsonSchemaClass) {
         CompletableFuture<T> future = new CompletableFuture<>();
         tokenStream.onComplete(response -> {
                     if (NULL == response.content()) {
@@ -110,8 +111,15 @@ public class AiUtil {
                         log.warn("toFutureJson NULL_RESPONSE ");
                     } else {
                         String text = response.content().text();
+                        T json;
                         try {
-                            T json = aiJsonToBean(text, type);
+                            json = aiJsonToBean(text, type);
+                        } catch (Exception e) {
+                            future.completeExceptionally(new JsonschemaResultParseException(
+                                    String.format("%s#toFutureJson#aiJsonToBean('%s','%s'); parseError=%s", jsonSchemaClass == null ? null : jsonSchemaClass.getName(), text, type, e), e, jsonSchemaClass));
+                            return;
+                        }
+                        try {
                             future.complete(json);
                         } catch (Exception e) {
                             future.completeExceptionally(e);
@@ -242,7 +250,7 @@ public class AiUtil {
         return false;
     }
 
-    public static <T> CompletableFuture<List<T>> toFutureJsonList(TokenStream tokenStream, Class<T> type) {
+    public static <T> CompletableFuture<List<T>> toFutureJsonList(TokenStream tokenStream, Class<T> type, Class<?> jsonSchemaClass) {
         CompletableFuture<List<T>> future = new CompletableFuture<>();
         tokenStream.onComplete(response -> {
                     if (NULL == response.content()) {
@@ -251,8 +259,15 @@ public class AiUtil {
                         log.warn("toFutureJsonList NULL_RESPONSE ");
                     } else {
                         String text = response.content().text();
+                        List<T> json;
                         try {
-                            List<T> json = aiJsonToList(text, type);
+                            json = aiJsonToList(text, type);
+                        } catch (Exception e) {
+                            future.completeExceptionally(new JsonschemaResultParseException(
+                                    String.format("%s#toFutureJsonList#aiJsonToList('%s','%s'); parseError=%s", jsonSchemaClass == null ? null : jsonSchemaClass.getName(), text, type, e), e, jsonSchemaClass));
+                            return;
+                        }
+                        try {
                             future.complete(json);
                         } catch (Exception e) {
                             future.completeExceptionally(e);
