@@ -19,6 +19,7 @@ import java.net.Proxy;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
+import java.util.StringJoiner;
 import java.util.concurrent.CompletableFuture;
 import java.util.zip.DeflaterInputStream;
 import java.util.zip.GZIPInputStream;
@@ -187,7 +188,11 @@ public class UrlReadTools extends Tools {
         return future.handle((text, throwable) -> {
             String resultString;
             if (throwable != null) {
-                resultString = ThrowableUtil.stackTraceToString(throwable);
+                StringJoiner joiner = new StringJoiner("\n");
+                joiner.add("<request_error_class>" + throwable.getClass() + "</request_error_class>");
+                joiner.add("<request_error_message>" + throwable.getMessage() + "</request_error_message>");
+                joiner.add("<request_error_stack_trace>" + ThrowableUtil.stackTraceToString(throwable) + "</request_error_stack_trace>");
+                resultString = joiner.toString();
             } else if (StringUtils.hasText(text)) {
                 resultString = text;
             } else {
