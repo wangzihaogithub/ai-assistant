@@ -13,7 +13,7 @@ public interface AiMemoryMapper {
                      Integer knowledgeTokenCount,
 
                      Integer userCharLength,
-                     Integer knowledgeCharLength,
                      Integer aiCharLength,
+                     Integer knowledgeCharLength,
                      Date updateTime);
 }
