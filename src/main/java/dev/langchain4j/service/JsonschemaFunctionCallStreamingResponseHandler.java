@@ -19,6 +19,7 @@ import java.util.concurrent.Executor;
  * Jsonschema工具调用
  */
 class JsonschemaFunctionCallStreamingResponseHandler extends FunctionCallStreamingResponseHandler {
+    private final Class<?> jsonschemaClass;
 
     JsonschemaFunctionCallStreamingResponseHandler(String modelName,
                                                    OpenAiStreamingChatModel chatModel, ChatMemory chatMemory,
@@ -30,22 +31,31 @@ class JsonschemaFunctionCallStreamingResponseHandler extends FunctionCallStreami
                                                    QuestionClassifyListVO classifyListVO,
                                                    Boolean websearch,
                                                    Boolean reasoning,
-                                                   Executor executor) {
+                                                   Executor executor,
+                                                   Class<?> jsonschemaClass) {
         super(modelName, chatModel, chatMemory, handler, llmJsonSchemaApiService,
                 toolMethodList, isSupportChineseToolName, baseMessageIndex, addMessageCount, readTimeoutMs, classifyListVO, websearch, reasoning, executor);
+        this.jsonschemaClass = jsonschemaClass;
     }
 
-    JsonschemaFunctionCallStreamingResponseHandler(FunctionCallStreamingResponseHandler parent) {
+    JsonschemaFunctionCallStreamingResponseHandler(JsonschemaFunctionCallStreamingResponseHandler parent) {
         super(parent);
+        this.jsonschemaClass = parent.jsonschemaClass;
     }
 
     @Override
     protected FunctionCallStreamingResponseHandler fork(FunctionCallStreamingResponseHandler parent) {
-        return new JsonschemaFunctionCallStreamingResponseHandler(parent);
+        JsonschemaFunctionCallStreamingResponseHandler h = (JsonschemaFunctionCallStreamingResponseHandler) parent;
+        return new JsonschemaFunctionCallStreamingResponseHandler(h);
     }
 
     @Override
     protected SseHttpResponse newEmitter(List<ToolExecutionRequest> toolExecutionRequests, Tools.ToolMethod method, Response<AiMessage> response) {
         return null;
+    }
+
+    @Override
+    public String name() {
+        return "JsonschemaFunctionCallStreamingResponseHandler{" + getModelName() + ", " + jsonschemaClass.getSimpleName() + "}";
     }
 }

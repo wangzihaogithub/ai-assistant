@@ -4,18 +4,28 @@ package com.github.aiassistant.service.text.sseemitter;
  * 给前端推送
  */
 public interface SseHttpResponse {
+    /**
+     * 是否没有推送过内容（即：没调用过 write）
+     *
+     * @return true=没有推送过内容
+     */
     boolean isEmpty();
 
     /**
-     * 推送部分AI回复
+     * 给前端推送内容
      *
-     * @param next 部分AI回复
+     * @param messageString 推送内容
      */
-    default void write(String next) {
-        write(new AiMessageString(next));
+    default void write(String messageString) {
+        write(new AiMessageString(messageString));
     }
 
-    void write(AiMessageString next);
+    /**
+     * 给前端推送内容
+     *
+     * @param messageString 推送内容
+     */
+    void write(AiMessageString messageString);
 
     boolean isClose();
 

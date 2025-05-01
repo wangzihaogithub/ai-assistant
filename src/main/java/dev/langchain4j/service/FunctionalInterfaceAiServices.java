@@ -272,7 +272,7 @@ public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
     private static ThreadPoolExecutor getExecutor(Class aiServiceClass) {
         final ThreadPoolExecutor executor = new ThreadPoolExecutor(
                 1, 10,
-                1, TimeUnit.SECONDS,
+                60, TimeUnit.SECONDS,
                 new SynchronousQueue<>(),
                 runnable -> {
                     int tid = threadExecutorCounter.computeIfAbsent(aiServiceClass, e -> new AtomicInteger()).incrementAndGet();
@@ -823,7 +823,8 @@ public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
                     null,
                     toolMethodList,
                     isSupportChineseToolName,
-                    0, 0, null, classifyListVO, websearch, reasoning, executor);
+                    0, 0, null,
+                    classifyListVO, websearch, reasoning, executor, context.aiServiceClass);
 
             if (contentsHandler != null && retrievedContents != null) {
                 contentsHandler.accept(retrievedContents);
