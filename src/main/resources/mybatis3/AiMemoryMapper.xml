@@ -16,8 +16,8 @@
         `knowledge_token_count` = `knowledge_token_count` + #{arg3},
 
         `user_char_length` = `user_char_length` + #{arg4},
-        `ai_char_length` = `ai_char_length` + #{arg6},
-        `knowledge_char_length` = `knowledge_char_length` + #{arg5},
+        `ai_char_length` = `ai_char_length` + #{arg5},
+        `knowledge_char_length` = `knowledge_char_length` + #{arg6},
 
         `update_time` = #{arg7}
         where id = #{arg0}
