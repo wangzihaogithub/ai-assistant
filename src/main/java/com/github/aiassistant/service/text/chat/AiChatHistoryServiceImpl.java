@@ -395,17 +395,19 @@ public class AiChatHistoryServiceImpl {
         Collection<AiChatHistoryServiceIntercept> intercepts = interceptList.get();
         List<Message<AiAccessUserVO>> messageList = requestTrace.isStageRequest() ? requestTrace.getRequestMessageList() : requestTrace.getResponseMessageList();
         for (Message<AiAccessUserVO> message : messageList) {
-            if (!MessageTypeEnum.isChatType(message.getType())) {
+            MessageTypeEnum messageTypeEnum = message.getType();
+            if (!MessageTypeEnum.isChatType(messageTypeEnum)) {
                 continue;
             }
-            String text = message.getText();
+            String text = MessageTypeEnum.isToolResult(messageTypeEnum) ?
+                    "" : message.getText();
             AiChatHistoryVO vo = new AiChatHistoryVO();
             vo.setAiChatId(chatId);
             vo.setUserQueryFlag(message.getUserQueryFlag());
             vo.setUserQueryTraceNumber(userQueryTraceNumber);
             vo.setCreateTime(message.getCreateTime());
             vo.setStartTime(message.getStartTime());
-            vo.setMessageTypeEnum(Objects.toString(message.getType().getCode(), ""));
+            vo.setMessageTypeEnum(Objects.toString(messageTypeEnum.getCode(), ""));
             vo.setMessageText(StringUtils.left(text, 65000, true));
             vo.setTextCharLength(Objects.toString(text, "").length());
             vo.setMessageIndex(message.getMessageIndex());
