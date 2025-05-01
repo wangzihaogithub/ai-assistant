@@ -69,7 +69,7 @@ public class UrlReadTools extends Tools {
         for (int i = 0; i < httpClients.length; i++) {
             HttpClient client;
             if (PlatformDependentUtil.isSupportApacheHttpClient()) {
-                client = new ApacheHttpClient(threadNamePrefix);
+                client = new ApacheHttpClient(threadNamePrefix, max302);
             } else {
                 client = new JdkHttpClient();
             }

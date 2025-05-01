@@ -26,6 +26,8 @@ public interface ThinkingStreamingResponseHandler<T> extends StreamingResponseHa
 
     /**
      * 思考完成
+     *
+     * @param thinkingResponse thinkingResponse
      */
     default void onCompleteThinking(Response<AiMessage> thinkingResponse) {
 

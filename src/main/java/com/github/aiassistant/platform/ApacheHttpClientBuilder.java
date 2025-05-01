@@ -19,7 +19,7 @@ class ApacheHttpClientBuilder {
                                           boolean ignoreHttpsValidation,
                                           Integer connectTimeout,
                                           Integer readTimeout,
-                                          Proxy proxy) {
+                                          Proxy proxy, int maxRedirects) {
         HttpHost proxyHttp = null;
         InetSocketAddress proxyAddress = HttpClient.parseAddress(proxy);
         if (proxyAddress != null) {
@@ -36,7 +36,7 @@ class ApacheHttpClientBuilder {
         if (proxyHttp != null) {
             requestConfigBuilder.setProxy(proxyHttp);
         }
-        requestConfigBuilder.setMaxRedirects(1);
+        requestConfigBuilder.setMaxRedirects(maxRedirects);
         RequestConfig requestConfig = requestConfigBuilder.build();
         HttpAsyncClientBuilder system = HttpAsyncClientBuilder.create()
                 .useSystemProperties()

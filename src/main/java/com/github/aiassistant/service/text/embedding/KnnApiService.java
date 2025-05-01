@@ -3,6 +3,7 @@ package com.github.aiassistant.service.text.embedding;
 import com.github.aiassistant.dao.AiEmbeddingMapper;
 import com.github.aiassistant.entity.AiAssistantKn;
 import com.github.aiassistant.entity.model.chat.KnVO;
+import com.github.aiassistant.exception.KnnApiException;
 import com.github.aiassistant.platform.JsonUtil;
 import com.github.aiassistant.util.AiUtil;
 import com.github.aiassistant.util.BeanUtil;
@@ -200,17 +201,19 @@ public class KnnApiService {
             Double knTop1Score,
             String indexName,
             KnnQueryBuilderFuture<T> queryBuilderFuture) {
-        KnnResponseListenerFuture<T> future = new KnnResponseListenerFuture<>(minScore, knTop1Score, queryBuilderFuture);
+        KnnResponseListenerFuture<T> future = new KnnResponseListenerFuture<>(minScore, knTop1Score, queryBuilderFuture, indexName);
         queryBuilderFuture.whenComplete((queryBuilderMap, throwable) -> {
             if (throwable != null) {
                 future.completeExceptionally(throwable);
             } else {
                 try {
+                    byte[] requestBody = objectWriter.writeValueAsBytes(queryBuilderMap);
+                    future.requestBody = requestBody;
                     // request
                     Request request = new Request("POST", "/" + indexName + "/_search");
                     request.setEntity(EntityBuilder.create()
                             .setContentType(ContentType.APPLICATION_JSON)
-                            .setBinary(objectWriter.writeValueAsBytes(queryBuilderMap))
+                            .setBinary(requestBody)
                             .build());
                     future.request = request;
                     future.cancellable = embeddingStore.performRequestAsync(request, future);
@@ -226,14 +229,17 @@ public class KnnApiService {
         private final KnnQueryBuilderFuture<T> knnQuery;
         private final double minScore;
         private final Double knTop1Score;
+        private final String indexName;
         private Cancellable cancellable;
         private Request request;
+        private byte[] requestBody;
 
         KnnResponseListenerFuture(double minScore,
-                                  Double knTop1Score, KnnQueryBuilderFuture<T> knnQuery) {
+                                  Double knTop1Score, KnnQueryBuilderFuture<T> knnQuery, String indexName) {
             this.minScore = minScore;
             this.knTop1Score = knTop1Score;
             this.knnQuery = knnQuery;
+            this.indexName = indexName;
         }
 
         @Override
@@ -273,9 +279,9 @@ public class KnnApiService {
             }
 
             List<T> l = list;
-            List<BiFunction<List<T>,Map, List<T>>> afterList = knnQuery.getResponseAfterList();
+            List<BiFunction<List<T>, Map, List<T>>> afterList = knnQuery.getResponseAfterList();
             if (afterList != null) {
-                for (BiFunction<List<T>,Map, List<T>> after : afterList) {
+                for (BiFunction<List<T>, Map, List<T>> after : afterList) {
                     l = after.apply(l, content);
                 }
             }
@@ -299,6 +305,13 @@ public class KnnApiService {
         @Override
         public void onFailure(Exception exception) {
             completeExceptionally(exception);
+        }
+
+        @Override
+        public boolean completeExceptionally(Throwable ex) {
+            String errorMessage = String.format("knn api error! indexName=%s, cause = %s", indexName, ex);
+            return super.completeExceptionally(
+                    new KnnApiException(errorMessage, ex, indexName, requestBody));
         }
     }
 

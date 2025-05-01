@@ -28,14 +28,16 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class SpringWebAsyncRestTemplateHttpClient implements HttpClient {
     private static final Map<String, AtomicInteger> threadNumberMap = new ConcurrentHashMap<>();
     private final ThreadFactory threadFactory;
+    private final int maxRedirects;
     private volatile AsyncRestTemplate template;
     private boolean ignoreHttpsValidation;
     private Integer connectTimeout;
     private Integer readTimeout;
     private Proxy proxy;
 
-    public SpringWebAsyncRestTemplateHttpClient(String namePrefix) {
+    public SpringWebAsyncRestTemplateHttpClient(String namePrefix, int maxRedirects) {
         AtomicInteger incr = threadNumberMap.computeIfAbsent(namePrefix, e -> new AtomicInteger());
+        this.maxRedirects = maxRedirects;
         this.threadFactory = r -> {
             int i = incr.incrementAndGet();
             Thread t = new Thread(r, namePrefix + i);
@@ -152,7 +154,7 @@ public class SpringWebAsyncRestTemplateHttpClient implements HttpClient {
 //    }
 
     private AsyncClientHttpRequestFactory clientApache() {
-        ApacheHttpClientBuilder.ClientBuilder clientBuilder = ApacheHttpClientBuilder.newClientBuilder(threadFactory, ignoreHttpsValidation, connectTimeout, readTimeout, proxy);
+        ApacheHttpClientBuilder.ClientBuilder clientBuilder = ApacheHttpClientBuilder.newClientBuilder(threadFactory, ignoreHttpsValidation, connectTimeout, readTimeout, proxy, maxRedirects);
         HttpComponentsAsyncClientHttpRequestFactory factory = new HttpComponentsAsyncClientHttpRequestFactory(clientBuilder.builder.build()) {
             @Override
             protected RequestConfig createRequestConfig(Object client) {

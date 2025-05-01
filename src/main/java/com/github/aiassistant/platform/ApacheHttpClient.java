@@ -24,14 +24,16 @@ import java.util.stream.Collectors;
 public class ApacheHttpClient implements HttpClient {
     private static final Map<String, AtomicInteger> threadNumberMap = new ConcurrentHashMap<>();
     private final ThreadFactory threadFactory;
+    private final int maxRedirects;
     volatile CloseableHttpAsyncClient client;
     private boolean ignoreHttpsValidation;
     private Integer connectTimeout;
     private Integer readTimeout;
     private Proxy proxy;
 
-    public ApacheHttpClient(String namePrefix) {
+    public ApacheHttpClient(String namePrefix, int maxRedirects) {
         AtomicInteger incr = threadNumberMap.computeIfAbsent(namePrefix, e -> new AtomicInteger());
+        this.maxRedirects = maxRedirects;
         this.threadFactory = r -> {
             int i = incr.incrementAndGet();
             Thread t = new Thread(r, namePrefix + i);
@@ -44,7 +46,7 @@ public class ApacheHttpClient implements HttpClient {
         if (client == null) {
             synchronized (this) {
                 if (client == null) {
-                    ApacheHttpClientBuilder.ClientBuilder clientBuilder = ApacheHttpClientBuilder.newClientBuilder(threadFactory, ignoreHttpsValidation, connectTimeout, readTimeout, proxy);
+                    ApacheHttpClientBuilder.ClientBuilder clientBuilder = ApacheHttpClientBuilder.newClientBuilder(threadFactory, ignoreHttpsValidation, connectTimeout, readTimeout, proxy, maxRedirects);
                     client = clientBuilder.builder.build();
                     client.start();
                 }

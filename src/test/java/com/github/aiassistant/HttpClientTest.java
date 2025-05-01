@@ -14,7 +14,7 @@ import java.util.concurrent.ExecutionException;
 
 public class HttpClientTest {
     public static void main(String[] args) throws IOException, ExecutionException, InterruptedException {
-        ApacheHttpClient ap = new ApacheHttpClient("ap");
+        ApacheHttpClient ap = new ApacheHttpClient("ap", 2);
 
         HttpClient.HttpRequest request = ap.request("https://zhuanlan.zhihu.com/p/52572694", Collections.singletonMap("q", "qq"));
 

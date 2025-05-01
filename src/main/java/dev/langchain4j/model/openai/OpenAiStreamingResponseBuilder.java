@@ -41,7 +41,7 @@ public class OpenAiStreamingResponseBuilder {
     private volatile FinishReason finishReason;
     // hotfix: requestID传下来。wangzihao
     private volatile String id;
-    private volatile int prevState = STATE_OUTPUT;
+    private volatile AtomicInteger prevState = new AtomicInteger(STATE_OUTPUT);
 
     private static AiMessage buildAiMessage(int state, StringBuffer content, List<ToolExecutionRequest> toolExecutionRequests) {
         if (content.length() == 0 && toolExecutionRequests == null) {
@@ -73,7 +73,7 @@ public class OpenAiStreamingResponseBuilder {
     public boolean compareAndSet(int expect, int update) {
         boolean b = state.compareAndSet(expect, update);
         if (b) {
-            this.prevState = expect;
+            this.prevState.set(expect);
         }
         return b;
     }
@@ -201,8 +201,10 @@ public class OpenAiStreamingResponseBuilder {
         } else {
             toolExecutionRequests = null;
         }
+        int state = prevState.get();
+        prevState.compareAndSet(STATE_THINKING, STATE_OUTPUT);
         return Response.from(
-                buildAiMessage(prevState, contentBuilder, toolExecutionRequests),
+                buildAiMessage(state, contentBuilder, toolExecutionRequests),
                 tokenUsage,
                 finishReason,
                 Collections.singletonMap("id", id)
