@@ -53,7 +53,7 @@ public class BaiduWebSearchTools extends Tools implements WebSearch {
         int pageSize = 10;
 
         int count = (int) Math.ceil((double) limit / (double) pageSize);
-        String urlString = "http://www.baidu.com/s?wd={q}&pn={pn}&ie=utf-8";
+        String urlString = "https://www.baidu.com/s?wd={q}&pn={pn}&ie=utf-8";
         List<CompletableFuture<WebSearchResultVO>> futures = new ArrayList<>();
         for (int i = 0; i < count; i++) {
             Map<String, Object> query = new HashMap<>();

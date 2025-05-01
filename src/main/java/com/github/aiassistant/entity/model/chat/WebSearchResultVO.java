@@ -3,10 +3,8 @@ package com.github.aiassistant.entity.model.chat;
 import com.github.aiassistant.service.text.tools.functioncall.UrlReadTools;
 import com.github.aiassistant.util.AiUtil;
 import com.github.aiassistant.util.StringUtils;
+import com.github.aiassistant.util.ThrowableUtil;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.PrintStream;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -32,7 +30,7 @@ public class WebSearchResultVO {
 
     public static WebSearchResultVO error(Throwable throwable) {
         WebSearchResultVO vo = new WebSearchResultVO();
-        vo.error = Collections.singletonList(stackTraceToString(throwable));
+        vo.error = Collections.singletonList(ThrowableUtil.stackTraceToString(throwable));
         vo.setList(new ArrayList<>());
         return vo;
     }
@@ -138,22 +136,6 @@ public class WebSearchResultVO {
                 row.add(AiUtil.toAiXmlString(DESC_TIME, time));
             }
             rows.add(AiUtil.toAiXmlString("row", row.toString()));
-        }
-    }
-
-    private static String stackTraceToString(Throwable cause) {
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        PrintStream pout = new PrintStream(out);
-        cause.printStackTrace(pout);
-        pout.flush();
-        try {
-            return out.toString();
-        } finally {
-            try {
-                out.close();
-            } catch (IOException ignore) {
-                // ignore as should never happen
-            }
         }
     }
 

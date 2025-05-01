@@ -184,11 +184,16 @@ public class UrlReadTools extends Tools {
             @P(value = "URL", required = false) @Name("urlString") String urlString,
             @ToolMemoryId ToolExecutionRequest request) {
         CompletableFuture<String> future = readString(urlString);
-        return future.thenApply(text -> {
-            if (!StringUtils.hasText(text)) {
-                text = "无结果";
+        return future.handle((text, throwable) -> {
+            String resultString;
+            if (throwable != null) {
+                resultString = ThrowableUtil.stackTraceToString(throwable);
+            } else if (StringUtils.hasText(text)) {
+                resultString = text;
+            } else {
+                resultString = "无结果";
             }
-            return new UrlReadToolExecutionResultMessage(request, text, urlString);
+            return new UrlReadToolExecutionResultMessage(request, resultString, urlString);
         });
     }
 
