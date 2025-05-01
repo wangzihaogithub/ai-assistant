@@ -44,11 +44,7 @@ public abstract class AbstractSessionMessageRepository<MEMORY_ID, U> implements 
         } else {
             source = chatMessage;
         }
-        if (source instanceof ThinkingAiMessage) {
-            ThinkingAiMessage cast = ((ThinkingAiMessage) source);
-            message.setType(MessageTypeEnum.Thinking);
-            message.setText(cast.text());
-        } else if (source instanceof LangChainUserMessage) {
+        if (source instanceof LangChainUserMessage) {
             LangChainUserMessage cast = ((LangChainUserMessage) source);
             message.setType(MessageTypeEnum.LangChainUser);
             message.setText(AiUtil.userMessageToString(cast));
@@ -76,6 +72,21 @@ public abstract class AbstractSessionMessageRepository<MEMORY_ID, U> implements 
             MstateAiMessage cast = ((MstateAiMessage) source);
             message.setType(MessageTypeEnum.MState);
             message.setText(cast.text());
+        } else if (source instanceof ThinkingAiMessage) {
+            ThinkingAiMessage cast = ((ThinkingAiMessage) source);
+            message.setType(MessageTypeEnum.Thinking);
+            message.setText(cast.text());
+            if (cast.hasToolExecutionRequests()) {
+                message.setToolRequests(cast.toolExecutionRequests().stream()
+                        .map(e -> {
+                            ToolRequest toolRequest = new ToolRequest();
+                            toolRequest.setRequestId(e.id());
+                            toolRequest.setToolName(e.name());
+                            toolRequest.setArguments(e.arguments());
+                            return toolRequest;
+                        })
+                        .collect(Collectors.toList()));
+            }
         } else if (source instanceof AiMessage) {
             AiMessage cast = ((AiMessage) source);
             message.setType(MessageTypeEnum.Ai);

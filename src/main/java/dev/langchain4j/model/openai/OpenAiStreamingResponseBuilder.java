@@ -32,6 +32,7 @@ public class OpenAiStreamingResponseBuilder {
     public static int STATE_THINKING = 1;
     public static int STATE_OUTPUT = 2;
     private final StringBuffer contentBuilder = new StringBuffer();
+    private final StringBuffer reasoningContentBuilder = new StringBuffer();
     private final StringBuffer toolNameBuilder = new StringBuffer();
     private final StringBuffer toolArgumentsBuilder = new StringBuffer();
     // hao, 解决供应商不返回toolCall.index()字段，导致空指针，ConcurrentHashMap改成HashMap
@@ -41,18 +42,18 @@ public class OpenAiStreamingResponseBuilder {
     private volatile FinishReason finishReason;
     // hotfix: requestID传下来。wangzihao
     private volatile String id;
-    private volatile AtomicInteger prevState = new AtomicInteger(STATE_OUTPUT);
 
-    private static AiMessage buildAiMessage(int state, StringBuffer content, List<ToolExecutionRequest> toolExecutionRequests) {
-        if (content.length() == 0 && toolExecutionRequests == null) {
-            // hotfix: 质朴轻言这个供应商的模型有bug，不会回复了。wangzihao
-            // https://api-docs.deepseek.com/zh-cn/guides/json_mode,在使用 JSON Output 功能时，API 有概率会返回空的 content。我们正在积极优化该问题，您可以尝试修改 prompt 以缓解此类问题。
-            return AiUtil.NULL;
-        }
-        String contentString = content.toString();
-        content.setLength(0);
+    private static AiMessage buildAiMessage(
+            int state,
+            StringBuffer contentBuilder,
+            StringBuffer reasoningContentBuilder,
+            List<ToolExecutionRequest> toolExecutionRequests) {
         if (state == STATE_THINKING) {
-            if (contentString.isEmpty()) {
+            String contentString = reasoningContentBuilder.toString();
+            reasoningContentBuilder.setLength(0);
+            if (contentString.isEmpty() && toolExecutionRequests == null) {
+                return AiUtil.NULL;
+            } else if (contentString.isEmpty()) {
                 return new ThinkingAiMessage(toolExecutionRequests);
             } else if (toolExecutionRequests == null) {
                 return new ThinkingAiMessage(contentString);
@@ -60,22 +61,46 @@ public class OpenAiStreamingResponseBuilder {
                 return new ThinkingAiMessage(contentString, toolExecutionRequests);
             }
         } else {
-            if (contentString.isEmpty()) {
-                return new AiMessage(toolExecutionRequests);
-            } else if (toolExecutionRequests == null) {
-                return new AiMessage(contentString);
+            // reasoning call tool
+            boolean reasoning;
+            StringBuffer builder;
+            if (contentBuilder.length() > 0) {
+                builder = contentBuilder;
+                reasoning = false;
             } else {
-                return new AiMessage(contentString, toolExecutionRequests);
+                builder = reasoningContentBuilder;
+                reasoning = true;
+            }
+            String contentString = builder.toString();
+            builder.setLength(0);
+            if (contentString.isEmpty() && toolExecutionRequests == null) {
+                // hotfix: 质朴轻言这个供应商的模型有bug，不会回复了。wangzihao
+                // https://api-docs.deepseek.com/zh-cn/guides/json_mode,在使用 JSON Output 功能时，API 有概率会返回空的 content。我们正在积极优化该问题，您可以尝试修改 prompt 以缓解此类问题。
+                return AiUtil.NULL;
+            } else {
+                if (reasoning) {
+                    if (contentString.isEmpty()) {
+                        return new ThinkingAiMessage(toolExecutionRequests);
+                    } else if (toolExecutionRequests == null) {
+                        return new ThinkingAiMessage(contentString);
+                    } else {
+                        return new ThinkingAiMessage(contentString, toolExecutionRequests);
+                    }
+                } else {
+                    if (contentString.isEmpty()) {
+                        return new AiMessage(toolExecutionRequests);
+                    } else if (toolExecutionRequests == null) {
+                        return new AiMessage(contentString);
+                    } else {
+                        return new AiMessage(contentString, toolExecutionRequests);
+                    }
+                }
             }
         }
     }
 
     public boolean compareAndSet(int expect, int update) {
-        boolean b = state.compareAndSet(expect, update);
-        if (b) {
-            this.prevState.set(expect);
-        }
-        return b;
+        return state.compareAndSet(expect, update);
     }
 
     public void append(ChatCompletionResponse partialResponse) {
@@ -111,7 +136,7 @@ public class OpenAiStreamingResponseBuilder {
 
         String reasoningContent = delta.reasoningContent();
         if (reasoningContent != null && !reasoningContent.isEmpty()) {
-            contentBuilder.append(reasoningContent);
+            reasoningContentBuilder.append(reasoningContent);
         }
 
         String content = delta.content();
@@ -183,6 +208,10 @@ public class OpenAiStreamingResponseBuilder {
     }
 
     public Response<AiMessage> build() {
+        return build(STATE_OUTPUT);
+    }
+
+    public Response<AiMessage> build(int state) {
         List<ToolExecutionRequest> toolExecutionRequests;
         if (toolNameBuilder.length() > 0) {
             ToolExecutionRequest toolExecutionRequest = ToolExecutionRequest.builder()
@@ -201,10 +230,8 @@ public class OpenAiStreamingResponseBuilder {
         } else {
             toolExecutionRequests = null;
         }
-        int state = prevState.get();
-        prevState.compareAndSet(STATE_THINKING, STATE_OUTPUT);
-        return Response.from(
-                buildAiMessage(state, contentBuilder, toolExecutionRequests),
+        return new Response<>(
+                buildAiMessage(state, contentBuilder, reasoningContentBuilder, toolExecutionRequests),
                 tokenUsage,
                 finishReason,
                 Collections.singletonMap("id", id)

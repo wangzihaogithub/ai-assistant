@@ -177,7 +177,7 @@ public class OpenAiStreamingChatModel implements StreamingChatLanguageModel {
                     OpenAiStreamingResponseBuilder.STATE_THINKING,
                     OpenAiStreamingResponseBuilder.STATE_OUTPUT)) {
                 ThinkingStreamingResponseHandler h = ((ThinkingStreamingResponseHandler<AiMessage>) handler);
-                h.onCompleteThinking(responseBuilder.build());
+                h.onCompleteThinking(responseBuilder.build(OpenAiStreamingResponseBuilder.STATE_THINKING));
             }
             handler.onNext(content);
         }
@@ -271,7 +271,7 @@ public class OpenAiStreamingChatModel implements StreamingChatLanguageModel {
                     }
                 })
                 .onComplete(() -> {
-                    Response<AiMessage> response = responseBuilder.build();
+                    Response<AiMessage> response = responseBuilder.build(OpenAiStreamingResponseBuilder.STATE_OUTPUT);
 
                     ChatModelResponse modelListenerResponse = createModelListenerResponse(
                             responseId.get(),
@@ -294,7 +294,7 @@ public class OpenAiStreamingChatModel implements StreamingChatLanguageModel {
                     handler.onComplete(response);
                 })
                 .onError(error -> {
-                    Response<AiMessage> response = responseBuilder.build();
+                    Response<AiMessage> response = responseBuilder.build(OpenAiStreamingResponseBuilder.STATE_OUTPUT);
 
                     ChatModelResponse modelListenerPartialResponse = createModelListenerResponse(
                             responseId.get(),
