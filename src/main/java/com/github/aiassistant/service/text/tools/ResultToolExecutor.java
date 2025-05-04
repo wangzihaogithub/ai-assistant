@@ -1,8 +1,8 @@
 package com.github.aiassistant.service.text.tools;
 
+import com.github.aiassistant.platform.JsonUtil;
 import com.github.aiassistant.service.text.sseemitter.SseHttpResponse;
 import com.github.aiassistant.util.AiUtil;
-import com.github.aiassistant.platform.JsonUtil;
 import dev.langchain4j.agent.tool.ToolExecutionRequest;
 import dev.langchain4j.agent.tool.ToolMemoryId;
 import dev.langchain4j.data.message.ToolExecutionResultMessage;
@@ -364,7 +364,7 @@ public class ResultToolExecutor extends CompletableFuture<ToolExecutionResultMes
         return objectReader.readValue(string, parameterType);
     }
 
-    public void execute() {
+    public CompletableFuture<ToolExecutionResultMessage> execute() {
         ToolExecutionRequest toolExecutionRequest = this.request;
         log.debug("About to execute {} for memoryId {}", toolExecutionRequest, memoryId);
 
@@ -393,6 +393,7 @@ public class ResultToolExecutor extends CompletableFuture<ToolExecutionResultMes
                 complete(toolExecutionResultMessage);
             }
         });
+        return this;
     }
 
     public CompletableFuture<Object> validation() {

@@ -2,6 +2,7 @@ package com.github.aiassistant.service.text.repository;
 
 import com.github.aiassistant.entity.model.chat.KnowledgeAiMessage;
 import com.github.aiassistant.entity.model.chat.LangChainUserMessage;
+import com.github.aiassistant.entity.model.chat.ThinkingAiMessage;
 import com.github.aiassistant.util.AiUtil;
 import com.github.aiassistant.util.StringUtils;
 import dev.langchain4j.data.message.*;
@@ -55,10 +56,9 @@ public class JsonSchemaTokenWindowChatMemory extends ConsumerTokenWindowChatMemo
         if (AiUtil.isNull(message)) {
             return true;
         }
-        if (message instanceof LangChainUserMessage || message instanceof KnowledgeAiMessage) {
-            return true;
-        }
-        return false;
+        return message instanceof LangChainUserMessage
+                || message instanceof KnowledgeAiMessage
+                || message instanceof ThinkingAiMessage;
     }
 
     public static String getUserMessageString(List<ChatMessage> messages) {

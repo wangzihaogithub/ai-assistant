@@ -1,7 +1,6 @@
 package com.github.aiassistant.entity.model.chat;
 
 import dev.langchain4j.model.chat.ChatLanguageModel;
-import dev.langchain4j.model.chat.StreamingChatLanguageModel;
 import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
 
 public class AiModel {
@@ -17,6 +16,11 @@ public class AiModel {
         this.streaming = streaming;
     }
 
+    /**
+     * 是否支持中文工具名称（deepseek仅支持英文名称）
+     *
+     * @return true=支持
+     */
     public boolean isSupportChineseToolName() {
         return !modelName.startsWith("deepseek");
     }

@@ -8,6 +8,7 @@ import com.github.aiassistant.service.text.sseemitter.SseHttpResponse;
 import com.github.aiassistant.service.text.tools.Tools;
 import dev.langchain4j.agent.tool.ToolExecutionRequest;
 import dev.langchain4j.data.message.AiMessage;
+import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.memory.ChatMemory;
 import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
 import dev.langchain4j.model.output.Response;
@@ -38,15 +39,15 @@ class JsonschemaFunctionCallStreamingResponseHandler extends FunctionCallStreami
         this.jsonschemaClass = jsonschemaClass;
     }
 
-    JsonschemaFunctionCallStreamingResponseHandler(JsonschemaFunctionCallStreamingResponseHandler parent) {
-        super(parent);
+    JsonschemaFunctionCallStreamingResponseHandler(JsonschemaFunctionCallStreamingResponseHandler parent, List<ChatMessage> messageList) {
+        super(parent, messageList);
         this.jsonschemaClass = parent.jsonschemaClass;
     }
 
     @Override
-    protected FunctionCallStreamingResponseHandler fork(FunctionCallStreamingResponseHandler parent) {
+    protected FunctionCallStreamingResponseHandler fork(FunctionCallStreamingResponseHandler parent, List<ChatMessage> messageList) {
         JsonschemaFunctionCallStreamingResponseHandler h = (JsonschemaFunctionCallStreamingResponseHandler) parent;
-        return new JsonschemaFunctionCallStreamingResponseHandler(h);
+        return new JsonschemaFunctionCallStreamingResponseHandler(h, messageList);
     }
 
     @Override

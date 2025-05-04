@@ -168,6 +168,11 @@ class StreamingRequestExecutor<Request, Response, ResponseContent> {
                             public void write(byte[] b, int off, int len) throws IOException {
                                 bufferedSink.write(b, off, len);
                             }
+
+                            @Override
+                            public void flush() throws IOException {
+                                bufferedSink.flush();
+                            }
                         }, request);
                     }
                 })

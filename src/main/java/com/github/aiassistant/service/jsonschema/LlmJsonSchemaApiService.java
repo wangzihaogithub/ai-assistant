@@ -200,8 +200,7 @@ public class LlmJsonSchemaApiService {
                 .computeIfAbsent(type, k -> {
                     AiModel[] arrays = new AiModel[schemaInstanceCount];
                     for (int i = 0; i < arrays.length; i++) {
-                        AiModel aiModel = createJsonSchemaModel(apiKey, baseUrl, modelName, maxCompletionTokens, temperature, topP, responseFormat);
-                        arrays[i] = aiModel;
+                        arrays[i] = createJsonSchemaModel(apiKey, baseUrl, modelName, maxCompletionTokens, temperature, topP, responseFormat);
                     }
                     return arrays;
                 });

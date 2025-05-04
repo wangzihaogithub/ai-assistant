@@ -490,6 +490,18 @@ public class AiUtil {
         return list;
     }
 
+    public static String getLastUserQuestion(List<ChatMessage> historyList) {
+        if (historyList != null && !historyList.isEmpty()) {
+            for (int i = historyList.size() - 1; i >= 0; i--) {
+                ChatMessage message = historyList.get(i);
+                if (message instanceof UserMessage) {
+                    return userMessageToString((UserMessage) message);
+                }
+            }
+        }
+        return null;
+    }
+
     public static String userMessageToString(UserMessage userMessage) {
         if (userMessage == null) {
             return null;

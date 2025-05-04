@@ -63,8 +63,9 @@ public class SseEmitterResponseHandler implements ChatStreamingResponseHandler {
         Map<String, Object> errorMap = new HashMap<>();
         errorMap.put("errorType", errorType);
         errorMap.put("error", error);
+        errorMap.put("finishReason", "API_ERROR");
         emitter.send(null, "api-error", errorMap);
-        emitter.send(null, "complete", Collections.singletonMap("finishReason", "API_ERROR"));
+        emitter.send(null, "complete", errorMap);
     }
 
     public Emitter getEmitter() {

@@ -151,16 +151,6 @@ public class LlmTextApiService {
         return Arrays.toString(keys);
     }
 
-    private static String getLastUserQuestion(List<ChatMessage> historyList) {
-        for (int i = historyList.size() - 1; i >= 0; i--) {
-            ChatMessage message = historyList.get(i);
-            if (message instanceof UserMessage) {
-                return AiUtil.userMessageToString((UserMessage) message);
-            }
-        }
-        return null;
-    }
-
     /**
      * 是否开启思考
      *
@@ -267,9 +257,9 @@ public class LlmTextApiService {
             int baseMessageIndex = historyList.size();//起始消息下标
             int addMessageCount = 1;// 为什么是1？因为第0个是内置的SystemMessage，所以至少要有一个。
             // 当前问题，如果是重新回答需要获取最后一次问题getLastUserQuestion
-            String lastQuestion = StringUtils.hasText(question) ? question : getLastUserQuestion(historyList);
+            String lastQuestion = StringUtils.hasText(question) ? question : AiUtil.getLastUserQuestion(historyList);
             if (!StringUtils.hasText(lastQuestion)) {
-                throw new QuestionEmptyException("user question is empty!");
+                throw new QuestionEmptyException("user question is empty!", historyList);
             }
             // 初始化
             mergeResponseHandler.onTokenBegin(baseMessageIndex, addMessageCount, 0);
@@ -404,6 +394,7 @@ public class LlmTextApiService {
                         // ToolCallStreamingResponseHandler
                         FunctionCallStreamingResponseHandler handler;
                         try {
+                            // 构造出支持工具调用的回调函数(对接底层模型)
                             handler = newFunctionCallStreamingResponseHandler(
                                     classifyListVO,
                                     assistantConfig,
@@ -424,6 +415,7 @@ public class LlmTextApiService {
                                     reasoning
                             );
                         } catch (AssistantConfigException | FewshotConfigException e) {
+                            // 智能体配置异常 ｜ 少样本提示异常
                             handlerFuture.completeExceptionally(e);
                             responseHandler.onError(e, baseMessageIndex, addMessageCount, 0);
                             return;
@@ -506,6 +498,30 @@ public class LlmTextApiService {
         return null;
     }
 
+    /**
+     * 构造出支持工具调用的回调函数(对接底层模型)
+     *
+     * @param classifyListVO      问题分类
+     * @param assistantConfig     智能体配置
+     * @param mstatePromptText    in context learning的记忆提示词
+     * @param knPromptText        in context learning的知识库提示词
+     * @param user                当前用户
+     * @param variables           提示词内可引用的变量
+     * @param qaKnVOList          问答RAG出的结果
+     * @param repository          持久化生成过程中的数据
+     * @param question            用户本次的提问内容
+     * @param memoryId            记忆ID
+     * @param responseHandler     事件回调函数
+     * @param lastQuestion        用户最后一次的提问内容
+     * @param historyList         记忆中的聊天记录
+     * @param rootAddMessageCount 历史中聊天总条数
+     * @param baseMessageIndex    历史中聊天根下标
+     * @param websearch           是否需要联网
+     * @param reasoning           是否需要思考
+     * @return 回调函数(对接底层模型)
+     * @throws AssistantConfigException 智能体配置出现错误
+     * @throws FewshotConfigException   少样本提示异常
+     */
     private FunctionCallStreamingResponseHandler newFunctionCallStreamingResponseHandler(
             QuestionClassifyListVO classifyListVO,
             AssistantConfig assistantConfig,
@@ -568,11 +584,28 @@ public class LlmTextApiService {
         AiModel aiModel = memoryId.indexAt(getModels(assistantConfig));
         // 可用工具集
         List<Tools.ToolMethod> toolMethodList = AiUtil.initTool(aiToolService.selectToolMethodList(StringUtils.split(assistantConfig.getAiToolIds(), ",")), variables, user);
-        // 处理异步回调
-        return new FunctionCallStreamingResponseHandler(aiModel.modelName, aiModel.streaming, chatMemory, responseHandler,
-                llmJsonSchemaApiService, toolMethodList, aiModel.isSupportChineseToolName(),
-                baseMessageIndex, addMessageCount, classifyListVO.getReadTimeoutMs(),
-                classifyListVO, websearch, reasoning, threadPoolTaskExecutor);
+        // 构造出支持工具调用的回调函数(对接底层模型) 处理异步回调
+        return new FunctionCallStreamingResponseHandler(
+                // 模型名称，流模型，聊天记忆，业务回调钩子
+                aiModel.modelName, aiModel.streaming, chatMemory, responseHandler,
+                llmJsonSchemaApiService,
+                // 工具集合，
+                toolMethodList,
+                // 是否支持中文工具名称（因为deepseek仅支持英文名称）
+                aiModel.isSupportChineseToolName(),
+                // 消息下标
+                baseMessageIndex, addMessageCount,
+                // 读取超时时间
+                classifyListVO.getReadTimeoutMs(),
+                // 问题分类
+                classifyListVO,
+                // 是否需要联网
+                websearch,
+                // 是否需要思考
+                reasoning,
+                // 切换新线程，用于退出Okhttp的事件循环线程，
+                // 防止在Okhttp的AI回复后，仍需要再次请求。这样会导致事件循环线程中又触发调用，导致阻塞父事件循环。
+                threadPoolTaskExecutor);
     }
 
     private CompletableFuture<ActingService.Plan> reasoningAndActing(CompletableFuture<List<List<QaKnVO>>> knnFuture,
@@ -776,6 +809,7 @@ public class LlmTextApiService {
      * @param variables       variables
      * @param assistantConfig assistantConfig
      * @return 系统提示词
+     * @throws AssistantConfigException system_prompt 异常
      */
     private SystemMessage buildSystemMessage(String promptText,
                                              ChatStreamingResponseHandler responseHandler,

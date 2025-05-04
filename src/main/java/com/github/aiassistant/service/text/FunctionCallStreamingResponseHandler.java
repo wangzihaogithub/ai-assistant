@@ -77,6 +77,7 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
     private final Boolean websearch;
     private final Boolean reasoning;
     private final AtomicBoolean generate = new AtomicBoolean(false);
+    private final List<ChatMessage> messageList;
     private Tools.ParamValidationResult validationResult;
     private Response<AiMessage> lastResponse;
     private volatile long lastReadTimestamp;
@@ -150,10 +151,11 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
         this.websearch = websearch;
         this.reasoning = reasoning;
         this.addMessageCount = new AtomicInteger(addMessageCount);
+        this.messageList = null;
         this.generateRemaining = MAX_GENERATE_COUNT;
     }
 
-    protected FunctionCallStreamingResponseHandler(FunctionCallStreamingResponseHandler parent) {
+    protected FunctionCallStreamingResponseHandler(FunctionCallStreamingResponseHandler parent, List<ChatMessage> messageList) {
         this.readTimeoutMs = parent.readTimeoutMs;
         this.modelName = parent.modelName;
         this.memoryId = parent.memoryId;
@@ -178,6 +180,7 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
         this.enableThinking = parent.enableThinking;
         this.thinkingBudget = parent.thinkingBudget;
         this.searchOptions = parent.searchOptions;
+        this.messageList = messageList;
     }
 
     /**
@@ -186,8 +189,8 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
      * @param parent 上一个回掉逻辑
      * @return 下一个回掉逻辑
      */
-    protected FunctionCallStreamingResponseHandler fork(FunctionCallStreamingResponseHandler parent) {
-        return new FunctionCallStreamingResponseHandler(parent);
+    protected FunctionCallStreamingResponseHandler fork(FunctionCallStreamingResponseHandler parent, List<ChatMessage> messageList) {
+        return new FunctionCallStreamingResponseHandler(parent, messageList);
     }
 
     /**
@@ -205,12 +208,16 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
             return;
         }
         // 解构异常
-        Throwable rootError = error instanceof CompletionException ? error.getCause() : error;
+        Throwable rootError = error;
+        while (rootError instanceof CompletionException) {
+            rootError = rootError.getCause();
+        }
         AiAssistantException assistantException;
         if (rootError instanceof AiAssistantException) {
             assistantException = (AiAssistantException) rootError;
         } else {
-            assistantException = new ModelApiGenerateException(String.format("llm generate error! %s , %s", name(), rootError), error, modelName);
+            String lastUserQuestion = AiUtil.getLastUserQuestion(messageList);
+            assistantException = new ModelApiGenerateException(String.format("llm generate error! lastUserQuestion = '%s', %s , %s", lastUserQuestion, name(), rootError), error, modelName, memoryId, messageList);
         }
         // 读标记为完成
         this.lastReadTimestamp = READ_DONE;
@@ -458,8 +465,7 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
     private void executeToolsCall(List<ResultToolExecutor> toolExecutors, CompletableFuture<Response<AiMessage>> future) {
         // 执行
         for (ResultToolExecutor executor : toolExecutors) {
-            executor.execute();
-            executor.whenComplete(new BiConsumer<ToolExecutionResultMessage, Throwable>() {
+            executor.execute().whenComplete(new BiConsumer<ToolExecutionResultMessage, Throwable>() {
                 @Override
                 public void accept(ToolExecutionResultMessage toolExecutionResultMessage, Throwable throwable) {
                     bizHandler.onAfterToolCalls(executor.getRequest(), toolExecutionResultMessage, throwable);
@@ -492,9 +498,9 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
         if (generateRemaining <= 0) {
             return CompletableFuture.completedFuture(false);
         }
-        if (tools.isEmpty()) {
-            return CompletableFuture.completedFuture(false);
-        }
+//        if (tools.isEmpty()) {
+//            return CompletableFuture.completedFuture(false);
+//        }
         String aiText = response.content().text();
         if (!StringUtils.hasText(aiText)) {
             return CompletableFuture.completedFuture(false);
@@ -580,7 +586,7 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
             // 过滤重复消息
             List<ChatMessage> messageList = AiUtil.beforeGenerate(chatMemory.messages());
             // 创建下一次请求的回掉逻辑，递归（如果需要继续生成）拉一条链表
-            FunctionCallStreamingResponseHandler fork = fork(this);
+            FunctionCallStreamingResponseHandler fork = fork(this, messageList);
             // request请求聊天大模型
             executor.execute(() -> chatModel.request(messageList, list, fork,
                     enableSearch, searchOptions, enableThinking, thinkingBudget, modalities));
