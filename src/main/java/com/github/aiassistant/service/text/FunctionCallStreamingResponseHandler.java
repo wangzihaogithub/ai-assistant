@@ -555,6 +555,21 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
     }
 
     /**
+     * 获取模型生成次数
+     *
+     * @return 模型生成次数
+     */
+    public int getGenerateCount() {
+        int count = 0;
+        FunctionCallStreamingResponseHandler handler = this;
+        while (handler != null && handler.generate.get()) {
+            handler = handler.parent;
+            count++;
+        }
+        return count;
+    }
+
+    /**
      * 构造出：多个工具执行器
      *
      * @param toolExecutionRequests 工具请求

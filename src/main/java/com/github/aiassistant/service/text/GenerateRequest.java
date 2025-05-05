@@ -2,7 +2,7 @@ package com.github.aiassistant.service.text;
 
 import com.github.aiassistant.util.AiUtil;
 import dev.langchain4j.agent.tool.ToolSpecification;
-import dev.langchain4j.data.message.ChatMessage;
+import dev.langchain4j.data.message.*;
 
 import java.util.List;
 import java.util.Map;
@@ -218,6 +218,54 @@ public class GenerateRequest implements Cloneable {
     }
 
     /**
+     * 最后一条消息是否（工具结果）
+     *
+     * @return true=工具结果
+     */
+    public boolean isLastToolExecutionResultMessage() {
+        if (messageList == null || messageList.isEmpty()) {
+            return false;
+        }
+        return messageList.get(messageList.size() - 1) instanceof ToolExecutionResultMessage;
+    }
+
+    /**
+     * 最后一条消息是否（AI消息）
+     *
+     * @return true=AI消息
+     */
+    public boolean isLastAiMessage() {
+        if (messageList == null || messageList.isEmpty()) {
+            return false;
+        }
+        return messageList.get(messageList.size() - 1) instanceof AiMessage;
+    }
+
+    /**
+     * 最后一条消息是否（用户消息）
+     *
+     * @return true=用户消息
+     */
+    public boolean isLastUserMessage() {
+        if (messageList == null || messageList.isEmpty()) {
+            return false;
+        }
+        return messageList.get(messageList.size() - 1) instanceof UserMessage;
+    }
+
+    /**
+     * 最后一条消息是否（系统消息）
+     *
+     * @return true=系统消息
+     */
+    public boolean isLastSystemMessage() {
+        if (messageList == null || messageList.isEmpty()) {
+            return false;
+        }
+        return messageList.get(messageList.size() - 1) instanceof SystemMessage;
+    }
+
+    /**
      * 克隆一个新的对象
      *
      * @return 新的对象
@@ -227,8 +275,8 @@ public class GenerateRequest implements Cloneable {
         try {
             GenerateRequest clone = (GenerateRequest) super.clone();
             return clone;
-        } catch (CloneNotSupportedException ignored) {
-            return null;
+        } catch (CloneNotSupportedException e) {
+            throw new IllegalStateException(e.toString(), e);
         }
     }
 
