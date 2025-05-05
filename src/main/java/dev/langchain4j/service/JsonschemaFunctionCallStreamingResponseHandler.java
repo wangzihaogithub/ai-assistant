@@ -44,7 +44,7 @@ class JsonschemaFunctionCallStreamingResponseHandler extends FunctionCallStreami
     }
 
     @Override
-    protected FunctionCallStreamingResponseHandler fork(FunctionCallStreamingResponseHandler parent) {
+    protected FunctionCallStreamingResponseHandler copy(FunctionCallStreamingResponseHandler parent) {
         return new JsonschemaFunctionCallStreamingResponseHandler((JsonschemaFunctionCallStreamingResponseHandler) parent);
     }
 

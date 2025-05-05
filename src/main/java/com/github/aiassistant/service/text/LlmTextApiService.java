@@ -152,14 +152,14 @@ public class LlmTextApiService {
     }
 
     /**
-     * 是否开启思考
+     * 结合整体判断是否开启思考
      *
-     * @param reasoning        reasoning
-     * @param assistantConfig  assistantConfig
-     * @param knPromptText     knPromptText
-     * @param mstatePromptText mstatePromptText
-     * @param lastQuery        lastQuery
-     * @return 开启思考
+     * @param reasoning        是否需要思考
+     * @param assistantConfig  智能体配置
+     * @param knPromptText     in context learning的知识库提示词
+     * @param mstatePromptText in context learning的记忆提示词
+     * @param lastQuery        用户最后一次的提问内容
+     * @return true=结合整体判断是否开启思考
      */
     private static boolean isEnableReasoning(Boolean reasoning, AssistantConfig assistantConfig, String knPromptText, String mstatePromptText, String lastQuery) {
         return Boolean.TRUE.equals(reasoning)
@@ -168,14 +168,14 @@ public class LlmTextApiService {
     }
 
     /**
-     * 是否开启联网
+     * 结合整体判断是否开启联网
      *
-     * @param websearch        websearch
-     * @param assistantConfig  assistantConfig
-     * @param knPromptText     knPromptText
-     * @param mstatePromptText mstatePromptText
-     * @param lastQuery        lastQuery
-     * @return 是否开启联网
+     * @param websearch        是否需要联网
+     * @param assistantConfig  智能体配置
+     * @param knPromptText     in context learning的知识库提示词
+     * @param mstatePromptText in context learning的记忆提示词
+     * @param lastQuery        用户最后一次的提问内容
+     * @return true=结合整体判断是否开启联网
      */
     private static boolean isEnableWebSearch(Boolean websearch, AssistantConfig assistantConfig, String knPromptText, String mstatePromptText, String lastQuery) {
         return Boolean.TRUE.equals(websearch)
@@ -186,16 +186,16 @@ public class LlmTextApiService {
     /**
      * 提问报错了
      *
-     * @param e               异常
-     * @param memoryId        memoryId
-     * @param responseHandler responseHandler
+     * @param error           异常
+     * @param memoryId        记忆ID
+     * @param responseHandler 事件回调函数
      * @return 持久化异常
      */
-    private static CompletableFuture<FunctionCallStreamingResponseHandler> questionError(Throwable e, MemoryIdVO memoryId, ChatStreamingResponseHandler responseHandler) {
+    private static CompletableFuture<FunctionCallStreamingResponseHandler> questionError(Throwable error, MemoryIdVO memoryId, ChatStreamingResponseHandler responseHandler) {
         CompletableFuture<FunctionCallStreamingResponseHandler> handlerFuture = new CompletableFuture<>();
-        handlerFuture.completeExceptionally(e);
-        responseHandler.onError(e, 0, 0, 0);
-        log.error("llm questionError chatId {}, error {}", memoryId.getChatId(), e.toString(), e);
+        handlerFuture.completeExceptionally(error);
+        responseHandler.onError(error, 0, 0, 0);
+        log.error("llm questionError chatId {}, error {}", memoryId.getChatId(), error.toString(), error);
         return handlerFuture;
     }
 
@@ -224,16 +224,16 @@ public class LlmTextApiService {
     }
 
     /**
-     * 提问
+     * 向AI发起提问
      *
-     * @param user            user
-     * @param repository      repository
-     * @param question        question
-     * @param websearch       websearch
-     * @param reasoning       reasoning
-     * @param memoryId        memoryId
-     * @param responseHandler userResponseHandler
-     * @return 提问结果
+     * @param user            当前用户
+     * @param repository      持久化生成过程中的数据
+     * @param question        用户本次的提问内容
+     * @param websearch       是否需要联网（应用层面的实现，非供应商提供的）
+     * @param reasoning       是否需要思考（应用层面的实现，非供应商提供的）
+     * @param memoryId        记忆ID
+     * @param responseHandler 事件回调函数
+     * @return 构造出支持工具调用的回调函数(对接底层模型)
      */
     public CompletableFuture<FunctionCallStreamingResponseHandler> question(AiAccessUserVO user,
                                                                             SessionMessageRepository repository,
@@ -252,8 +252,7 @@ public class LlmTextApiService {
             llmJsonSchemaApiService.putSessionHandler(memoryId, websearch, reasoning, mergeResponseHandler, user);
 
             // 历史记录
-            Collection<ChatMessage> hl = repository.getHistoryList();
-            List<ChatMessage> historyList = AiUtil.removeSystemMessage(hl);
+            List<ChatMessage> historyList = AiUtil.removeSystemMessage(repository.getHistoryList());
             int baseMessageIndex = historyList.size();//起始消息下标
             int addMessageCount = 1;// 为什么是1？因为第0个是内置的SystemMessage，所以至少要有一个。
             // 当前问题，如果是重新回答需要获取最后一次问题getLastUserQuestion
@@ -269,7 +268,12 @@ public class LlmTextApiService {
             llmJsonSchemaApiService.putSessionVariables(memoryId, variables);
             // 进行问题分类
             CompletableFuture<QuestionClassifyListVO> classifyFuture = aiQuestionClassifyService.classify(lastQuestion, memoryId);
-            // 构建
+            // 问题分类报错
+            classifyFuture.exceptionally(throwable -> {
+                mergeResponseHandler.onError(throwable, baseMessageIndex, addMessageCount, 0);
+                return null;
+            });
+            // buildHandler 构造出支持工具调用的回调函数(对接底层模型)
             CompletableFuture<CompletableFuture<FunctionCallStreamingResponseHandler>> f = classifyFuture
                     .thenApply(c -> buildHandler(c, user, repository, question, websearch,
                             reasoning, memoryId, mergeResponseHandler, historyList, baseMessageIndex, addMessageCount, lastQuestion, variables));
@@ -278,7 +282,7 @@ public class LlmTextApiService {
                     // 完毕后删除JsonSchema的本地记忆
                     .whenComplete((handler, throwable) -> removeJsonSchemaSession(handler, throwable, memoryId));
         } catch (Throwable e) {
-            // 提问报错了
+            // 提问报错了，删除JsonSchema的本地记忆
             removeJsonSchemaSession(null, e, memoryId);
             return questionError(e, memoryId, responseHandler);
         }
@@ -287,9 +291,9 @@ public class LlmTextApiService {
     /**
      * 完毕后删除JsonSchema的本地记忆
      *
-     * @param handler   handler
-     * @param throwable throwable
-     * @param memoryId  memoryId
+     * @param handler   构造出支持工具调用的回调函数(对接底层模型)
+     * @param throwable 异常
+     * @param memoryId  记忆ID
      */
     private void removeJsonSchemaSession(FunctionCallStreamingResponseHandler handler, Throwable throwable, MemoryIdVO memoryId) {
         if (handler == null || throwable != null) {
@@ -300,22 +304,22 @@ public class LlmTextApiService {
     }
 
     /**
-     * 构建
+     * 构造出支持工具调用的回调函数(对接底层模型)
      *
-     * @param classifyListVO   classifyListVO
-     * @param user             user
-     * @param repository       repository
-     * @param question         question
-     * @param websearch        websearch
-     * @param reasoning        reasoning
-     * @param memoryId         memoryId
-     * @param responseHandler  responseHandler
-     * @param historyList      historyList
-     * @param baseMessageIndex baseMessageIndex
-     * @param addMessageCount  addMessageCount
-     * @param lastQuestion     lastQuestion
-     * @param variables        variables
-     * @return 构建结果
+     * @param classifyListVO   问题分类
+     * @param user             当前用户
+     * @param repository       持久化生成过程中的数据
+     * @param question         用户本次的提问内容
+     * @param websearch        是否需要联网
+     * @param reasoning        是否需要思考
+     * @param memoryId         记忆ID
+     * @param responseHandler  事件回调函数
+     * @param historyList      记忆中的聊天记录
+     * @param baseMessageIndex 历史中聊天根下标
+     * @param addMessageCount  本次添加了几条消息
+     * @param lastQuestion     用户最后一次的提问内容
+     * @param variables        提示词内可引用的变量
+     * @return 回调函数(对接底层模型)
      */
     private CompletableFuture<FunctionCallStreamingResponseHandler> buildHandler(
             QuestionClassifyListVO classifyListVO,
@@ -333,35 +337,43 @@ public class LlmTextApiService {
             AiVariables variables) {
         CompletableFuture<FunctionCallStreamingResponseHandler> handlerFuture = new CompletableFuture<>();
         try {
+            // 将问题分类绑定至会话
             llmJsonSchemaApiService.putSessionQuestionClassify(memoryId, classifyListVO);
-
+            // 选择智能体（2选1）
             AssistantConfig assistantConfig = AssistantConfig.select(memoryId.getAiAssistant(), classifyListVO.getClassifyAssistant());
+            // in context learning的知识库提示词
             String knPromptText = assistantConfig.getKnPromptText();
+            // in context learning的记忆提示词
             String mstatePromptText = assistantConfig.getMstatePromptText();
 
             // 问题分类完成通知
             responseHandler.onQuestionClassify(classifyListVO, lastQuestion, variables);
+            // 分类结果放到全局提示词变量中
             aiVariablesService.setterQuestionClassifyResult(variables.getQuestionClassify(), classifyListVO.getClassifyResult());
-            int historySumLength = AiUtil.sumLength(historyList);
 
             // 准备就绪后，是否需要中断后续流程
             Collection<LlmTextApiServiceIntercept> intercepts = interceptList.get();
+            // 用户代码是否需要拦截持久化
             Function<FunctionCallStreamingResponseHandler, CompletableFuture<Void>> interceptRepository =
                     interceptRepository(user, memoryId, classifyListVO, variables, websearch, reasoning, responseHandler, historyList, question, lastQuestion, intercepts);
+            // 用户代码是否需要拦截提问
             Function<FunctionCallStreamingResponseHandler, CompletableFuture<Void>> interceptQuestion =
                     interceptRepository == null ?
                             interceptQuestion(user, memoryId, classifyListVO, variables, websearch, reasoning, responseHandler, historyList, question, lastQuestion, intercepts) : null;
+            // 用户代码是否提出了需要拦截
             boolean interrupt = interceptRepository != null || interceptQuestion != null;
 
             // 1.联网搜索
             CompletableFuture<String> webSearchResult;
             if (!interrupt && classifyListVO.isJdlw() && isEnableWebSearch(websearch, assistantConfig, knPromptText, mstatePromptText, lastQuestion)) {
-                int maxCharLength = assistantConfig.getMaxMemoryTokens() - historySumLength;
-                CompletableFuture<CompletableFuture<WebSearchResultVO>> wf =
-                        webSearchService.webSearchRead(lastQuestion, 1, maxCharLength, false, responseHandler.adapterWebSearch(AiWebSearchSourceEnum.LlmTextApiService)).thenApply(s -> {
-                            return s.isEmpty() ? CompletableFuture.completedFuture(s) : reduceWebSearch(Collections.singletonList(s), lastQuestion, memoryId, maxSimpleWebSearch);
-                        });
-                webSearchResult = FutureUtil.allOf(wf).thenApply(resultVO -> {
+                // 剩余可用字数
+                int maxCharLength = assistantConfig.getMaxMemoryTokens() - AiUtil.sumLength(historyList);
+                // 联网
+                CompletableFuture<CompletableFuture<WebSearchResultVO>> webSearchFuture = webSearchService.webSearchRead(lastQuestion, 1, maxCharLength, false, responseHandler.adapterWebSearch(AiWebSearchSourceEnum.LlmTextApiService)).thenApply(s -> {
+                    return s.isEmpty() ? CompletableFuture.completedFuture(s) : reduceWebSearch(Collections.singletonList(s), lastQuestion, memoryId, maxSimpleWebSearch);
+                });
+                // 联网后放入全局提示词变量
+                webSearchResult = FutureUtil.allOf(webSearchFuture).thenApply(resultVO -> {
                     String xmlString = AiUtil.toAiXmlString(lastQuestion, WebSearchResultVO.toSimpleAiString(resultVO));
                     variables.getKn().setWebSearchResult(xmlString);
                     return xmlString;
@@ -371,15 +383,16 @@ public class LlmTextApiService {
             }
             // 2.查询知识库
             CompletableFuture<List<List<QaKnVO>>> knnFuture = classifyListVO.isQa() ? selectKnList(assistantConfig, knPromptText, memoryId.getAssistantKnList(AiAssistantKnTypeEnum.qa), lastQuestion) : CompletableFuture.completedFuture(Collections.emptyList());
-            // 3.思考
+            // 3.思考并行动
             CompletableFuture<ActingService.Plan> reasoningResultFuture;
             boolean reasoningAndActing = !interrupt && classifyListVO.isWtcj() && isEnableReasoning(reasoning, assistantConfig, knPromptText, mstatePromptText, lastQuestion);
+            // 是否需要思考并行动的事件通知
+            responseHandler.onBeforeReasoningAndActing(reasoningAndActing);
             if (reasoningAndActing) {
                 reasoningResultFuture = reasoningAndActing(knnFuture, webSearchResult, lastQuestion, memoryId, reasoningAndActingParallel, responseHandler, websearch, classifyListVO);
             } else {
                 reasoningResultFuture = CompletableFuture.completedFuture(null);
             }
-            responseHandler.onBeforeReasoningAndActing(reasoningAndActing);
 
             // 等待结果
             FutureUtil.allOf(webSearchResult, knnFuture, reasoningResultFuture)
@@ -608,13 +621,27 @@ public class LlmTextApiService {
                 threadPoolTaskExecutor);
     }
 
+    /**
+     * 思考并行动
+     *
+     * @param knnFuture       问答RAG出的结果
+     * @param webSearchResult 联网搜索结果
+     * @param lastQuestion    用户最后一次的提问内容
+     * @param memoryIdVO      记忆ID
+     * @param parallel        是否并行执行，思考的子问题（注：并行不能携带上一个子问题的执行结果,如果子问题需要依赖上一个子问题的执行结果，需要改为false）
+     * @param responseHandler 事件回调函数
+     * @param websearch       是否需要联网
+     * @param classifyListVO  问题分类
+     * @return 思考并行动的结果
+     */
     private CompletableFuture<ActingService.Plan> reasoningAndActing(CompletableFuture<List<List<QaKnVO>>> knnFuture,
                                                                      CompletableFuture<String> webSearchResult,
-                                                                     String question, MemoryIdVO memoryIdVO,
+                                                                     String lastQuestion, MemoryIdVO memoryIdVO,
                                                                      boolean parallel,
                                                                      ChatStreamingResponseHandler responseHandler,
                                                                      Boolean websearch,
                                                                      QuestionClassifyListVO classifyListVO) {
+        // 思考并行动（等问答RAG出结果后再开始）
         CompletableFuture<CompletableFuture<ActingService.Plan>> future = knnFuture
                 .handle((qaList, throwable) -> {
                     if (throwable != null) {
@@ -622,13 +649,16 @@ public class LlmTextApiService {
                     } else if (qaList != null && !qaList.isEmpty()) {
                         return CompletableFuture.completedFuture(null);
                     } else {
-                        responseHandler.onBeforeReasoning(question, parallel);
+                        // 事件通知
+                        responseHandler.onBeforeReasoning(lastQuestion, parallel);
                         ReasoningJsonSchema.Result[] result0 = new ReasoningJsonSchema.Result[1];
                         CompletableFuture<CompletableFuture<CompletableFuture<ActingService.Plan>>> f =
-                                webSearchResult.thenApply(s -> reasoningService.makePlan(question, memoryIdVO)
+                                // 制作一份计划(联网搜索后再开始)
+                                webSearchResult.thenApply(s -> reasoningService.makePlan(lastQuestion, memoryIdVO)
                                         .thenApply(result -> {
+                                            // 事件通知
                                             if (result != null) {
-                                                responseHandler.onReasoning(question, result);
+                                                responseHandler.onReasoning(lastQuestion, result);
                                             }
                                             result0[0] = result;
                                             return result;
@@ -637,8 +667,8 @@ public class LlmTextApiService {
                                             ActingService.Plan plan = actingService.toPlan(result);
                                             // 开联网 并且【多层联网】判断原问题是否需要联网
                                             if (Boolean.TRUE.equals(websearch) && classifyListVO.isDclw()) {
-                                                // 执行子问题
-                                                return actingService.executeTask(plan, question, memoryIdVO, parallel, responseHandler, classifyListVO.isLwdd());
+                                                // 根据计划，执行子问题
+                                                return actingService.executeTask(plan, lastQuestion, memoryIdVO, parallel, responseHandler, classifyListVO.isLwdd());
                                             } else {
                                                 return CompletableFuture.completedFuture(plan);
                                             }
@@ -647,24 +677,29 @@ public class LlmTextApiService {
                                 .thenApply(plan -> {
                                     if (plan != null) {
                                         try {
+                                            // 联网合并
                                             List<WebSearchResultVO> flattedWebSearchResult = plan.flatWebSearchResult();
+                                            // 事件通知
                                             responseHandler.onBeforeWebSearchReduce(flattedWebSearchResult);
-                                            CompletableFuture<WebSearchResultVO> reduce = reduceWebSearch(flattedWebSearchResult, question, memoryIdVO, maxActingWebSearch);
+                                            CompletableFuture<WebSearchResultVO> reduce = reduceWebSearch(flattedWebSearchResult, lastQuestion, memoryIdVO, maxActingWebSearch);
                                             CompletableFuture<ActingService.Plan> planFuture = new CompletableFuture<>();
                                             reduce.whenComplete((resultVO, throwable1) -> {
                                                 if (throwable1 == null && resultVO != null) {
                                                     plan.setReduceWebSearchResult(resultVO);
                                                 }
+                                                // 事件通知
                                                 responseHandler.onAfterWebSearchReduce(flattedWebSearchResult, resultVO);
-                                                responseHandler.onAfterReasoning(question, plan, result0[0], parallel);
+                                                responseHandler.onAfterReasoning(lastQuestion, plan, result0[0], parallel);
+                                                // 完成
                                                 planFuture.complete(plan);
                                             });
                                             return planFuture;
                                         } catch (Exception e) {
-                                            log.error("WebsearchReduceJsonSchema fail. question={}, chatId={}, error={}", question, memoryIdVO.getChatId(), e.toString(), e);
+                                            log.error("WebsearchReduceJsonSchema fail. question={}, chatId={}, error={}", lastQuestion, memoryIdVO.getChatId(), e.toString(), e);
                                         }
                                     }
-                                    responseHandler.onAfterReasoning(question, plan, result0[0], parallel);
+                                    // 事件通知
+                                    responseHandler.onAfterReasoning(lastQuestion, plan, result0[0], parallel);
                                     return CompletableFuture.completedFuture(plan);
                                 });
                         return FutureUtil.allOf(f1);

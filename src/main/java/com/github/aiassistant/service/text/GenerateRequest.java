@@ -23,7 +23,7 @@ public class GenerateRequest implements Cloneable {
      */
     List<ToolSpecification> toolSpecificationList;
     /**
-     * 开启联网搜索的参数
+     * 开启联网搜索的参数（供应商提供的实现）
      */
     private Boolean enableSearch;
     /**
@@ -38,7 +38,8 @@ public class GenerateRequest implements Cloneable {
      */
     private Map<String, Object> searchOptions;
     /**
-     * # 是否开启思考模式，适用于 Qwen3 模型。
+     * # 是否开启思考模式（供应商提供的实现）
+     * 适用于 Qwen3 模型。
      * Qwen3 商业版模型默认值为 False，Qwen3 开源版模型默认值为 True。
      */
     private Boolean enableThinking;

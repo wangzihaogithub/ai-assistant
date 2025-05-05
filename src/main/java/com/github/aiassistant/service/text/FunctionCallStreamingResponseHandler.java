@@ -87,6 +87,9 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
      * 自动确认的内容
      */
     private String confirmToolCall = "ok";
+    /**
+     * 向供应商发起请求前的回调钩子，可用于请求前填充参数
+     */
     private BiConsumer<FunctionCallStreamingResponseHandler, GenerateRequest> beforeRequestConsumer;
 
     public FunctionCallStreamingResponseHandler(String modelName, OpenAiStreamingChatModel chatModel,
@@ -145,6 +148,7 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
         this.generateRemaining = parent.generateRemaining - 1;
         this.validationResult = parent.validationResult;
         this.lastResponse = parent.lastResponse;
+        this.beforeRequestConsumer = parent.beforeRequestConsumer;
         this.request = parent.request.clone();
     }
 
@@ -154,7 +158,7 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
      * @param parent 上一个回掉逻辑
      * @return 下一个回掉逻辑
      */
-    protected FunctionCallStreamingResponseHandler fork(FunctionCallStreamingResponseHandler parent) {
+    protected FunctionCallStreamingResponseHandler copy(FunctionCallStreamingResponseHandler parent) {
         return new FunctionCallStreamingResponseHandler(parent);
     }
 
@@ -506,32 +510,46 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
         addMessageCount.incrementAndGet();
     }
 
-    public FunctionCallStreamingResponseHandler beforeRequest(BiConsumer<FunctionCallStreamingResponseHandler, GenerateRequest> beforeRequestConsumer) {
-        this.beforeRequestConsumer = beforeRequestConsumer;
-        return this;
-    }
-
     /**
      * 生成AI回复
      *
      * @return 最终完成后，会异步触发
      */
     public CompletableFuture<Void> generate() {
+        return generate(beforeRequestConsumer);
+    }
+
+    /**
+     * 生成AI回复
+     *
+     * @param beforeRequestConsumer 向供应商发起请求前的回调钩子，可用于请求前填充参数
+     * @return 最终完成后，会异步触发
+     */
+    public CompletableFuture<Void> generate(BiConsumer<FunctionCallStreamingResponseHandler, GenerateRequest> beforeRequestConsumer) {
         // 如果没完成，且没请求过
         if (!isDone() && generate.compareAndSet(false, true)) {
-            // 过滤重复消息
-            request.messageList = new ArrayList<>(AiUtil.beforeGenerate(chatMemory.messages()));
-            // 工具
-            request.toolSpecificationList = toolMethodList.stream().map(e -> e.toRequest(isSupportChineseToolName)).collect(Collectors.toList());
-            // 用户可以自定义填充参数
-            BiConsumer<FunctionCallStreamingResponseHandler, GenerateRequest> beforeRequestConsumer = this.beforeRequestConsumer;
-            if (beforeRequestConsumer != null) {
-                beforeRequestConsumer.accept(this, request);
+            try {
+                // 过滤重复消息
+                request.messageList = new ArrayList<>(AiUtil.beforeGenerate(chatMemory.messages()));
+                // 工具
+                request.toolSpecificationList = toolMethodList.stream().map(e -> e.toRequest(isSupportChineseToolName)).collect(Collectors.toList());
+                // 用户可以自定义填充参数
+                if (beforeRequestConsumer != null) {
+                    beforeRequestConsumer.accept(this, request);
+                }
+                this.beforeRequestConsumer = beforeRequestConsumer;
+                executor.execute(() -> {
+                    try {
+                        // copy创建下一次请求的回掉逻辑，递归（如果需要继续生成）拉一条链表
+                        // request请求聊天大模型
+                        chatModel.request(copy(this), request);
+                    } catch (Exception e) {
+                        onError(e);
+                    }
+                });
+            } catch (Exception e) {
+                onError(e);
             }
-            // 创建下一次请求的回掉逻辑，递归（如果需要继续生成）拉一条链表
-            FunctionCallStreamingResponseHandler responseHandler = fork(this);
-            // request请求聊天大模型
-            executor.execute(() -> chatModel.request(responseHandler, request));
         }
         return this;
     }
