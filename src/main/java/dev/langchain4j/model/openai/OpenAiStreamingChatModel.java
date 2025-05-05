@@ -1,5 +1,6 @@
 package dev.langchain4j.model.openai;
 
+import com.github.aiassistant.service.text.GenerateRequest;
 import dev.ai4j.openai4j.OpenAiClient;
 import dev.ai4j.openai4j.ResponseHandle;
 import dev.ai4j.openai4j.chat.*;
@@ -202,49 +203,29 @@ public class OpenAiStreamingChatModel implements StreamingChatLanguageModel {
     /**
      * 生成AI回复
      *
-     * @param messages           由历史对话组成的消息列表。
-     * @param toolSpecifications 可供模型调用的工具数组，可以包含一个或多个工具对象。一次Function Calling流程模型会从中选择一个工具。
-     *                           目前不支持通义千问VL/Audio，也不建议用于数学和代码模型。
-     * @param handler            回掉函数
-     * @param enableSearch       # 开启联网搜索的参数
-     * @param searchOptions      search_options = {
-     *                           "forced_search": True, # 强制开启联网搜索
-     *                           "enable_source": True, # 使返回结果包含搜索来源的信息，OpenAI 兼容方式暂不支持返回
-     *                           "enable_citation": True, # 开启角标标注功能
-     *                           "citation_format":  # 角标形式为[ref_i]
-     *                           "search_strategy": "pro" # 模型将搜索10条互联网信息
-     *                           },
-     * @param enableThinking     # 是否开启思考模式，适用于 Qwen3 模型。
-     *                           Qwen3 商业版模型默认值为 False，Qwen3 开源版模型默认值为 True。
-     * @param thinkingBudget     参数设置最大推理过程 Token 数，不能超过供应商要求的最大思维链Token数：例：38912。两个参数对 QwQ 与 DeepSeek-R1 模型无效
-     * @param modalities         （可选）默认值为["text"]
-     *                           输出数据的模态，仅支持 Qwen-Omni 模型指定。可选值：
-     *                           ["text","audio"]：输出文本与音频；
-     *                           ["text"]：输出文本。
+     * @param handler 回掉函数
+     * @param request 供应商支持的接口参数
      * @return ResponseHandle 客户端取消处理
      */
-    public ResponseHandle request(List<ChatMessage> messages,
-                                  List<ToolSpecification> toolSpecifications,
-                                  StreamingResponseHandler<AiMessage> handler,
-                                  Boolean enableSearch,
-                                  Map<String, Object> searchOptions,
-                                  Boolean enableThinking,
-                                  Integer thinkingBudget,
-                                  List<String> modalities) {
+    public ResponseHandle request(StreamingResponseHandler<AiMessage> handler,
+                                  GenerateRequest request) {
+        List<ChatMessage> messages = request.getMessageList();
+        List<ToolSpecification> toolSpecifications = request.getToolSpecificationList();
+
         ChatCompletionRequest.Builder builder = requestBuilder.get();
-        builder.enableSearch(enableSearch);
-        builder.searchOptions(searchOptions);
-        builder.enableThinking(enableThinking);
-        builder.thinkingBudget(thinkingBudget);
-        builder.modalities(modalities);
+        builder.enableSearch(request.getEnableSearch());
+        builder.searchOptions(request.getSearchOptions());
+        builder.enableThinking(request.getEnableThinking());
+        builder.thinkingBudget(request.getThinkingBudget());
+        builder.modalities(request.getModalities());
         builder.messages(toOpenAiMessages(messages));
         if (toolSpecifications != null && !toolSpecifications.isEmpty()) {
             builder.tools(toTools(toolSpecifications, strictTools));
         }
 
-        ChatCompletionRequest request = builder.build();
+        ChatCompletionRequest completionRequest = builder.build();
 
-        ChatModelRequest modelListenerRequest = createModelListenerRequest(request, messages, toolSpecifications);
+        ChatModelRequest modelListenerRequest = createModelListenerRequest(completionRequest, messages, toolSpecifications);
         Map<Object, Object> attributes = new ConcurrentHashMap<>();
         ChatModelRequestContext requestContext = new ChatModelRequestContext(modelListenerRequest, attributes);
         listeners.forEach(listener -> {
@@ -259,7 +240,7 @@ public class OpenAiStreamingChatModel implements StreamingChatLanguageModel {
 
         AtomicReference<String> responseId = new AtomicReference<>();
         AtomicReference<String> responseModel = new AtomicReference<>();
-        return client.chatCompletion(request)
+        return client.chatCompletion(completionRequest)
                 .onPartialResponse(partialResponse -> {
                     handle(partialResponse, handler, responseBuilder);
                     responseBuilder.append(partialResponse);

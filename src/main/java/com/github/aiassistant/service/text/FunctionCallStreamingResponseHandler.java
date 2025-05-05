@@ -17,7 +17,6 @@ import com.github.aiassistant.util.AiUtil;
 import com.github.aiassistant.util.FutureUtil;
 import com.github.aiassistant.util.StringUtils;
 import dev.langchain4j.agent.tool.ToolExecutionRequest;
-import dev.langchain4j.agent.tool.ToolSpecification;
 import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.data.message.ToolExecutionResultMessage;
@@ -58,7 +57,6 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
     private final ChatMemory chatMemory;
     private final String modelName;
     private final OpenAiStreamingChatModel chatModel;
-    private final List<Tools> tools;
     private final List<Tools.ToolMethod> toolMethodList;
     private final FunctionCallStreamingResponseHandler parent;
     private final ChatStreamingResponseHandler bizHandler;
@@ -77,7 +75,10 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
     private final Boolean websearch;
     private final Boolean reasoning;
     private final AtomicBoolean generate = new AtomicBoolean(false);
-    private final List<ChatMessage> messageList;
+    /**
+     * 供应商支持的接口参数
+     */
+    private final GenerateRequest request;
     private Tools.ParamValidationResult validationResult;
     private Response<AiMessage> lastResponse;
     private volatile long lastReadTimestamp;
@@ -86,37 +87,7 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
      * 自动确认的内容
      */
     private String confirmToolCall = "ok";
-    /**
-     * 开启联网搜索的参数
-     */
-    private Boolean enableSearch;
-    /**
-     * 开启联网搜索的参数
-     * search_options = {
-     * "forced_search": True, # 强制开启联网搜索
-     * "enable_source": True, # 使返回结果包含搜索来源的信息，OpenAI 兼容方式暂不支持返回
-     * "enable_citation": True, # 开启角标标注功能
-     * "citation_format":  # 角标形式为[ref_i]
-     * "search_strategy": "pro" # 模型将搜索10条互联网信息
-     * },
-     */
-    private Map<String, Object> searchOptions;
-    /**
-     * # 是否开启思考模式，适用于 Qwen3 模型。
-     * Qwen3 商业版模型默认值为 False，Qwen3 开源版模型默认值为 True。
-     */
-    private Boolean enableThinking;
-    /**
-     * 参数设置最大推理过程 Token 数，不能超过供应商要求的最大思维链Token数：例：38912。两个参数对 QwQ 与 DeepSeek-R1 模型无效
-     */
-    private Integer thinkingBudget;
-    /**
-     * （可选）默认值为["text"]
-     * 输出数据的模态，仅支持 Qwen-Omni 模型指定。可选值：
-     * ["text","audio"]：输出文本与音频；
-     * ["text"]：输出文本。
-     */
-    private List<String> modalities;
+    private BiConsumer<FunctionCallStreamingResponseHandler, GenerateRequest> beforeRequestConsumer;
 
     public FunctionCallStreamingResponseHandler(String modelName, OpenAiStreamingChatModel chatModel,
                                                 ChatMemory chatMemory,
@@ -133,9 +104,8 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
                                                 Executor executor) {
         this.readTimeoutMs = readTimeoutMs;
         this.modelName = modelName;
-        this.tools = toolMethodList.stream().map(Tools.ToolMethod::tool).collect(Collectors.toList());
-        for (Tools tool : tools) {
-            tool.setStreamingResponseHandler(handler);
+        for (Tools.ToolMethod toolMethod : toolMethodList) {
+            toolMethod.tool().setStreamingResponseHandler(handler);
         }
         this.isSupportChineseToolName = isSupportChineseToolName;
         this.toolMethodList = toolMethodList;
@@ -149,17 +119,16 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
         this.baseMessageIndex = baseMessageIndex;
         this.classifyListVO = classifyListVO;
         this.websearch = websearch;
+        this.request = new GenerateRequest();
         this.reasoning = reasoning;
         this.addMessageCount = new AtomicInteger(addMessageCount);
-        this.messageList = null;
         this.generateRemaining = MAX_GENERATE_COUNT;
     }
 
-    protected FunctionCallStreamingResponseHandler(FunctionCallStreamingResponseHandler parent, List<ChatMessage> messageList) {
+    protected FunctionCallStreamingResponseHandler(FunctionCallStreamingResponseHandler parent) {
         this.readTimeoutMs = parent.readTimeoutMs;
         this.modelName = parent.modelName;
         this.memoryId = parent.memoryId;
-        this.tools = parent.tools;
         this.toolMethodList = parent.toolMethodList;
         this.isSupportChineseToolName = parent.isSupportChineseToolName;
         this.executor = parent.executor;
@@ -176,11 +145,7 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
         this.generateRemaining = parent.generateRemaining - 1;
         this.validationResult = parent.validationResult;
         this.lastResponse = parent.lastResponse;
-        this.enableSearch = parent.enableSearch;
-        this.enableThinking = parent.enableThinking;
-        this.thinkingBudget = parent.thinkingBudget;
-        this.searchOptions = parent.searchOptions;
-        this.messageList = messageList;
+        this.request = parent.request.clone();
     }
 
     /**
@@ -189,8 +154,8 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
      * @param parent 上一个回掉逻辑
      * @return 下一个回掉逻辑
      */
-    protected FunctionCallStreamingResponseHandler fork(FunctionCallStreamingResponseHandler parent, List<ChatMessage> messageList) {
-        return new FunctionCallStreamingResponseHandler(parent, messageList);
+    protected FunctionCallStreamingResponseHandler fork(FunctionCallStreamingResponseHandler parent) {
+        return new FunctionCallStreamingResponseHandler(parent);
     }
 
     /**
@@ -216,8 +181,11 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
         if (rootError instanceof AiAssistantException) {
             assistantException = (AiAssistantException) rootError;
         } else {
-            String lastUserQuestion = AiUtil.getLastUserQuestion(messageList);
-            assistantException = new ModelApiGenerateException(String.format("llm generate error! lastUserQuestion = '%s', %s , %s", lastUserQuestion, name(), rootError), error, modelName, memoryId, messageList);
+            Optional<List<ChatMessage>> messageList = Optional.ofNullable(parent).map(e -> e.request).map(GenerateRequest::getMessageList);
+            String lastUserQuestion = messageList.map(AiUtil::getLastUserQuestion).orElse(null);
+            assistantException = new ModelApiGenerateException(
+                    String.format("llm generate error! lastUserQuestion = '%s', %s , %s", lastUserQuestion, name(), rootError),
+                    error, modelName, memoryId, messageList.orElse(null));
         }
         // 读标记为完成
         this.lastReadTimestamp = READ_DONE;
@@ -538,58 +506,32 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
         addMessageCount.incrementAndGet();
     }
 
+    public FunctionCallStreamingResponseHandler beforeRequest(BiConsumer<FunctionCallStreamingResponseHandler, GenerateRequest> beforeRequestConsumer) {
+        this.beforeRequestConsumer = beforeRequestConsumer;
+        return this;
+    }
+
     /**
      * 生成AI回复
      *
      * @return 最终完成后，会异步触发
      */
     public CompletableFuture<Void> generate() {
-        return generate(enableSearch, searchOptions, enableThinking, thinkingBudget, modalities);
-    }
-
-    /**
-     * 生成AI回复
-     *
-     * @param enableSearch   # 开启联网搜索的参数
-     * @param searchOptions  search_options = {
-     *                       "forced_search": True, # 强制开启联网搜索
-     *                       "enable_source": True, # 使返回结果包含搜索来源的信息，OpenAI 兼容方式暂不支持返回
-     *                       "enable_citation": True, # 开启角标标注功能
-     *                       "citation_format":  # 角标形式为[ref_i]
-     *                       "search_strategy": "pro" # 模型将搜索10条互联网信息
-     *                       },
-     * @param enableThinking # 是否开启思考模式，适用于 Qwen3 模型。
-     *                       Qwen3 商业版模型默认值为 False，Qwen3 开源版模型默认值为 True。
-     * @param thinkingBudget 参数设置最大推理过程 Token 数，不能超过供应商要求的最大思维链Token数：例：38912。两个参数对 QwQ 与 DeepSeek-R1 模型无效
-     * @param modalities     （可选）默认值为["text"]
-     *                       输出数据的模态，仅支持 Qwen-Omni 模型指定。可选值：
-     *                       ["text","audio"]：输出文本与音频；
-     *                       ["text"]：输出文本。
-     * @return 最终完成后，会异步触发
-     */
-    public CompletableFuture<Void> generate(Boolean enableSearch,
-                                            Map<String, Object> searchOptions,
-                                            Boolean enableThinking,
-                                            Integer thinkingBudget,
-                                            List<String> modalities) {
         // 如果没完成，且没请求过
         if (!isDone() && generate.compareAndSet(false, true)) {
-            this.enableSearch = enableSearch;
-            this.searchOptions = searchOptions;
-            this.enableThinking = enableThinking;
-            this.thinkingBudget = thinkingBudget;
-            this.modalities = modalities;
-            // 工具
-            List<ToolSpecification> list = toolMethodList.stream()
-                    .map(e -> e.toRequest(isSupportChineseToolName))
-                    .collect(Collectors.toList());
             // 过滤重复消息
-            List<ChatMessage> messageList = AiUtil.beforeGenerate(chatMemory.messages());
+            request.messageList = new ArrayList<>(AiUtil.beforeGenerate(chatMemory.messages()));
+            // 工具
+            request.toolSpecificationList = toolMethodList.stream().map(e -> e.toRequest(isSupportChineseToolName)).collect(Collectors.toList());
+            // 用户可以自定义填充参数
+            BiConsumer<FunctionCallStreamingResponseHandler, GenerateRequest> beforeRequestConsumer = this.beforeRequestConsumer;
+            if (beforeRequestConsumer != null) {
+                beforeRequestConsumer.accept(this, request);
+            }
             // 创建下一次请求的回掉逻辑，递归（如果需要继续生成）拉一条链表
-            FunctionCallStreamingResponseHandler fork = fork(this, messageList);
+            FunctionCallStreamingResponseHandler responseHandler = fork(this);
             // request请求聊天大模型
-            executor.execute(() -> chatModel.request(messageList, list, fork,
-                    enableSearch, searchOptions, enableThinking, thinkingBudget, modalities));
+            executor.execute(() -> chatModel.request(responseHandler, request));
         }
         return this;
     }
@@ -678,44 +620,8 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
         this.confirmToolCall = confirmToolCall;
     }
 
-    public Boolean getEnableSearch() {
-        return enableSearch;
-    }
-
-    public void setEnableSearch(Boolean enableSearch) {
-        this.enableSearch = enableSearch;
-    }
-
-    public Map<String, Object> getSearchOptions() {
-        return searchOptions;
-    }
-
-    public void setSearchOptions(Map<String, Object> searchOptions) {
-        this.searchOptions = searchOptions;
-    }
-
-    public Boolean getEnableThinking() {
-        return enableThinking;
-    }
-
-    public void setEnableThinking(Boolean enableThinking) {
-        this.enableThinking = enableThinking;
-    }
-
-    public Integer getThinkingBudget() {
-        return thinkingBudget;
-    }
-
-    public void setThinkingBudget(Integer thinkingBudget) {
-        this.thinkingBudget = thinkingBudget;
-    }
-
-    public List<String> getModalities() {
-        return modalities;
-    }
-
-    public void setModalities(List<String> modalities) {
-        this.modalities = modalities;
+    public GenerateRequest getRequest() {
+        return request;
     }
 
     public String getModelName() {

@@ -40,7 +40,7 @@ public class LlmJsonSchemaApiService {
      */
     private final Map<Object, Session> memoryMap = Collections.synchronizedMap(new IdentityHashMap<>());
     private final int schemaInstanceCount;
-    private final Map<Class, AtomicInteger> schemasIndexMap = new ConcurrentHashMap<>();
+    private final Map<Class, AtomicInteger> schemasIndexMap = Collections.synchronizedMap(new WeakHashMap<>());
     // @Autowired
     private final AiToolServiceImpl aiToolService;
 
@@ -196,7 +196,7 @@ public class LlmJsonSchemaApiService {
         Double temperature = jsonschema.getTemperature();
         Integer maxCompletionTokens = jsonschema.getMaxCompletionTokens();
         AiModel[] aiModels = jsonSchemaInstanceMap
-                .computeIfAbsent(uniqueKey(apiKey, baseUrl, modelName, responseFormat, maxCompletionTokens, temperature, topP, type), k -> new ConcurrentHashMap<>())
+                .computeIfAbsent(uniqueKey(apiKey, baseUrl, modelName, responseFormat, maxCompletionTokens, temperature, topP, type), k -> Collections.synchronizedMap(new WeakHashMap<>()))
                 .computeIfAbsent(type, k -> {
                     AiModel[] arrays = new AiModel[schemaInstanceCount];
                     for (int i = 0; i < arrays.length; i++) {
