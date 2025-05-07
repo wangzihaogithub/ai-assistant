@@ -323,11 +323,12 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
         // 事件Hook通知 onTokenEnd
         hookOnTokenEnd(new Response<>(validationMessage, lastResponse.tokenUsage(), lastResponse.finishReason(), lastResponse.metadata()));
         // 事件Hook通知 onTokenBegin
-        bizHandler.onTokenBegin(baseMessageIndex, addMessageCount.get(), generateCount());
+        hookOnTokenBegin();
     }
 
     private void functionCallIfNeed(Response<AiMessage> response) {
         AiMessage aiMessage = response.content();
+        boolean typeThinkingAiMessage = AiUtil.isTypeThinkingAiMessage(aiMessage);
         // 如果AI返回了工具调用清单
         if (aiMessage.hasToolExecutionRequests()) {
             // 构造出：多个工具执行器
@@ -370,7 +371,7 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
                     // 事件Hook通知 onTokenEnd
                     hookOnTokenEnd(response);
                     // 事件Hook通知 onTokenBegin
-                    bizHandler.onTokenBegin(baseMessageIndex, addMessageCount.get(), generateCount());
+                    hookOnTokenBegin();
                     // 添加一条自动帮用户确认的消息
                     addMessage(new LangChainUserMessage(confirmToolCall));
                     // 再次向AI生成一次。注：会附带上自动帮用户确认的消息
@@ -415,7 +416,7 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
                     // 参数验证通过，开始调用工具
                     hookOnTokenEnd(response);
                     // 事件Hook通知 onTokenBegin
-                    bizHandler.onTokenBegin(baseMessageIndex, addMessageCount.get(), generateCount());
+                    hookOnTokenBegin();
                     // 事件Hook通知 onToolCalls
                     bizHandler.onToolCalls(response);
                     // 执行工具调用
@@ -503,6 +504,10 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
     private void hookOnTokenEnd(Response<AiMessage> response) {
         addMessage(MetadataAiMessage.convert(response));
         bizHandler.onTokenEnd(response, baseMessageIndex, addMessageCount.get(), generateCount());
+    }
+
+    private void hookOnTokenBegin() {
+        bizHandler.onTokenBegin(baseMessageIndex, addMessageCount.get(), generateCount());
     }
 
     public void addMessage(ChatMessage message) {

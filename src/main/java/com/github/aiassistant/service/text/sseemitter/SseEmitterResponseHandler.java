@@ -130,7 +130,7 @@ public class SseEmitterResponseHandler implements ChatStreamingResponseHandler {
 
     @Override
     public void onBeforeModelThinking() {
-        sendToClient(emitter, "before-model-thinking",
+        sendToClient(emitter, "token-begin-model-thinking",
                 "baseMessageIndex", baseMessageIndex,
                 "addMessageCount", addMessageCount,
                 "messageIndex", baseMessageIndex + addMessageCount);
@@ -138,7 +138,7 @@ public class SseEmitterResponseHandler implements ChatStreamingResponseHandler {
 
     @Override
     public void onAfterModelThinking(Response<AiMessage> thinkingResponse) {
-        sendToClient(emitter, "after-model-thinking",
+        sendToClient(emitter, "token-end-model-thinking",
                 "baseMessageIndex", baseMessageIndex,
                 "addMessageCount", addMessageCount,
                 "messageIndex", baseMessageIndex + addMessageCount,
@@ -184,14 +184,16 @@ public class SseEmitterResponseHandler implements ChatStreamingResponseHandler {
         this.addMessageCount = addMessageCount;
         this.generateCount = generateCount;
         AiMessage aiMessage = response.content();
+        boolean typeThinkingAiMessage = AiUtil.isTypeThinkingAiMessage(aiMessage);
         String text = aiMessage.text();
         FinishReason finishReason = response.finishReason();
         sendToClient(emitter, "token-end",
                 "baseMessageIndex", baseMessageIndex,
                 "addMessageCount", addMessageCount,
                 "messageIndex", baseMessageIndex + addMessageCount,
-                "finishReason", finishReason.name(),
-                "text", text);
+                "finishReason", finishReason != null ? finishReason.name() : null,
+                "thinking", typeThinkingAiMessage,
+                "text", typeThinkingAiMessage ? "" : text);
     }
 
     @Override

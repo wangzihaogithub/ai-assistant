@@ -2,10 +2,7 @@ package com.github.aiassistant.util;
 
 import com.github.aiassistant.entity.AiAssistantFewshot;
 import com.github.aiassistant.entity.AiMemoryMessage;
-import com.github.aiassistant.entity.model.chat.AiVariables;
-import com.github.aiassistant.entity.model.chat.FewshotAiMessage;
-import com.github.aiassistant.entity.model.chat.FewshotUserMessage;
-import com.github.aiassistant.entity.model.chat.KnowledgeAiMessage;
+import com.github.aiassistant.entity.model.chat.*;
 import com.github.aiassistant.entity.model.user.AiAccessUserVO;
 import com.github.aiassistant.enums.MessageTypeEnum;
 import com.github.aiassistant.exception.FewshotConfigException;
@@ -401,6 +398,10 @@ public class AiUtil {
             }
         }
         return length;
+    }
+
+    public static boolean isTypeThinkingAiMessage(ChatMessage message) {
+        return message instanceof ThinkingAiMessage;
     }
 
     public static boolean isTypeFewshot(ChatMessage message) {
