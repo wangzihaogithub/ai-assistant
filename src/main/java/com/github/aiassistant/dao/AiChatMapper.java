@@ -39,7 +39,9 @@ public interface AiChatMapper {
     List<AiChatListResp> selectListByUid(String keyword,
                                          Integer offset, Integer pageSize,
                                          String uidType, Serializable createUid,
-                                         String startTime, String endTime, String chatTimeColumnName);
+                                         String startTime, String endTime,
+                                         String chatTimeColumnName,
+                                         String aiChatSourceEnum);
 
     Integer selectCountByUid(String keyword,
                              String uidType, Serializable createUid,

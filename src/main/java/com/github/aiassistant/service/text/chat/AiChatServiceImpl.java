@@ -107,13 +107,14 @@ public class AiChatServiceImpl {
                                            String endTime,
                                            AiChatTimeEnum chatTimeEnum,
                                            Serializable createUid,
-                                           AiChatUidTypeEnum uidTypeEnum) {
+                                           AiChatUidTypeEnum uidTypeEnum,
+                                           AiChatSourceEnum aiChatSourceEnum) {
         if (chatTimeEnum == null) {
             chatTimeEnum = AiChatTimeEnum.lastChatTime;
         }
         int offset = Math.max(0, (pageNum - 1) * pageSize);
         List<AiChatListResp> list = aiChatMapper.selectListByUid(keyword, offset, pageSize, uidTypeEnum.getCode(), createUid,
-                startTime, endTime, chatTimeEnum.getColumnName());
+                startTime, endTime, chatTimeEnum.getColumnName(), aiChatSourceEnum == null ? null : aiChatSourceEnum.getCode());
         List<Integer> historyIdList = list.stream().map(AiChatListResp::getAiChatHistoryId).collect(Collectors.toList());
         if (!historyIdList.isEmpty()) {
             Map<Integer, AiChatHistory> historyMap = aiChatHistoryMapper.selectBatchIds(historyIdList).stream()
