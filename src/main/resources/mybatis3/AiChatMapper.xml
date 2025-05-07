@@ -60,6 +60,9 @@
         <if test="arg6 != null and arg6 != ''">
             and ac.${arg7} &lt;= #{arg6}
         </if>
+        <if test="arg8 != null and arg8 != ''">
+            and ac.chat_source_enum = #{arg8}
+        </if>
         GROUP BY ac.id
         ORDER BY ac.${arg7} DESC, ac.id DESC
         limit #{arg1}, #{arg2}
