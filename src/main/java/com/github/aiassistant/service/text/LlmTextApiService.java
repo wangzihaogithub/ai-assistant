@@ -11,6 +11,7 @@ import com.github.aiassistant.entity.model.user.AiAccessUserVO;
 import com.github.aiassistant.enums.AiAssistantKnTypeEnum;
 import com.github.aiassistant.enums.AiWebSearchSourceEnum;
 import com.github.aiassistant.exception.AssistantConfigException;
+import com.github.aiassistant.exception.DataInspectionFailedException;
 import com.github.aiassistant.exception.FewshotConfigException;
 import com.github.aiassistant.exception.QuestionEmptyException;
 import com.github.aiassistant.service.jsonschema.LlmJsonSchemaApiService;
@@ -59,7 +60,6 @@ import java.util.stream.Collectors;
  * Text类型的聊天模型服务
  */
 public class LlmTextApiService {
-    public static final String MESSAGE_TEXT_BLACK_LIST_QUESTION = "根据相关规定，我无法回答这个问题，换个话题吧。";
     private static final Logger log = LoggerFactory.getLogger(LlmTextApiService.class);
     /**
      * 估计各种文本类型（如文本、提示、文本段等）中的标记计数的接口
@@ -448,7 +448,11 @@ public class LlmTextApiService {
                             SseHttpResponse response = handler.toResponse();
                             responseHandler.onBlacklistQuestion(response, lastQuestion, classifyListVO);
                             if (response.isEmpty()) {
-                                response.close(MESSAGE_TEXT_BLACK_LIST_QUESTION);
+                                DataInspectionFailedException inspectionFailedException = new DataInspectionFailedException(
+                                        String.format("无法回答问题'%s', '%s'", lastQuestion, classifyListVO), lastQuestion, classifyListVO);
+                                handlerFuture.completeExceptionally(inspectionFailedException);
+                                responseHandler.onError(inspectionFailedException, baseMessageIndex, addMessageCount, 0);
+                                return;
                             }
                         }
                         CompletableFuture<Void> interruptAfter = null;
@@ -601,7 +605,7 @@ public class LlmTextApiService {
 
         // 记忆
         ConsumerTokenWindowChatMemory chatMemory = new ConsumerTokenWindowChatMemory(memoryId, assistantConfig.getMaxMemoryTokens(), assistantConfig.getMaxMemoryRounds(),
-                tokenizer, historyList, repository == null ? null : repository::add);
+                tokenizer, historyList, e -> RepositoryChatStreamingResponseHandler.add(e, repository));
         // JsonSchema
         llmJsonSchemaApiService.putSessionMemory(memoryId, new JsonSchemaTokenWindowChatMemory(chatMemory, systemMessage, fewshotMessageList));
         if (repository != null) {
@@ -949,6 +953,17 @@ public class LlmTextApiService {
 
         RepositoryChatStreamingResponseHandler(SessionMessageRepository repository) {
             this.repository = repository;
+        }
+
+        static void add(ChatMessage chatMessage, SessionMessageRepository repository) {
+            /**
+             * 思考的已经持久化过了，不用再持久化了
+             * @see #onAfterModelThinking(Response)
+             */
+            if (chatMessage instanceof MetadataAiMessage && ((MetadataAiMessage) chatMessage).isTypeThinkingAiMessage()) {
+                return;
+            }
+            repository.add(chatMessage);
         }
 
         @Override

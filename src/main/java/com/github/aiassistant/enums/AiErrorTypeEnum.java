@@ -37,7 +37,7 @@ public class AiErrorTypeEnum {
     });
     public static final AiErrorTypeEnum data_inspection_failed = create("data_inspection_failed", "违规", "根据相关规定暂无法回答，我们可以聊聊其他话题吗？", e -> {
         // 供应商接口返回的错误信息
-        return e.getMessage().contains("data_inspection_failed");
+        return e instanceof DataInspectionFailedException || e.getMessage().contains("data_inspection_failed");
     });
     public static final AiErrorTypeEnum unknown_error = create("unknown_error", "未知异常", "当前问题处理超时，建议您稍后重新尝试提问。", e -> {
         return false;

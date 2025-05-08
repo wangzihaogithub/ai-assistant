@@ -1,5 +1,6 @@
 package com.github.aiassistant.entity.model.langchain4j;
 
+import com.github.aiassistant.util.AiUtil;
 import dev.langchain4j.agent.tool.ToolExecutionRequest;
 import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.model.output.Response;
@@ -89,6 +90,10 @@ public class MetadataAiMessage extends AiMessage {
             ct = 0;
         }
         return ct;
+    }
+
+    public boolean isTypeThinkingAiMessage() {
+        return AiUtil.isTypeThinkingAiMessage(response.content());
     }
 
     public Response<AiMessage> getResponse() {
