@@ -6,7 +6,7 @@ import java.util.*;
 /**
  * 大模型请求追踪
  */
-public class RequestTrace<MEMORY_ID, U> {
+public class RequestTraceVO<MEMORY_ID, U> {
     /**
      * 追踪用户请求
      */
@@ -14,13 +14,13 @@ public class RequestTrace<MEMORY_ID, U> {
     private final MEMORY_ID memoryId;
     private final U user;
     private final Date createTime;
-    private final List<Message<U>> requestList = new ArrayList<>();
-    private final List<Message<U>> responseList = new ArrayList<>();
+    private final List<MessageVO<U>> requestList = new ArrayList<>();
+    private final List<MessageVO<U>> responseList = new ArrayList<>();
     private List<List<QaKnVO>> requestKnowledgeList = new ArrayList<>();
-    private Message<U> last;
+    private MessageVO<U> last;
     private StageEnum stageEnum = StageEnum.Request;
 
-    public RequestTrace(String userQueryTraceNumber, MEMORY_ID memoryId, U user, long startTime) {
+    public RequestTraceVO(String userQueryTraceNumber, MEMORY_ID memoryId, U user, long startTime) {
         this.userQueryTraceNumber = userQueryTraceNumber;
         this.memoryId = memoryId;
         this.createTime = new Timestamp(startTime);
@@ -43,16 +43,16 @@ public class RequestTrace<MEMORY_ID, U> {
         this.requestKnowledgeList = knowledgeTextContentList;
     }
 
-    public List<Message<U>> getRequestMessageList() {
+    public List<MessageVO<U>> getRequestMessageList() {
         return Collections.unmodifiableList(requestList);
     }
 
-    public List<Message<U>> getResponseMessageList() {
+    public List<MessageVO<U>> getResponseMessageList() {
         return Collections.unmodifiableList(responseList);
     }
 
-    public List<Message<U>> getReadonlyMessageList() {
-        List<Message<U>> list = new ArrayList<>(requestList.size() + responseList.size());
+    public List<MessageVO<U>> getReadonlyMessageList() {
+        List<MessageVO<U>> list = new ArrayList<>(requestList.size() + responseList.size());
         list.addAll(requestList);
         list.addAll(responseList);
         return Collections.unmodifiableList(list);
@@ -79,11 +79,11 @@ public class RequestTrace<MEMORY_ID, U> {
         this.requestKnowledgeList = new ArrayList<>();
     }
 
-    public Message<U> getLast() {
+    public MessageVO<U> getLast() {
         return last;
     }
 
-    public void addMessage(Message<U> message) {
+    public void addMessage(MessageVO<U> message) {
         this.last = message;
         if (stageEnum == StageEnum.Request) {
             requestList.add(message);

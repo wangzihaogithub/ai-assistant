@@ -1,8 +1,8 @@
 package com.github.aiassistant.service.text.repository;
 
-import com.github.aiassistant.entity.model.chat.KnowledgeAiMessage;
-import com.github.aiassistant.entity.model.chat.LangChainUserMessage;
-import com.github.aiassistant.entity.model.chat.ThinkingAiMessage;
+import com.github.aiassistant.entity.model.langchain4j.KnowledgeAiMessage;
+import com.github.aiassistant.entity.model.langchain4j.LangChainUserMessage;
+import com.github.aiassistant.entity.model.langchain4j.ThinkingAiMessage;
 import com.github.aiassistant.util.AiUtil;
 import com.github.aiassistant.util.StringUtils;
 import dev.langchain4j.data.message.*;

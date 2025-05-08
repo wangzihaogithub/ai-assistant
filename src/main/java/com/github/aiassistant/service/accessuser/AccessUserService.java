@@ -6,8 +6,8 @@ import com.github.aiassistant.dao.AiChatMapper;
 import com.github.aiassistant.entity.AiAssistantKn;
 import com.github.aiassistant.entity.AiChat;
 import com.github.aiassistant.entity.model.chat.AiChatQuestionPermissionResp;
-import com.github.aiassistant.entity.model.chat.AiChatToken;
-import com.github.aiassistant.entity.model.chat.ChatQueryRequest;
+import com.github.aiassistant.entity.model.chat.AiChatTokenVO;
+import com.github.aiassistant.entity.model.chat.ChatQueryReq;
 import com.github.aiassistant.entity.model.chat.MemoryIdVO;
 import com.github.aiassistant.entity.model.user.AiAccessUserVO;
 import com.github.aiassistant.enums.AiChatUidTypeEnum;
@@ -81,13 +81,13 @@ public class AccessUserService {
      * @return 提问权限
      */
     public AiChatQuestionPermissionResp getQuestionPermission(Integer chatId, Serializable createUid, AiChatUidTypeEnum uidTypeEnum, int maxTokenCount) {
-        AiChatToken token = aiChatHistoryService.sumTodayCharLength(createUid, uidTypeEnum);
+        AiChatTokenVO token = aiChatHistoryService.sumTodayCharLength(createUid, uidTypeEnum);
 
         AiChatQuestionPermissionResp resp = new AiChatQuestionPermissionResp();
         resp.setTokenCount(token.getTokenCount());
         resp.setHasTokens(token.isHasTokens(maxTokenCount));
         resp.setHasPermission(chatId == null || hasPermission(chatId, createUid, uidTypeEnum));
-        resp.setUserQueryTraceNumber(ChatQueryRequest.newUserQueryTraceNumber());
+        resp.setUserQueryTraceNumber(ChatQueryReq.newUserQueryTraceNumber());
         resp.setTimestamp(System.currentTimeMillis());
         return resp;
     }

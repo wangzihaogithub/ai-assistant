@@ -1,4 +1,4 @@
-package com.github.aiassistant.entity.model.chat;
+package com.github.aiassistant.entity.model.langchain4j;
 
 import dev.langchain4j.data.message.AiMessage;
 

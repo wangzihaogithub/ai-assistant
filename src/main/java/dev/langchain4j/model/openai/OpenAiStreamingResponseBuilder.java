@@ -1,6 +1,6 @@
 package dev.langchain4j.model.openai;
 
-import com.github.aiassistant.entity.model.chat.ThinkingAiMessage;
+import com.github.aiassistant.entity.model.langchain4j.ThinkingAiMessage;
 import com.github.aiassistant.util.AiUtil;
 import dev.ai4j.openai4j.chat.*;
 import dev.ai4j.openai4j.completion.CompletionChoice;

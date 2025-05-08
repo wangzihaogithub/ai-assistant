@@ -98,9 +98,9 @@ public class AiChatHistoryServiceImpl {
      * @param uidTypeEnum uidTypeEnum
      * @return 统计今日字数
      */
-    public AiChatToken sumTodayCharLength(Serializable createUid, AiChatUidTypeEnum uidTypeEnum) {
+    public AiChatTokenVO sumTodayCharLength(Serializable createUid, AiChatUidTypeEnum uidTypeEnum) {
         int tokenCount = aiChatHistoryMapper.sumTodayCharLength(uidTypeEnum.getCode(), createUid);
-        AiChatToken token = new AiChatToken();
+        AiChatTokenVO token = new AiChatTokenVO();
         token.setTokenCount(tokenCount);
         return token;
     }
@@ -201,7 +201,7 @@ public class AiChatHistoryServiceImpl {
      * @param user                      user
      * @return 提交结果
      */
-    public CompletableFuture<AiChatRequest> insert(Date now, RequestTrace<MemoryIdVO, AiAccessUserVO> requestTrace,
+    public CompletableFuture<AiChatRequest> insert(Date now, RequestTraceVO<MemoryIdVO, AiAccessUserVO> requestTrace,
                                                    String againUserQueryTraceNumber,
                                                    Boolean websearch,
                                                    CompletableFuture<AiChatRequest> user) {
@@ -358,13 +358,13 @@ public class AiChatHistoryServiceImpl {
         }
     }
 
-    protected AiChatHistoryVO afterMessage(AiChatHistoryVO source, Date now, RequestTrace<MemoryIdVO, AiAccessUserVO> requestTrace,
+    protected AiChatHistoryVO afterMessage(AiChatHistoryVO source, Date now, RequestTraceVO<MemoryIdVO, AiAccessUserVO> requestTrace,
                                            String againUserQueryTraceNumber, Boolean websearch,
-                                           CompletableFuture<AiChatRequest> user, Message<AiAccessUserVO> message) {
+                                           CompletableFuture<AiChatRequest> user, MessageVO<AiAccessUserVO> message) {
         return source;
     }
 
-    protected AiChatRequest afterChat(AiChatRequest source, Date now, RequestTrace<MemoryIdVO, AiAccessUserVO> requestTrace,
+    protected AiChatRequest afterChat(AiChatRequest source, Date now, RequestTraceVO<MemoryIdVO, AiAccessUserVO> requestTrace,
                                       String againUserQueryTraceNumber, Boolean websearch,
                                       CompletableFuture<AiChatRequest> user) {
         return source;
@@ -380,7 +380,7 @@ public class AiChatHistoryServiceImpl {
 
     }
 
-    private AiChatRequest buildAiChatVO(Date now, RequestTrace<MemoryIdVO, AiAccessUserVO> requestTrace,
+    private AiChatRequest buildAiChatVO(Date now, RequestTraceVO<MemoryIdVO, AiAccessUserVO> requestTrace,
                                         String againUserQueryTraceNumber, Boolean websearch,
                                         CompletableFuture<AiChatRequest> user) {
         Integer chatId = requestTrace.getMemoryId().getChatId();
@@ -393,8 +393,8 @@ public class AiChatHistoryServiceImpl {
         chatVO.setUser(user);
 
         Collection<AiChatHistoryServiceIntercept> intercepts = interceptList.get();
-        List<Message<AiAccessUserVO>> messageList = requestTrace.isStageRequest() ? requestTrace.getRequestMessageList() : requestTrace.getResponseMessageList();
-        for (Message<AiAccessUserVO> message : messageList) {
+        List<MessageVO<AiAccessUserVO>> messageList = requestTrace.isStageRequest() ? requestTrace.getRequestMessageList() : requestTrace.getResponseMessageList();
+        for (MessageVO<AiAccessUserVO> message : messageList) {
             MessageTypeEnum messageTypeEnum = message.getType();
             if (!MessageTypeEnum.isChatType(messageTypeEnum)) {
                 continue;

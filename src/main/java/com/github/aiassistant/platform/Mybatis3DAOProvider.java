@@ -20,7 +20,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.*;
 
-public class Mybatis3DAOProvider implements DAOProvider {
+public class Mybatis3DAOProvider extends DAOProvider {
     public static final List<String> MAPPERS = Collections.unmodifiableList(Arrays.asList(
             "mybatis3/AiAssistantFewshotMapper.xml",
             "mybatis3/AiAssistantJsonschemaMapper.xml",
@@ -83,7 +83,7 @@ public class Mybatis3DAOProvider implements DAOProvider {
     }
 
     @Override
-    public <T> T getMapper(Class<T> mapperClass) {
+    protected <T> T instance(Class<T> mapperClass) {
         Object mapper = mapperMap.computeIfAbsent(mapperClass, k -> {
             ClassLoader classLoader = k.getClassLoader();
             return Proxy.newProxyInstance(

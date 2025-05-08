@@ -3,7 +3,7 @@ package com.github.aiassistant.entity.model.chat;
 import com.github.aiassistant.util.UniqueKeyGenerator;
 
 // @Data
-public class ChatQueryRequest {
+public class ChatQueryReq {
     private String question;
     private Integer chatId;
     // @ApiModelProperty("重新回答的序列号")

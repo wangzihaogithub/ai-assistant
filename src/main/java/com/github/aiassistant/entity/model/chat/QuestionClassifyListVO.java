@@ -15,7 +15,7 @@ public class QuestionClassifyListVO {
 
     @Override
     public String toString() {
-        return Optional.ofNullable(classifyResult).map(e -> e.classifyList).map(Object::toString).orElse("empty");
+        return Optional.ofNullable(classifyResult).map(e -> e.classifyList).map(String::valueOf).orElse("empty");
     }
 
     public QuestionClassifySchema.Result getClassifyResult() {

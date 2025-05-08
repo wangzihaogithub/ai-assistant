@@ -8,7 +8,7 @@ import java.lang.reflect.Modifier;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-public class AiVariables {
+public class AiVariablesVO {
     /**
      * 知识库变量
      */
@@ -35,7 +35,7 @@ public class AiVariables {
     private final Request request = new Request();
 //    private final Employees employees = new Employees();
 
-    public <T extends AiVariables> void copyTo(T target) {
+    public <T extends AiVariablesVO> void copyTo(T target) {
         BeanMap sourceMap = new BeanMap(this);
         BeanMap targetMap = new BeanMap(target);
         for (Map.Entry<String, Object> entry : sourceMap.entrySet()) {

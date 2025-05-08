@@ -2,7 +2,7 @@ package com.github.aiassistant.service.text.variables;
 
 import com.github.aiassistant.dao.AiVariablesMapper;
 import com.github.aiassistant.entity.AiAssistant;
-import com.github.aiassistant.entity.model.chat.AiVariables;
+import com.github.aiassistant.entity.model.chat.AiVariablesVO;
 import com.github.aiassistant.entity.model.chat.MStateVO;
 import com.github.aiassistant.entity.model.chat.MemoryIdVO;
 import com.github.aiassistant.entity.model.chat.QaKnVO;
@@ -54,7 +54,7 @@ public class AiVariablesService {
     public static boolean isEnableWebSearch(AssistantConfig assistantConfig, String knPromptText, String mstatePromptText) {
         String[] strings = new String[]{assistantConfig.getSystemPromptText(), knPromptText, mstatePromptText};
         for (String string : strings) {
-            if (AiUtil.existPromptVariable(string, AiVariables.VAR_WEB_SEARCH_RESULT)) {
+            if (AiUtil.existPromptVariable(string, AiVariablesVO.VAR_WEB_SEARCH_RESULT)) {
                 return true;
             }
         }
@@ -73,7 +73,7 @@ public class AiVariablesService {
     public static boolean isEnableReasoning(AssistantConfig assistantConfig, String knPromptText, String mstatePromptText) {
         String[] strings = new String[]{assistantConfig.getSystemPromptText(), knPromptText, mstatePromptText};
         for (String string : strings) {
-            if (AiUtil.existPromptVariable(string, AiVariables.VAR_REASONING_RESULT)) {
+            if (AiUtil.existPromptVariable(string, AiVariablesVO.VAR_REASONING_RESULT)) {
                 return true;
             }
         }
@@ -94,7 +94,7 @@ public class AiVariablesService {
             return true;
         }
         // 知识库作为系统提示词
-        return AiUtil.existPromptVariable(assistant.getSystemPromptText(), AiVariables.VAR_KN_DOCUMENTS);
+        return AiUtil.existPromptVariable(assistant.getSystemPromptText(), AiVariablesVO.VAR_KN_DOCUMENTS);
     }
 
     /**
@@ -106,7 +106,7 @@ public class AiVariablesService {
      * @return 提示词
      */
     public String prompt(String promptMessage, AiAccessUserVO currentUser, MemoryIdVO memoryId) {
-        AiVariables aiVariables = selectVariables(currentUser, new ArrayList<>(), null, memoryId, false);
+        AiVariablesVO aiVariables = selectVariables(currentUser, new ArrayList<>(), null, memoryId, false);
         return AiUtil.toPrompt(promptMessage, aiVariables).text();
     }
 
@@ -120,9 +120,9 @@ public class AiVariablesService {
      * @param websearch    websearch
      * @return 变量
      */
-    public AiVariables selectVariables(AiAccessUserVO currentUser, List<ChatMessage> historyList,
-                                       String lastQuestion, MemoryIdVO memoryId, Boolean websearch) {
-        AiVariables variables = new AiVariables();
+    public AiVariablesVO selectVariables(AiAccessUserVO currentUser, List<ChatMessage> historyList,
+                                         String lastQuestion, MemoryIdVO memoryId, Boolean websearch) {
+        AiVariablesVO variables = new AiVariablesVO();
 
         // 智能体
         setterAssistant(variables.getAssistant(), memoryId.getAiAssistant());
@@ -151,7 +151,7 @@ public class AiVariablesService {
      * @param target    target
      * @param websearch websearch
      */
-    private void setterRequest(AiVariables.Request target, Boolean websearch) {
+    private void setterRequest(AiVariablesVO.Request target, Boolean websearch) {
         target.setWebsearch(Boolean.TRUE.equals(websearch));
     }
 
@@ -162,7 +162,7 @@ public class AiVariablesService {
      * @param historyList historyList
      * @param query       query
      */
-    private void setterChat(AiVariables.Chat target, List<ChatMessage> historyList, String query) {
+    private void setterChat(AiVariablesVO.Chat target, List<ChatMessage> historyList, String query) {
         target.setHistoryUserMessage(JsonSchemaTokenWindowChatMemory.getUserMessageString(historyList));
         target.setHistoryMessage(JsonSchemaTokenWindowChatMemory.getMessageString(historyList));
         target.setSystemMessage(JsonSchemaTokenWindowChatMemory.getSystemString(historyList));
@@ -177,7 +177,7 @@ public class AiVariablesService {
      * @param webSearchResult webSearchResult
      * @param reasoningResult reasoningResult
      */
-    public void setterKn(AiVariables.Kn target, List<List<QaKnVO>> knn, String webSearchResult, ActingService.Plan reasoningResult) {
+    public void setterKn(AiVariablesVO.Kn target, List<List<QaKnVO>> knn, String webSearchResult, ActingService.Plan reasoningResult) {
         target.setDocuments(QaKnVO.qaToString(knn));
         if (reasoningResult != null) {
             target.setReasoningResult(reasoningResult.toActingResult());
@@ -193,7 +193,7 @@ public class AiVariablesService {
      * @param classify classify
      * @param result   result
      */
-    public void setterQuestionClassifyResult(AiVariables.QuestionClassify classify, QuestionClassifySchema.Result result) {
+    public void setterQuestionClassifyResult(AiVariablesVO.QuestionClassify classify, QuestionClassifySchema.Result result) {
         if (result == null) {
             return;
         }
@@ -208,7 +208,7 @@ public class AiVariablesService {
      *
      * @param sys sys
      */
-    private void setterSys(AiVariables.Sys sys) {
+    private void setterSys(AiVariablesVO.Sys sys) {
         Date now = new Date();
         sys.setDatetime(new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(now));
         sys.setYear(new SimpleDateFormat("yyyy").format(now));
@@ -232,7 +232,7 @@ public class AiVariablesService {
      * @param target   target
      * @param memoryId memoryId
      */
-    private void setterMstate(AiVariables.Mstate target, MemoryIdVO memoryId) {
+    private void setterMstate(AiVariablesVO.Mstate target, MemoryIdVO memoryId) {
         MStateVO mStateVO = aiMemoryMstateService.selectMstate(memoryId.getMemoryId());
         if (mStateVO == null) {
             return;
@@ -256,7 +256,7 @@ public class AiVariablesService {
      * @param target target
      * @param source source
      */
-    private void setterAssistant(AiVariables.Assistant target, AiAssistant source) {
+    private void setterAssistant(AiVariablesVO.Assistant target, AiAssistant source) {
         BeanUtil.copyProperties(source, target);
     }
 

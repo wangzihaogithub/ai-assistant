@@ -2,7 +2,7 @@ package com.github.aiassistant;
 
 import com.github.aiassistant.entity.AiAssistant;
 import com.github.aiassistant.entity.model.chat.AiChatResp;
-import com.github.aiassistant.entity.model.chat.ChatQueryRequest;
+import com.github.aiassistant.entity.model.chat.ChatQueryReq;
 import com.github.aiassistant.entity.model.chat.MemoryIdVO;
 import com.github.aiassistant.entity.model.user.AiAccessUserVO;
 import com.github.aiassistant.enums.AiAssistantStatusEnum;
@@ -97,11 +97,11 @@ public class AiApplicationTest {
         AiChatResp chat = aiApplication.getAiChatService().insert(assistant.getId(), "", 1, uidTypeEnum, null);
 
         // 提问
-        ChatQueryRequest chatQueryRequest = new ChatQueryRequest();
+        ChatQueryReq chatQueryRequest = new ChatQueryReq();
         chatQueryRequest.setQuestion("你好");
         chatQueryRequest.setChatId(chat.getId());
         chatQueryRequest.setWebsearch(true);
-        chatQueryRequest.setUserQueryTraceNumber(ChatQueryRequest.newUserQueryTraceNumber());
+        chatQueryRequest.setUserQueryTraceNumber(ChatQueryReq.newUserQueryTraceNumber());
 
         // 登陆用户
         AiAccessUserVO currentUser = aiApplication.getAccessUserService().getCurrentUser();

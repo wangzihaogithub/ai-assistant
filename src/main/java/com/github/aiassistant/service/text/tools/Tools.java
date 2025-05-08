@@ -1,6 +1,6 @@
 package com.github.aiassistant.service.text.tools;
 
-import com.github.aiassistant.entity.model.chat.AiVariables;
+import com.github.aiassistant.entity.model.chat.AiVariablesVO;
 import com.github.aiassistant.entity.model.user.AiAccessUserVO;
 import com.github.aiassistant.service.text.ChatStreamingResponseHandler;
 import dev.langchain4j.agent.tool.ToolSpecification;
@@ -18,7 +18,7 @@ public abstract class Tools {
 
     private AiAccessUserVO aiAccessUserVO;
 
-    private AiVariables variables;
+    private AiVariablesVO variables;
 
     private ChatStreamingResponseHandler streamingResponseHandler;
 
@@ -40,11 +40,11 @@ public abstract class Tools {
         this.aiAccessUserVO = aiAccessUserVO;
     }
 
-    public AiVariables getVariables() {
+    public AiVariablesVO getVariables() {
         return variables;
     }
 
-    public void setVariables(AiVariables variables) {
+    public void setVariables(AiVariablesVO variables) {
         this.variables = variables;
     }
 

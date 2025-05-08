@@ -1,6 +1,6 @@
 package com.github.aiassistant.entity.model.chat;
 
-public class ToolRequest {
+public class ToolRequestVO {
     private String requestId;
     private String toolName;
     private String arguments;

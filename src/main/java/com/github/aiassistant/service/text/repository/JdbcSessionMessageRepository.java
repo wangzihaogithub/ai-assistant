@@ -34,7 +34,7 @@ import java.util.concurrent.CompletableFuture;
 //@Scope("prototype")
 public class JdbcSessionMessageRepository extends AbstractSessionMessageRepository<MemoryIdVO, AiAccessUserVO> {
     private static final Logger log = LoggerFactory.getLogger(JdbcSessionMessageRepository.class);
-    private final ChatQueryRequest chatQueryRequest;
+    private final ChatQueryReq chatQueryRequest;
     private final CompletableFuture<AiChatHistoryServiceImpl.AiChatRequest> userChat = new CompletableFuture<>();
     // @Resource
     private final AiAssistantMstateMapper aiAssistantMstateMapper;
@@ -59,7 +59,7 @@ public class JdbcSessionMessageRepository extends AbstractSessionMessageReposito
     private CompletableFuture<AiMemoryMessageServiceImpl.AiMemoryVO> userMemory;
 
     // @Autowired(required = false)
-    public JdbcSessionMessageRepository(ChatQueryRequest chatQueryRequest, MemoryIdVO memoryId, AiAccessUserVO user,
+    public JdbcSessionMessageRepository(ChatQueryReq chatQueryRequest, MemoryIdVO memoryId, AiAccessUserVO user,
                                         AiAssistantMstateMapper aiAssistantMstateMapper,
                                         AiMemoryMessageServiceImpl aiMemoryMessageService,
                                         AiChatHistoryServiceImpl aiChatHistoryService,

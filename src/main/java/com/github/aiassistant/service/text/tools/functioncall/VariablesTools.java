@@ -1,6 +1,6 @@
 package com.github.aiassistant.service.text.tools.functioncall;
 
-import com.github.aiassistant.entity.model.chat.AiVariables;
+import com.github.aiassistant.entity.model.chat.AiVariablesVO;
 import com.github.aiassistant.service.text.tools.Tools;
 import com.github.aiassistant.util.BeanUtil;
 import com.github.aiassistant.util.Name;
@@ -18,7 +18,7 @@ public class VariablesTools extends Tools {
     public Object getValue(
             @Name("varKey") String varKey,
             @ToolMemoryId ToolExecutionRequest request) {
-        AiVariables variables = getVariables();
+        AiVariablesVO variables = getVariables();
         Map<String, Object> variablesMap = BeanUtil.toMap(variables);
         Object varValue = variablesMap.get(varKey);
         String text = Objects.toString(varValue, "");

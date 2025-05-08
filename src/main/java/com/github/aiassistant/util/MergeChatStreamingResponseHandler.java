@@ -1,6 +1,6 @@
 package com.github.aiassistant.util;
 
-import com.github.aiassistant.entity.model.chat.AiVariables;
+import com.github.aiassistant.entity.model.chat.AiVariablesVO;
 import com.github.aiassistant.entity.model.chat.QaKnVO;
 import com.github.aiassistant.entity.model.chat.QuestionClassifyListVO;
 import com.github.aiassistant.entity.model.chat.WebSearchResultVO;
@@ -114,14 +114,14 @@ public class MergeChatStreamingResponseHandler implements ChatStreamingResponseH
     }
 
     @Override
-    public void onQuestionClassify(QuestionClassifyListVO questionClassify, String question, AiVariables variables) {
+    public void onQuestionClassify(QuestionClassifyListVO questionClassify, String question, AiVariablesVO variables) {
         for (ChatStreamingResponseHandler h : list) {
             h.onQuestionClassify(questionClassify, question, variables);
         }
     }
 
     @Override
-    public void onSystemMessage(String message, AiVariables variables, String promptText) {
+    public void onSystemMessage(String message, AiVariablesVO variables, String promptText) {
         for (ChatStreamingResponseHandler h : list) {
             h.onSystemMessage(message, variables, promptText);
         }
@@ -142,7 +142,7 @@ public class MergeChatStreamingResponseHandler implements ChatStreamingResponseH
     }
 
     @Override
-    public void onVariables(AiVariables variables) {
+    public void onVariables(AiVariablesVO variables) {
         for (ChatStreamingResponseHandler h : list) {
             h.onVariables(variables);
         }

@@ -1,7 +1,7 @@
 package com.github.aiassistant.entity.model.chat;
 
 // @Data
-public class AiChatToken {
+public class AiChatTokenVO {
     private Integer tokenCount;
 
     /**

@@ -4,6 +4,9 @@ import com.github.aiassistant.dao.AiAssistantFewshotMapper;
 import com.github.aiassistant.dao.AiAssistantJsonschemaMapper;
 import com.github.aiassistant.entity.AiAssistantKn;
 import com.github.aiassistant.entity.model.chat.*;
+import com.github.aiassistant.entity.model.langchain4j.KnowledgeAiMessage;
+import com.github.aiassistant.entity.model.langchain4j.MetadataAiMessage;
+import com.github.aiassistant.entity.model.langchain4j.MstateAiMessage;
 import com.github.aiassistant.entity.model.user.AiAccessUserVO;
 import com.github.aiassistant.enums.AiAssistantKnTypeEnum;
 import com.github.aiassistant.enums.AiWebSearchSourceEnum;
@@ -65,7 +68,7 @@ public class LlmTextApiService {
     /**
      * Text类型的聊天模型
      */
-    private final Map<String, AiModel[]> modelMap = new ConcurrentHashMap<>();
+    private final Map<String, AiModelVO[]> modelMap = new ConcurrentHashMap<>();
     /**
      * 每个智能体的聊天模型并发数量
      */
@@ -251,8 +254,12 @@ public class LlmTextApiService {
                     responseHandler);
             llmJsonSchemaApiService.putSessionHandler(memoryId, websearch, reasoning, mergeResponseHandler, user);
 
+            Collection<LlmTextApiServiceIntercept> intercepts = interceptList.get();
+
             // 历史记录
-            List<ChatMessage> historyList = AiUtil.removeSystemMessage(repository.getHistoryList());
+            List<ChatMessage> historyList = interceptHistoryList(repository.getHistoryList(),
+                    user, memoryId, websearch, reasoning, responseHandler, question, intercepts);
+
             int baseMessageIndex = historyList.size();//起始消息下标
             int addMessageCount = 1;// 为什么是1？因为第0个是内置的SystemMessage，所以至少要有一个。
             // 当前问题，如果是重新回答需要获取最后一次问题getLastUserQuestion
@@ -263,7 +270,7 @@ public class LlmTextApiService {
             // 初始化
             mergeResponseHandler.onTokenBegin(baseMessageIndex, addMessageCount, 0);
             // 查询变量
-            AiVariables variables = aiVariablesService.selectVariables(user, historyList, lastQuestion, memoryId, websearch);
+            AiVariablesVO variables = aiVariablesService.selectVariables(user, historyList, lastQuestion, memoryId, websearch);
             // 绑定会话钩子
             llmJsonSchemaApiService.putSessionVariables(memoryId, variables);
             // 进行问题分类
@@ -276,7 +283,7 @@ public class LlmTextApiService {
             // buildHandler 构造出支持工具调用的回调函数(对接底层模型)
             CompletableFuture<CompletableFuture<FunctionCallStreamingResponseHandler>> f = classifyFuture
                     .thenApply(c -> buildHandler(c, user, repository, question, websearch,
-                            reasoning, memoryId, mergeResponseHandler, historyList, baseMessageIndex, addMessageCount, lastQuestion, variables));
+                            reasoning, memoryId, mergeResponseHandler, historyList, baseMessageIndex, addMessageCount, lastQuestion, variables, intercepts));
             // 等待完毕
             return FutureUtil.allOf(f)
                     // 完毕后删除JsonSchema的本地记忆
@@ -319,6 +326,7 @@ public class LlmTextApiService {
      * @param addMessageCount  本次添加了几条消息
      * @param lastQuestion     用户最后一次的提问内容
      * @param variables        提示词内可引用的变量
+     * @param intercepts       拦截
      * @return 回调函数(对接底层模型)
      */
     private CompletableFuture<FunctionCallStreamingResponseHandler> buildHandler(
@@ -334,7 +342,8 @@ public class LlmTextApiService {
             int baseMessageIndex,
             int addMessageCount,
             String lastQuestion,
-            AiVariables variables) {
+            AiVariablesVO variables,
+            Collection<LlmTextApiServiceIntercept> intercepts) {
         CompletableFuture<FunctionCallStreamingResponseHandler> handlerFuture = new CompletableFuture<>();
         try {
             // 将问题分类绑定至会话
@@ -352,7 +361,6 @@ public class LlmTextApiService {
             aiVariablesService.setterQuestionClassifyResult(variables.getQuestionClassify(), classifyListVO.getClassifyResult());
 
             // 准备就绪后，是否需要中断后续流程
-            Collection<LlmTextApiServiceIntercept> intercepts = interceptList.get();
             // 用户代码是否需要拦截持久化
             Function<FunctionCallStreamingResponseHandler, CompletableFuture<Void>> interceptRepository =
                     interceptRepository(user, memoryId, classifyListVO, variables, websearch, reasoning, responseHandler, historyList, question, lastQuestion, intercepts);
@@ -473,7 +481,7 @@ public class LlmTextApiService {
             AiAccessUserVO user,
             MemoryIdVO memoryId,
             QuestionClassifyListVO classifyListVO,
-            AiVariables variables,
+            AiVariablesVO variables,
             Boolean websearch,
             Boolean reasoning,
             ChatStreamingResponseHandler responseHandler,
@@ -494,7 +502,7 @@ public class LlmTextApiService {
             AiAccessUserVO user,
             MemoryIdVO memoryId,
             QuestionClassifyListVO classifyListVO,
-            AiVariables variables,
+            AiVariablesVO variables,
             Boolean websearch,
             Boolean reasoning,
             ChatStreamingResponseHandler responseHandler,
@@ -509,6 +517,34 @@ public class LlmTextApiService {
             }
         }
         return null;
+    }
+
+    /**
+     * 拦截记忆历史记录（可以改写）
+     *
+     * @param historyList     记忆历史记录
+     * @param user            当前用户
+     * @param memoryId        记忆ID
+     * @param websearch       联网
+     * @param reasoning       思考
+     * @param responseHandler 事件回调函数
+     * @param question        用户本次的提问内容
+     * @param intercepts      拦截
+     * @return 拦截改写后的记忆历史记录
+     */
+    private List<ChatMessage> interceptHistoryList(
+            List<ChatMessage> historyList,
+            AiAccessUserVO user,
+            MemoryIdVO memoryId,
+            Boolean websearch,
+            Boolean reasoning,
+            ChatStreamingResponseHandler responseHandler,
+            String question,
+            Collection<LlmTextApiServiceIntercept> intercepts) {
+        for (LlmTextApiServiceIntercept intercept : intercepts) {
+            historyList = intercept.interceptHistoryList(historyList, user, memoryId, websearch, reasoning, responseHandler, question);
+        }
+        return historyList;
     }
 
     /**
@@ -541,7 +577,7 @@ public class LlmTextApiService {
             String mstatePromptText,
             String knPromptText,
             AiAccessUserVO user,
-            AiVariables variables,
+            AiVariablesVO variables,
             List<List<QaKnVO>> qaKnVOList,
             SessionMessageRepository repository,
             String question,
@@ -594,7 +630,7 @@ public class LlmTextApiService {
         }
 
         // 获取模型
-        AiModel aiModel = memoryId.indexAt(getModels(assistantConfig));
+        AiModelVO aiModel = memoryId.indexAt(getModels(assistantConfig));
         // 可用工具集
         List<Tools.ToolMethod> toolMethodList = AiUtil.initTool(aiToolService.selectToolMethodList(StringUtils.split(assistantConfig.getAiToolIds(), ",")), variables, user);
         // 构造出支持工具调用的回调函数(对接底层模型) 处理异步回调
@@ -748,7 +784,7 @@ public class LlmTextApiService {
         }
     }
 
-    private ChatMessage buildMstate(AiVariables variables,
+    private ChatMessage buildMstate(AiVariablesVO variables,
                                     String mstatePromptText,
                                     AssistantConfig assistantConfig) throws AssistantConfigException {
         // 记忆状态
@@ -765,7 +801,7 @@ public class LlmTextApiService {
         }
     }
 
-    private ChatMessage buildKnowledge(AiVariables variables,
+    private ChatMessage buildKnowledge(AiVariablesVO variables,
                                        String question,
                                        List<List<QaKnVO>> qaKnVOList,
                                        String knPromptText,
@@ -779,7 +815,7 @@ public class LlmTextApiService {
         var.put("documents", QaKnVO.qaToString(qaKnVOList));
         try {
             String text = AiUtil.toPrompt(knPromptText, var).text();
-            return new KnowledgeAiMessage(new KnowledgeTextContent(text, question, question, qaKnVOList));
+            return new KnowledgeAiMessage(text, question, qaKnVOList);
         } catch (IllegalArgumentException e) {
             throw new AssistantConfigException(String.format("%s %s[kn_prompt_text] config error! detail:%s", assistantConfig.getName(), assistantConfig.getTableName(), e.toString()),
                     e, assistantConfig);
@@ -792,17 +828,17 @@ public class LlmTextApiService {
      * @param assistant assistant
      * @return 聊天模型
      */
-    private AiModel[] getModels(AssistantConfig assistant) {
+    private AiModelVO[] getModels(AssistantConfig assistant) {
         String apiKey = assistant.getChatApiKey();
         String baseUrl = assistant.getChatBaseUrl();
         String modelName = assistant.getChatModelName();
         Double temperature = assistant.getTemperature();
         Integer maxCompletionTokens = assistant.getMaxCompletionTokens();
         return modelMap.computeIfAbsent(uniqueKey(apiKey, baseUrl, modelName, temperature, maxCompletionTokens), k -> {
-            AiModel[] arrays = new AiModel[concurrentChatModelCount];
+            AiModelVO[] arrays = new AiModelVO[concurrentChatModelCount];
             for (int i = 0; i < arrays.length; i++) {
                 OpenAiStreamingChatModel streamingChatModel = createTextModel(apiKey, baseUrl, modelName, temperature, maxCompletionTokens);
-                arrays[i] = new AiModel(baseUrl, modelName, null, streamingChatModel);
+                arrays[i] = new AiModelVO(baseUrl, modelName, null, streamingChatModel);
             }
             return arrays;
         });
@@ -848,7 +884,7 @@ public class LlmTextApiService {
      */
     private SystemMessage buildSystemMessage(String promptText,
                                              ChatStreamingResponseHandler responseHandler,
-                                             AiVariables variables,
+                                             AiVariablesVO variables,
                                              AssistantConfig assistantConfig) throws AssistantConfigException {
         if (!StringUtils.hasText(promptText)) {
             return null;
@@ -916,7 +952,7 @@ public class LlmTextApiService {
         }
 
         @Override
-        public void onQuestionClassify(QuestionClassifyListVO questionClassify, String question, AiVariables variables) {
+        public void onQuestionClassify(QuestionClassifyListVO questionClassify, String question, AiVariablesVO variables) {
             repository.addQuestionClassify(questionClassify, question);
         }
 

@@ -2,8 +2,8 @@ package com.github.aiassistant.service.jsonschema;
 
 import com.github.aiassistant.dao.AiAssistantJsonschemaMapper;
 import com.github.aiassistant.entity.AiJsonschema;
-import com.github.aiassistant.entity.model.chat.AiModel;
-import com.github.aiassistant.entity.model.chat.AiVariables;
+import com.github.aiassistant.entity.model.chat.AiModelVO;
+import com.github.aiassistant.entity.model.chat.AiVariablesVO;
 import com.github.aiassistant.entity.model.chat.MemoryIdVO;
 import com.github.aiassistant.entity.model.chat.QuestionClassifyListVO;
 import com.github.aiassistant.entity.model.user.AiAccessUserVO;
@@ -34,7 +34,7 @@ public class LlmJsonSchemaApiService {
     /**
      * JsonSchema的实例
      */
-    private final Map<String, Map<Class, AiModel[]>> jsonSchemaInstanceMap = new ConcurrentHashMap<>();
+    private final Map<String, Map<Class, AiModelVO[]>> jsonSchemaInstanceMap = new ConcurrentHashMap<>();
     /**
      * JsonSchema的本地记忆
      */
@@ -98,7 +98,7 @@ public class LlmJsonSchemaApiService {
     }
 
     public void putSessionVariables(MemoryIdVO memoryIdVO,
-                                    AiVariables variables) {
+                                    AiVariablesVO variables) {
         Session session = getSession(memoryIdVO, true);
         session.variables = variables;
     }
@@ -195,27 +195,27 @@ public class LlmJsonSchemaApiService {
         Double topP = jsonschema.getTopP();
         Double temperature = jsonschema.getTemperature();
         Integer maxCompletionTokens = jsonschema.getMaxCompletionTokens();
-        AiModel[] aiModels = jsonSchemaInstanceMap
+        AiModelVO[] aiModels = jsonSchemaInstanceMap
                 .computeIfAbsent(uniqueKey(apiKey, baseUrl, modelName, responseFormat, maxCompletionTokens, temperature, topP, type), k -> Collections.synchronizedMap(new WeakHashMap<>()))
                 .computeIfAbsent(type, k -> {
-                    AiModel[] arrays = new AiModel[schemaInstanceCount];
+                    AiModelVO[] arrays = new AiModelVO[schemaInstanceCount];
                     for (int i = 0; i < arrays.length; i++) {
                         arrays[i] = createJsonSchemaModel(apiKey, baseUrl, modelName, maxCompletionTokens, temperature, topP, responseFormat);
                     }
                     return arrays;
                 });
         AtomicInteger index = schemasIndexMap.computeIfAbsent(type, e -> new AtomicInteger());
-        AiModel aiModel = aiModels[index.getAndIncrement() % aiModels.length];
+        AiModelVO aiModel = aiModels[index.getAndIncrement() % aiModels.length];
         return newInstance(aiModel, type, memory, memoryIdVO, jsonschema, jsonSchemaEnum);
     }
 
-    private <T> T newInstance(AiModel aiModel, Class<T> type, boolean memory,
+    private <T> T newInstance(AiModelVO aiModel, Class<T> type, boolean memory,
                               MemoryIdVO memoryIdVO, AiJsonschema jsonschema,
                               String jsonSchemaEnum) {
         Session session = getSession(memoryIdVO, false);
         ChatStreamingResponseHandler responseHandler = null;
         AiAccessUserVO user = null;
-        AiVariables variables = null;
+        AiVariablesVO variables = null;
         Map<String, Object> variablesMap = new HashMap<>();
         Boolean websearch = null;
         Boolean reasoning = null;
@@ -310,13 +310,13 @@ public class LlmJsonSchemaApiService {
      * @param responseFormat      responseFormat
      * @return JsonSchema类型的模型
      */
-    private AiModel createJsonSchemaModel(String apiKey,
-                                          String baseUrl,
-                                          String modelName,
-                                          Integer maxCompletionTokens,
-                                          Double temperature,
-                                          Double topP,
-                                          String responseFormat) {
+    private AiModelVO createJsonSchemaModel(String apiKey,
+                                            String baseUrl,
+                                            String modelName,
+                                            Integer maxCompletionTokens,
+                                            Double temperature,
+                                            Double topP,
+                                            String responseFormat) {
         ResponseFormatType responseFormatType = ResponseFormatType.valueOf(responseFormat);
         if (topP == null || topP <= 0) {
             topP = 0.1;
@@ -352,13 +352,13 @@ public class LlmJsonSchemaApiService {
                 .responseFormat(responseFormatType == ResponseFormatType.JSON_SCHEMA ? ResponseFormatType.JSON_OBJECT.name() : responseFormatType.name())
                 .timeout(Duration.ofSeconds(60))
                 .build();
-        return new AiModel(baseUrl, modelName, null, streaming);
+        return new AiModelVO(baseUrl, modelName, null, streaming);
     }
 
     public static class Session {
         final Map<String, AiJsonschema> jsonschemaMap = new ConcurrentHashMap<>();
         AiAccessUserVO user;
-        AiVariables variables;
+        AiVariablesVO variables;
         Boolean websearch;
         Boolean reasoning;
         QuestionClassifyListVO classifyListVO;

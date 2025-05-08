@@ -139,6 +139,13 @@ public class WebSearchResultVO {
         }
     }
 
+    @Override
+    public String toString() {
+        return "WebSearchResultVO{" +
+                list +
+                '}';
+    }
+
     public String getPageNum() {
         return pageNum;
     }

@@ -1,5 +1,6 @@
-package com.github.aiassistant.entity.model.chat;
+package com.github.aiassistant.entity.model.langchain4j;
 
+import com.github.aiassistant.entity.model.chat.QaKnVO;
 import dev.langchain4j.agent.tool.ToolExecutionRequest;
 import dev.langchain4j.data.message.ToolExecutionResultMessage;
 

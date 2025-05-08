@@ -100,7 +100,7 @@ public class AiMemoryMessageServiceImpl {
      * @param websearch                 websearch
      * @return 提交成功后
      */
-    public CompletableFuture<AiMemoryVO> insert(Date now, RequestTrace<MemoryIdVO, AiAccessUserVO> requestTrace,
+    public CompletableFuture<AiMemoryVO> insert(Date now, RequestTraceVO<MemoryIdVO, AiAccessUserVO> requestTrace,
                                                 String againUserQueryTraceNumber,
                                                 Boolean websearch) {
         try {
@@ -217,7 +217,7 @@ public class AiMemoryMessageServiceImpl {
         }
     }
 
-    private AiMemoryVO buildMemory(Date now, RequestTrace<MemoryIdVO, AiAccessUserVO> requestTrace,
+    private AiMemoryVO buildMemory(Date now, RequestTraceVO<MemoryIdVO, AiAccessUserVO> requestTrace,
                                    String againUserQueryTraceNumber,
                                    Boolean websearch) {
         Collection<AiMemoryMessageServiceIntercept> intercepts = interceptList.get();
@@ -228,26 +228,26 @@ public class AiMemoryMessageServiceImpl {
         aiMemory.setId(memoryId);
         aiMemory.setUpdateTime(now);
 
-        List<Message<AiAccessUserVO>> messageList;
+        List<MessageVO<AiAccessUserVO>> messageList;
         if (requestTrace.isStageRequest()) {
             messageList = requestTrace.getRequestMessageList();
-            aiMemory.setUserCharLength(AiUtil.sumLength(messageList.stream().map(Message::getSource).collect(Collectors.toList())));
+            aiMemory.setUserCharLength(AiUtil.sumLength(messageList.stream().map(MessageVO::getSource).collect(Collectors.toList())));
             aiMemory.setAiCharLength(0);
         } else {
             messageList = requestTrace.getResponseMessageList();
-            aiMemory.setAiCharLength(AiUtil.sumLength(messageList.stream().map(Message::getSource).collect(Collectors.toList())));
+            aiMemory.setAiCharLength(AiUtil.sumLength(messageList.stream().map(MessageVO::getSource).collect(Collectors.toList())));
             aiMemory.setUserCharLength(0);
         }
-        aiMemory.setUserTokenCount(messageList.stream().mapToInt(Message::getInputTokenCount).sum());
-        aiMemory.setAiTokenCount(messageList.stream().mapToInt(Message::getOutputTokenCount).sum());
+        aiMemory.setUserTokenCount(messageList.stream().mapToInt(MessageVO::getInputTokenCount).sum());
+        aiMemory.setAiTokenCount(messageList.stream().mapToInt(MessageVO::getOutputTokenCount).sum());
 
         List<List<QaKnVO>> knowledgeList = requestTrace.getRequestKnowledgeList();
         aiMemory.setKnowledgeTokenCount(0);
         aiMemory.setKnowledgeCharLength(knowledgeList.stream().flatMap(Collection::stream).map(QaKnVO::getAnswer).mapToInt(String::length).sum());
 
-        for (Message<AiAccessUserVO> message : messageList) {
+        for (MessageVO<AiAccessUserVO> message : messageList) {
             Boolean userQueryFlag = message.getUserQueryFlag();
-            ToolResponse toolResponse = message.getToolResponse();
+            ToolResponseVO toolResponse = message.getToolResponse();
             List<ChatMessage> sourceMessages = Collections.singletonList(message.getSource());
             Integer tokenCount = message.getTotalTokenCount();
             Integer inputTokenCount = message.getInputTokenCount();
@@ -258,7 +258,7 @@ public class AiMemoryMessageServiceImpl {
             if (memoryString == null || memoryString.isEmpty()) {
                 memoryString = message.getText();
             }
-            List<ToolRequest> toolRequests = message.getToolRequests();
+            List<ToolRequestVO> toolRequests = message.getToolRequests();
 
             AiMemoryMessageVO vo = new AiMemoryMessageVO();
             vo.setAiMemoryId(memoryId);
@@ -270,7 +270,7 @@ public class AiMemoryMessageServiceImpl {
             vo.setStartTime(message.getStartTime());
             vo.setFirstTokenTime(message.getFirstTokenTime());
             vo.setCommitTime(now);
-            vo.setUseKnowledgeFlag(message.getKnowledgeTextContent() != null);
+            vo.setUseKnowledgeFlag(!knowledgeList.isEmpty());
             vo.setReplyToolRequestId(toolResponse != null ? toolResponse.getRequestId() : "");
             vo.setReplyToolName(toolResponse != null ? toolResponse.getToolName() : "");
             vo.setUseToolFlag(toolRequests != null && !toolRequests.isEmpty());
@@ -289,7 +289,7 @@ public class AiMemoryMessageServiceImpl {
             vo.setWebsearchFlag(websearch);
 
             if (toolRequests != null) {
-                for (ToolRequest toolRequest : toolRequests) {
+                for (ToolRequestVO toolRequest : toolRequests) {
                     AiMemoryMessageTool toolVo = new AiMemoryMessageTool();
                     toolVo.setToolRequestId(toolRequest.getRequestId());
                     toolVo.setToolName(StringUtils.left(toolRequest.getToolName(), 128, true));

@@ -1,6 +1,6 @@
 package com.github.aiassistant.service.text.tools.functioncall;
 
-import com.github.aiassistant.entity.model.chat.UrlReadToolExecutionResultMessage;
+import com.github.aiassistant.entity.model.langchain4j.UrlReadToolExecutionResultMessage;
 import com.github.aiassistant.platform.ApacheHttpClient;
 import com.github.aiassistant.platform.HtmlQuery;
 import com.github.aiassistant.platform.PlatformDependentUtil;

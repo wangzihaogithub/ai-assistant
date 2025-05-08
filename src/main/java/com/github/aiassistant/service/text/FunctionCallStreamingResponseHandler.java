@@ -1,8 +1,8 @@
 package com.github.aiassistant.service.text;
 
-import com.github.aiassistant.entity.model.chat.LangChainUserMessage;
+import com.github.aiassistant.entity.model.langchain4j.LangChainUserMessage;
 import com.github.aiassistant.entity.model.chat.MemoryIdVO;
-import com.github.aiassistant.entity.model.chat.MetadataAiMessage;
+import com.github.aiassistant.entity.model.langchain4j.MetadataAiMessage;
 import com.github.aiassistant.entity.model.chat.QuestionClassifyListVO;
 import com.github.aiassistant.exception.AiAssistantException;
 import com.github.aiassistant.exception.ModelApiGenerateException;

@@ -1,7 +1,7 @@
 package com.github.aiassistant;
 
 import com.github.aiassistant.dao.*;
-import com.github.aiassistant.entity.model.chat.ChatQueryRequest;
+import com.github.aiassistant.entity.model.chat.ChatQueryReq;
 import com.github.aiassistant.entity.model.chat.MemoryIdVO;
 import com.github.aiassistant.entity.model.user.AiAccessUserVO;
 import com.github.aiassistant.platform.Mybatis3DAOProvider;
@@ -367,7 +367,7 @@ public class AiApplication {
         return aiVariablesService;
     }
 
-    public JdbcSessionMessageRepository newJdbcSessionMessageRepository(ChatQueryRequest chatQueryRequest,
+    public JdbcSessionMessageRepository newJdbcSessionMessageRepository(ChatQueryReq chatQueryRequest,
                                                                         MemoryIdVO memoryId, AiAccessUserVO user) {
         return new JdbcSessionMessageRepository(chatQueryRequest, memoryId, user,
                 aiAssistantMstateMapper,

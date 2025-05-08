@@ -2,7 +2,10 @@ package com.github.aiassistant.util;
 
 import com.github.aiassistant.entity.AiAssistantFewshot;
 import com.github.aiassistant.entity.AiMemoryMessage;
-import com.github.aiassistant.entity.model.chat.*;
+import com.github.aiassistant.entity.model.chat.AiVariablesVO;
+import com.github.aiassistant.entity.model.langchain4j.Fewshot;
+import com.github.aiassistant.entity.model.langchain4j.KnowledgeAiMessage;
+import com.github.aiassistant.entity.model.langchain4j.ThinkingAiMessage;
 import com.github.aiassistant.entity.model.user.AiAccessUserVO;
 import com.github.aiassistant.enums.MessageTypeEnum;
 import com.github.aiassistant.exception.FewshotConfigException;
@@ -41,8 +44,8 @@ public class AiUtil {
         return tool instanceof WebSearch || tool instanceof WebSearchTools;
     }
 
-    public static List<Tools.ToolMethod> initTool(List<Tools.ToolMethod> toolMethodList, AiVariables variables, AiAccessUserVO user) {
-        boolean websearch = Optional.ofNullable(variables).map(AiVariables::getRequest).map(AiVariables.Request::getWebsearch).orElse(true);
+    public static List<Tools.ToolMethod> initTool(List<Tools.ToolMethod> toolMethodList, AiVariablesVO variables, AiAccessUserVO user) {
+        boolean websearch = Optional.ofNullable(variables).map(AiVariablesVO::getRequest).map(AiVariablesVO.Request::getWebsearch).orElse(true);
         List<Tools.ToolMethod> resultList = new ArrayList<>();
         for (Tools.ToolMethod toolMethod : toolMethodList) {
             Tools tool = toolMethod.tool();
@@ -313,7 +316,7 @@ public class AiUtil {
         return PromptTemplate.from(promptMessage).apply(variables);
     }
 
-    public static Prompt toPrompt(String promptMessage, AiVariables variables) throws IllegalArgumentException {
+    public static Prompt toPrompt(String promptMessage, AiVariablesVO variables) throws IllegalArgumentException {
         return PromptTemplate.from(promptMessage).apply(BeanUtil.toMap(variables));
     }
 
@@ -405,14 +408,14 @@ public class AiUtil {
     }
 
     public static boolean isTypeFewshot(ChatMessage message) {
-        return message instanceof FewshotUserMessage || message instanceof FewshotAiMessage;
+        return message instanceof Fewshot;
     }
 
     public static boolean isTypeUser(ChatMessage message) {
         return message != null && message.getClass() == UserMessage.class;
     }
 
-    public static List<ChatMessage> deserializeFewshot(List<AiAssistantFewshot> dbList, AiVariables variables) throws FewshotConfigException {
+    public static List<ChatMessage> deserializeFewshot(List<AiAssistantFewshot> dbList, AiVariablesVO variables) throws FewshotConfigException {
         List<ChatMessage> list = new ArrayList<>();
         if (dbList.isEmpty()) {
             return list;
@@ -433,11 +436,11 @@ public class AiUtil {
                 }
                 switch (typeEnum) {
                     case Ai: {
-                        message = new FewshotAiMessage(promptText);
+                        message = new Fewshot.AiMessage(promptText);
                         break;
                     }
                     case User: {
-                        message = new FewshotUserMessage(promptText);
+                        message = new Fewshot.UserMessage(promptText);
                         break;
                     }
                     default: {
@@ -473,7 +476,6 @@ public class AiUtil {
                     break;
                 }
                 case MState:
-                case OutofScope:
                 case Knowledge:
                 case System:
                 case ToolResult:

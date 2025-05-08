@@ -1,6 +1,7 @@
 package com.github.aiassistant.service.text.repository;
 
 import com.github.aiassistant.entity.model.chat.*;
+import com.github.aiassistant.entity.model.langchain4j.*;
 import com.github.aiassistant.enums.MessageTypeEnum;
 import com.github.aiassistant.service.text.sseemitter.AiMessageString;
 import com.github.aiassistant.util.AiUtil;
@@ -18,19 +19,19 @@ import java.util.stream.Collectors;
  * 公用类-会话级别的记忆存储
  */
 public abstract class AbstractSessionMessageRepository<MEMORY_ID, U> implements SessionMessageRepository {
-    protected final RequestTrace<MEMORY_ID, U> requestTrace;
+    protected final RequestTraceVO<MEMORY_ID, U> requestTrace;
     protected AtomicInteger messageIndex;
     private volatile List<ChatMessage> historyList;
     private long startTime;
     private long firstTokenTime;
 
     public AbstractSessionMessageRepository(MEMORY_ID memoryId, U user, String userQueryTraceNumber, long startTime) {
-        this.requestTrace = new RequestTrace<>(userQueryTraceNumber, memoryId, user, startTime);
+        this.requestTrace = new RequestTraceVO<>(userQueryTraceNumber, memoryId, user, startTime);
         this.startTime = startTime;
     }
 
-    private static <U> Message<U> convert(Message<U> last, U user, ChatMessage chatMessage, long startTime, long firstTokenTime, int baseMessageIndex) {
-        Message<U> message = new Message<>();
+    private static <U> MessageVO<U> convert(MessageVO<U> last, U user, ChatMessage chatMessage, long startTime, long firstTokenTime, int baseMessageIndex) {
+        MessageVO<U> message = new MessageVO<>();
         message.setSource(chatMessage);
         message.setParent(last);
         message.setMessageIndex(last == null ? baseMessageIndex : last.getMessageIndex() + 1);
@@ -60,7 +61,7 @@ public abstract class AbstractSessionMessageRepository<MEMORY_ID, U> implements 
             ToolExecutionResultMessage cast = ((ToolExecutionResultMessage) source);
             message.setType(MessageTypeEnum.ToolResult);
             message.setText(cast.text());
-            ToolResponse toolResponse = new ToolResponse();
+            ToolResponseVO toolResponse = new ToolResponseVO();
             toolResponse.setRequestId(cast.id());
             toolResponse.setToolName(cast.toolName());
             message.setToolResponse(toolResponse);
@@ -79,7 +80,7 @@ public abstract class AbstractSessionMessageRepository<MEMORY_ID, U> implements 
             if (cast.hasToolExecutionRequests()) {
                 message.setToolRequests(cast.toolExecutionRequests().stream()
                         .map(e -> {
-                            ToolRequest toolRequest = new ToolRequest();
+                            ToolRequestVO toolRequest = new ToolRequestVO();
                             toolRequest.setRequestId(e.id());
                             toolRequest.setToolName(e.name());
                             toolRequest.setArguments(e.arguments());
@@ -94,7 +95,7 @@ public abstract class AbstractSessionMessageRepository<MEMORY_ID, U> implements 
             if (cast.hasToolExecutionRequests()) {
                 message.setToolRequests(cast.toolExecutionRequests().stream()
                         .map(e -> {
-                            ToolRequest toolRequest = new ToolRequest();
+                            ToolRequestVO toolRequest = new ToolRequestVO();
                             toolRequest.setRequestId(e.id());
                             toolRequest.setToolName(e.name());
                             toolRequest.setArguments(e.arguments());
@@ -131,7 +132,7 @@ public abstract class AbstractSessionMessageRepository<MEMORY_ID, U> implements 
     }
 
     public List<ChatMessage> getRequestMessageList() {
-        return requestTrace.getReadonlyMessageList().stream().map(Message::getSource).collect(Collectors.toList());
+        return requestTrace.getReadonlyMessageList().stream().map(MessageVO::getSource).collect(Collectors.toList());
     }
 
     @Override
@@ -153,7 +154,7 @@ public abstract class AbstractSessionMessageRepository<MEMORY_ID, U> implements 
 
     public List<ChatMessage> getMessageList() {
         List<ChatMessage> messageList = new ArrayList<>(getHistoryList());
-        for (Message<U> m : requestTrace.getReadonlyMessageList()) {
+        for (MessageVO<U> m : requestTrace.getReadonlyMessageList()) {
             messageList.add(m.getSource());
         }
         return messageList;

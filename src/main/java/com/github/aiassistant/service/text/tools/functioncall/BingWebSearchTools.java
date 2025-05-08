@@ -1,7 +1,7 @@
 package com.github.aiassistant.service.text.tools.functioncall;
 
 import com.github.aiassistant.entity.model.chat.WebSearchResultVO;
-import com.github.aiassistant.entity.model.chat.WebSearchToolExecutionResultMessage;
+import com.github.aiassistant.entity.model.langchain4j.WebSearchToolExecutionResultMessage;
 import com.github.aiassistant.enums.AiWebSearchSourceEnum;
 import com.github.aiassistant.platform.HtmlQuery;
 import com.github.aiassistant.service.text.ChatStreamingResponseHandler;

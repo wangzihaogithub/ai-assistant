@@ -3,7 +3,7 @@ package com.github.aiassistant.service.text.memory;
 import com.github.aiassistant.dao.AiMemoryErrorMapper;
 import com.github.aiassistant.entity.AiMemoryError;
 import com.github.aiassistant.entity.model.chat.MemoryIdVO;
-import com.github.aiassistant.entity.model.chat.RequestTrace;
+import com.github.aiassistant.entity.model.chat.RequestTraceVO;
 import com.github.aiassistant.entity.model.user.AiAccessUserVO;
 import com.github.aiassistant.enums.AiErrorTypeEnum;
 import com.github.aiassistant.service.text.chat.AiChatHistoryServiceImpl;
@@ -40,7 +40,7 @@ public class AiMemoryErrorServiceImpl {
      * @param requestTrace     请求
      * @return AiMemoryError
      */
-    public AiMemoryError insertByInner(Throwable throwable, int baseMessageIndex, int addMessageCount, int generateCount, RequestTrace<MemoryIdVO, AiAccessUserVO> requestTrace) {
+    public AiMemoryError insertByInner(Throwable throwable, int baseMessageIndex, int addMessageCount, int generateCount, RequestTraceVO<MemoryIdVO, AiAccessUserVO> requestTrace) {
         StringWriter buf = new StringWriter();
         throwable.printStackTrace(new PrintWriter(buf));
 

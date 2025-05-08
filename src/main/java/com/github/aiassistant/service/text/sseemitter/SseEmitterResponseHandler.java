@@ -1,7 +1,7 @@
 package com.github.aiassistant.service.text.sseemitter;
 
 
-import com.github.aiassistant.entity.model.chat.AiVariables;
+import com.github.aiassistant.entity.model.chat.AiVariablesVO;
 import com.github.aiassistant.entity.model.chat.QaKnVO;
 import com.github.aiassistant.entity.model.chat.QuestionClassifyListVO;
 import com.github.aiassistant.entity.model.chat.WebSearchResultVO;
@@ -445,7 +445,7 @@ public class SseEmitterResponseHandler implements ChatStreamingResponseHandler {
     }
 
     @Override
-    public void onQuestionClassify(QuestionClassifyListVO questionClassify, String question, AiVariables variables) {
+    public void onQuestionClassify(QuestionClassifyListVO questionClassify, String question, AiVariablesVO variables) {
         sendToClient(emitter, "question-classify",
                 "classify", questionClassify.getClassifyResultList(),
                 "question", question
@@ -453,14 +453,14 @@ public class SseEmitterResponseHandler implements ChatStreamingResponseHandler {
     }
 
     @Override
-    public void onSystemMessage(String message, AiVariables variables, String promptText) {
+    public void onSystemMessage(String message, AiVariablesVO variables, String promptText) {
         if (debug) {
             sendToClient(emitter, "system-setting", "message", message, "variables", variables, "promptText", promptText);
         }
     }
 
     @Override
-    public void onVariables(AiVariables variables) {
+    public void onVariables(AiVariablesVO variables) {
         if (debug) {
             sendToClient(emitter, "init-variables", "variables", variables);
         }

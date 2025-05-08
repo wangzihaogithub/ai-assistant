@@ -1,6 +1,6 @@
 package com.github.aiassistant.serviceintercept;
 
-import com.github.aiassistant.entity.model.chat.AiVariables;
+import com.github.aiassistant.entity.model.chat.AiVariablesVO;
 import com.github.aiassistant.entity.model.chat.MemoryIdVO;
 import com.github.aiassistant.entity.model.chat.QuestionClassifyListVO;
 import com.github.aiassistant.entity.model.user.AiAccessUserVO;
@@ -17,7 +17,7 @@ public interface LlmTextApiServiceIntercept extends ServiceIntercept {
             AiAccessUserVO user,
             MemoryIdVO memoryId,
             QuestionClassifyListVO classifyListVO,
-            AiVariables variables,
+            AiVariablesVO variables,
             Boolean websearch,
             Boolean reasoning,
             ChatStreamingResponseHandler responseHandler,
@@ -26,11 +26,12 @@ public interface LlmTextApiServiceIntercept extends ServiceIntercept {
             String lastQuestion) {
         return null;
     }
+
     default Function<FunctionCallStreamingResponseHandler, CompletableFuture<Void>> interceptRepository(
             AiAccessUserVO user,
             MemoryIdVO memoryId,
             QuestionClassifyListVO classifyListVO,
-            AiVariables variables,
+            AiVariablesVO variables,
             Boolean websearch,
             Boolean reasoning,
             ChatStreamingResponseHandler responseHandler,
@@ -38,5 +39,15 @@ public interface LlmTextApiServiceIntercept extends ServiceIntercept {
             String question,
             String lastQuestion) {
         return null;
+    }
+
+    default List<ChatMessage> interceptHistoryList(List<ChatMessage> historyList,
+                                                   AiAccessUserVO user,
+                                                   MemoryIdVO memoryId,
+                                                   Boolean websearch,
+                                                   Boolean reasoning,
+                                                   ChatStreamingResponseHandler responseHandler,
+                                                   String question) {
+        return historyList;
     }
 }

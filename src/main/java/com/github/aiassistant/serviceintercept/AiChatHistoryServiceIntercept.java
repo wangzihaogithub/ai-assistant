@@ -28,15 +28,15 @@ public interface AiChatHistoryServiceIntercept extends ServiceIntercept {
         return result;
     }
 
-    default AiChatHistoryServiceImpl.AiChatHistoryVO afterMessage(AiChatHistoryServiceImpl.AiChatHistoryVO source, Date now, RequestTrace<MemoryIdVO, AiAccessUserVO> requestTrace,
+    default AiChatHistoryServiceImpl.AiChatHistoryVO afterMessage(AiChatHistoryServiceImpl.AiChatHistoryVO source, Date now, RequestTraceVO<MemoryIdVO, AiAccessUserVO> requestTrace,
                                                                   String againUserQueryTraceNumber, Boolean websearch,
                                                                   CompletableFuture<AiChatHistoryServiceImpl.AiChatRequest> user,
-                                                                  Message<AiAccessUserVO> message) {
+                                                                  MessageVO<AiAccessUserVO> message) {
         return source;
     }
 
 
-    default AiChatHistoryServiceImpl.AiChatRequest afterChat(AiChatHistoryServiceImpl.AiChatRequest source, Date now, RequestTrace<MemoryIdVO, AiAccessUserVO> requestTrace,
+    default AiChatHistoryServiceImpl.AiChatRequest afterChat(AiChatHistoryServiceImpl.AiChatRequest source, Date now, RequestTraceVO<MemoryIdVO, AiAccessUserVO> requestTrace,
                                                              String againUserQueryTraceNumber, Boolean websearch,
                                                              CompletableFuture<AiChatHistoryServiceImpl.AiChatRequest> user) {
         return source;

@@ -1,8 +1,8 @@
 package com.github.aiassistant.serviceintercept;
 
 import com.github.aiassistant.entity.model.chat.MemoryIdVO;
-import com.github.aiassistant.entity.model.chat.Message;
-import com.github.aiassistant.entity.model.chat.RequestTrace;
+import com.github.aiassistant.entity.model.chat.MessageVO;
+import com.github.aiassistant.entity.model.chat.RequestTraceVO;
 import com.github.aiassistant.entity.model.user.AiAccessUserVO;
 import com.github.aiassistant.service.text.memory.AiMemoryMessageServiceImpl;
 
@@ -11,10 +11,10 @@ import java.util.List;
 
 public interface AiMemoryMessageServiceIntercept extends ServiceIntercept {
 
-    default AiMemoryMessageServiceImpl.AiMemoryMessageVO afterMessage(AiMemoryMessageServiceImpl.AiMemoryMessageVO source, Date now, RequestTrace<MemoryIdVO, AiAccessUserVO> requestTrace,
+    default AiMemoryMessageServiceImpl.AiMemoryMessageVO afterMessage(AiMemoryMessageServiceImpl.AiMemoryMessageVO source, Date now, RequestTraceVO<MemoryIdVO, AiAccessUserVO> requestTrace,
                                                                       String againUserQueryTraceNumber,
                                                                       Boolean websearch,
-                                                                      Message<AiAccessUserVO> message) {
+                                                                      MessageVO<AiAccessUserVO> message) {
 
 //            if (jobList != null) {
 //                for (KnJobVO knJobVO : jobList) {
@@ -33,7 +33,7 @@ public interface AiMemoryMessageServiceIntercept extends ServiceIntercept {
     }
 
 
-    default AiMemoryMessageServiceImpl.AiMemoryVO afterMemory(AiMemoryMessageServiceImpl.AiMemoryVO source, Date now, RequestTrace<MemoryIdVO, AiAccessUserVO> requestTrace,
+    default AiMemoryMessageServiceImpl.AiMemoryVO afterMemory(AiMemoryMessageServiceImpl.AiMemoryVO source, Date now, RequestTraceVO<MemoryIdVO, AiAccessUserVO> requestTrace,
                                                               String againUserQueryTraceNumber, Boolean websearch) {
         return source;
     }

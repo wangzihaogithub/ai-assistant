@@ -1,6 +1,6 @@
 package com.github.aiassistant.service.text;
 
-import com.github.aiassistant.entity.model.chat.AiVariables;
+import com.github.aiassistant.entity.model.chat.AiVariablesVO;
 import com.github.aiassistant.entity.model.chat.QaKnVO;
 import com.github.aiassistant.entity.model.chat.QuestionClassifyListVO;
 import com.github.aiassistant.entity.model.chat.WebSearchResultVO;
@@ -82,10 +82,10 @@ public interface ChatStreamingResponseHandler {
     default void onKnowledge(List<List<QaKnVO>> knLibList, String question) {
     }
 
-    default void onQuestionClassify(QuestionClassifyListVO questionClassify, String question, AiVariables variables) {
+    default void onQuestionClassify(QuestionClassifyListVO questionClassify, String question, AiVariablesVO variables) {
     }
 
-    default void onSystemMessage(String message, AiVariables variables, String promptText) {
+    default void onSystemMessage(String message, AiVariablesVO variables, String promptText) {
 
     }
 //
@@ -93,7 +93,7 @@ public interface ChatStreamingResponseHandler {
 //
 //    }
 
-    default void onVariables(AiVariables variables) {
+    default void onVariables(AiVariablesVO variables) {
 
     }
 
