@@ -1,5 +1,6 @@
 package dev.langchain4j.model.openai;
 
+import com.github.aiassistant.entity.model.chat.ThinkingAiMessage;
 import com.github.aiassistant.service.text.GenerateRequest;
 import dev.ai4j.openai4j.OpenAiClient;
 import dev.ai4j.openai4j.ResponseHandle;
@@ -253,7 +254,10 @@ public class OpenAiStreamingChatModel implements StreamingChatLanguageModel {
                 })
                 .onComplete(() -> {
                     Response<AiMessage> response = responseBuilder.build(OpenAiStreamingResponseBuilder.STATE_OUTPUT);
-
+                    if (handler instanceof ThinkingStreamingResponseHandler && response.content() instanceof ThinkingAiMessage) {
+                        ThinkingStreamingResponseHandler h = ((ThinkingStreamingResponseHandler<AiMessage>) handler);
+                        h.onCompleteThinking(response);
+                    }
                     ChatModelResponse modelListenerResponse = createModelListenerResponse(
                             responseId.get(),
                             responseModel.get(),
