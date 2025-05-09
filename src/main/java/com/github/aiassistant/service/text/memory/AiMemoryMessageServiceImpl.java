@@ -255,7 +255,7 @@ public class AiMemoryMessageServiceImpl {
 
 //            List<KnJobVO> jobList = message.getJobList();
             String memoryString = message.getMemoryString();
-            if (memoryString == null || memoryString.isEmpty()) {
+            if (memoryString == null) {
                 memoryString = message.getText();
             }
             List<ToolRequestVO> toolRequests = message.getToolRequests();
