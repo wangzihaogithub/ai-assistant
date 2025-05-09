@@ -219,6 +219,7 @@ public class OpenAiStreamingChatModel implements StreamingChatLanguageModel {
         builder.enableThinking(request.getEnableThinking());
         builder.thinkingBudget(request.getThinkingBudget());
         builder.modalities(request.getModalities());
+        builder.audio(request.getAudio());
         builder.messages(toOpenAiMessages(messages));
         if (toolSpecifications != null && !toolSpecifications.isEmpty()) {
             builder.tools(toTools(toolSpecifications, strictTools));

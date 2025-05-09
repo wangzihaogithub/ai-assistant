@@ -72,6 +72,8 @@ public final class ChatCompletionRequest {
     private final Integer thinkingBudget;
     @JsonProperty
     private final Map<String, Object> searchOptions;
+    @JsonProperty
+    private final Audio audio;
 
     private ChatCompletionRequest(Builder builder) {
         this.model = builder.model;
@@ -98,6 +100,7 @@ public final class ChatCompletionRequest {
         this.enableSearch = builder.enableSearch;
         this.thinkingBudget = builder.thinkingBudget;
         this.searchOptions = builder.searchOptions;
+        this.audio = builder.audio;
     }
 
     public static Builder builder() {
@@ -224,7 +227,7 @@ public final class ChatCompletionRequest {
         private Integer thinkingBudget;
         private List<String> modalities;
         private Map<String, Object> searchOptions;
-
+        private Audio audio;
         private Builder() {
         }
 
@@ -258,6 +261,12 @@ public final class ChatCompletionRequest {
             enableSearch(instance.enableSearch);
             thinkingBudget(instance.thinkingBudget);
             searchOptions(instance.searchOptions);
+            audio(instance.audio);
+            return this;
+        }
+
+        public Builder audio(Audio audio) {
+            this.audio = audio;
             return this;
         }
 

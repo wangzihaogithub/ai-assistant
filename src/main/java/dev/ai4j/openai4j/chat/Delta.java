@@ -29,6 +29,8 @@ public final class Delta {
     @JsonProperty
     @Deprecated
     private final FunctionCall functionCall;
+    @JsonProperty
+    private final Audio audio;
 
     private Delta(Builder builder) {
         this.role = builder.role;
@@ -36,10 +38,15 @@ public final class Delta {
         this.reasoningContent = builder.reasoningContent;
         this.toolCalls = builder.toolCalls;
         this.functionCall = builder.functionCall;
+        this.audio = builder.audio;
     }
 
     public static Builder builder() {
         return new Builder();
+    }
+
+    public Audio audio() {
+        return audio;
     }
 
     public Role role() {
@@ -74,6 +81,8 @@ public final class Delta {
         return Objects.equals(role, another.role)
                 && Objects.equals(content, another.content)
                 && Objects.equals(toolCalls, another.toolCalls)
+                && Objects.equals(reasoningContent, another.reasoningContent)
+                && Objects.equals(audio, another.audio)
                 && Objects.equals(functionCall, another.functionCall);
     }
 
@@ -83,6 +92,8 @@ public final class Delta {
         h += (h << 5) + Objects.hashCode(role);
         h += (h << 5) + Objects.hashCode(content);
         h += (h << 5) + Objects.hashCode(toolCalls);
+        h += (h << 5) + Objects.hashCode(reasoningContent);
+        h += (h << 5) + Objects.hashCode(audio);
         h += (h << 5) + Objects.hashCode(functionCall);
         return h;
     }
@@ -108,8 +119,14 @@ public final class Delta {
         private List<ToolCall> toolCalls;
         @Deprecated
         private FunctionCall functionCall;
+        private Audio audio;
 
         private Builder() {
+        }
+
+        public Builder audio(Audio audio) {
+            this.audio = audio;
+            return this;
         }
 
         public Builder role(Role role) {
@@ -145,4 +162,44 @@ public final class Delta {
             return new Delta(this);
         }
     }
+
+    public static class Audio {
+        /**
+         * wav_bytes = base64.b64decode(audio_string)
+         * audio_np = np.frombuffer(wav_bytes, dtype=np.int16)
+         * sf.write("audio_assistant_py.wav", audio_np, samplerate=24000)
+         */
+        private String data;
+        private String transcript;
+
+        public String getData() {
+            return data;
+        }
+
+        public void setData(String data) {
+            this.data = data;
+        }
+
+        public String getTranscript() {
+            return transcript;
+        }
+
+        public void setTranscript(String transcript) {
+            this.transcript = transcript;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof Audio)) return false;
+            Audio audio = (Audio) o;
+            return Objects.equals(data, audio.data) && Objects.equals(transcript, audio.transcript);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(data, transcript);
+        }
+    }
+
 }

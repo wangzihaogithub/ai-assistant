@@ -1,6 +1,7 @@
 package com.github.aiassistant.service.text;
 
 import com.github.aiassistant.util.AiUtil;
+import dev.ai4j.openai4j.chat.Audio;
 import dev.langchain4j.agent.tool.ToolSpecification;
 import dev.langchain4j.data.message.*;
 
@@ -54,6 +55,43 @@ public class GenerateRequest implements Cloneable {
      * ["text"]：输出文本。
      */
     private List<String> modalities;
+    /**
+     * 输出音频的音色与文件格式（只支持设定为"wav"）通过audio参数来配置，
+     * 如：audio={"voice": "Cherry", "format": "wav"}，
+     * 其中商业版模型voice参数可选值为：["Cherry", "Serena", "Ethan", "Chelsie"]，
+     * 开源版模型voice参数可选值为：["Ethan", "Chelsie"]。
+     */
+    private Audio audio;
+
+    /**
+     * 输出音频的音色与文件格式（只支持设定为"wav"）通过audio参数来配置，
+     * 如：audio={"voice": "Cherry", "format": "wav"}，
+     * 其中商业版模型voice参数可选值为：["Cherry", "Serena", "Ethan", "Chelsie"]，
+     * 开源版模型voice参数可选值为：["Ethan", "Chelsie"]。
+     *
+     * @return * 输出音频的音色与文件格式（只支持设定为"wav"）通过audio参数来配置，
+     * * 如：audio={"voice": "Cherry", "format": "wav"}，
+     * * 其中商业版模型voice参数可选值为：["Cherry", "Serena", "Ethan", "Chelsie"]，
+     * * 开源版模型voice参数可选值为：["Ethan", "Chelsie"]。
+     */
+    public Audio getAudio() {
+        return audio;
+    }
+
+    /**
+     * * 输出音频的音色与文件格式（只支持设定为"wav"）通过audio参数来配置，
+     * * 如：audio={"voice": "Cherry", "format": "wav"}，
+     * * 其中商业版模型voice参数可选值为：["Cherry", "Serena", "Ethan", "Chelsie"]，
+     * * 开源版模型voice参数可选值为：["Ethan", "Chelsie"]。
+     *
+     * @param audio * 输出音频的音色与文件格式（只支持设定为"wav"）通过audio参数来配置，
+     *              * 如：audio={"voice": "Cherry", "format": "wav"}，
+     *              * 其中商业版模型voice参数可选值为：["Cherry", "Serena", "Ethan", "Chelsie"]，
+     *              * 开源版模型voice参数可选值为：["Ethan", "Chelsie"]。
+     */
+    public void setAudio(Audio audio) {
+        this.audio = audio;
+    }
 
     /**
      * 开启联网搜索的参数（供应商提供的实现）

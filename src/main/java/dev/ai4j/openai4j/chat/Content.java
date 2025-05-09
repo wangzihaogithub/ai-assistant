@@ -57,7 +57,6 @@ public final class Content {
     @JsonProperty
     private Integer maxPixels;
 
-
     public Content(Builder builder) {
         this.type = builder.type;
         this.text = builder.text;
@@ -212,14 +211,6 @@ public final class Content {
         public Builder maxPixels(Integer maxPixels) {
             this.maxPixels = maxPixels;
             return this;
-        }
-
-        public InputAudio inputAudio() {
-            return inputAudio;
-        }
-
-        public List<String> video() {
-            return video;
         }
 
         public Content build() {
