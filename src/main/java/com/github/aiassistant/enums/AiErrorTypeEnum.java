@@ -39,6 +39,11 @@ public class AiErrorTypeEnum {
         // 供应商接口返回的错误信息
         return e instanceof DataInspectionFailedException || e.getMessage().contains("data_inspection_failed");
     });
+
+    public static final AiErrorTypeEnum api_generate_exception = create("api_generate_exception", "供应商接口异常", "供应商接口异常", e -> {
+        // 供应商接口异常
+        return e instanceof ModelApiGenerateException;
+    });
     public static final AiErrorTypeEnum unknown_error = create("unknown_error", "未知异常", "当前问题处理超时，建议您稍后重新尝试提问。", e -> {
         return false;
     });
