@@ -1,6 +1,9 @@
 package com.github.aiassistant.service.text.repository;
 
-import com.github.aiassistant.entity.model.chat.*;
+import com.github.aiassistant.entity.model.chat.MessageVO;
+import com.github.aiassistant.entity.model.chat.RequestTraceVO;
+import com.github.aiassistant.entity.model.chat.ToolRequestVO;
+import com.github.aiassistant.entity.model.chat.ToolResponseVO;
 import com.github.aiassistant.entity.model.langchain4j.*;
 import com.github.aiassistant.enums.MessageTypeEnum;
 import com.github.aiassistant.service.text.sseemitter.AiMessageString;
@@ -9,7 +12,6 @@ import dev.langchain4j.data.message.*;
 
 import java.sql.Timestamp;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -123,7 +125,7 @@ public abstract class AbstractSessionMessageRepository<MEMORY_ID, U> implements 
                 if (historyList == null) {
                     historyList = getHistoryList(requestTrace.getMemoryId(), requestTrace.getUser());
                     if (historyList == null) {
-                        historyList = Collections.emptyList();
+                        historyList = new ArrayList<>();
                     }
                 }
             }

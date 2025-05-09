@@ -103,6 +103,11 @@ public interface SessionMessageRepository {
 
     }
 
+    /**
+     * 记忆历史记录
+     *
+     * @return 不为NULL的记忆历史记录
+     */
     List<ChatMessage> getHistoryList();
 
     CompletableFuture<?> commit();
