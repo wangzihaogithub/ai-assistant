@@ -102,6 +102,10 @@ public class KnnApiService {
 //        });
 //    }
 
+    private static String uniqueKey(Object... keys) {
+        return Arrays.toString(keys);
+    }
+
     public <R, T extends KnVO> Map<String, CompletableFuture<List<R>>> knnSearchLibMap(Collection<String> queryStringList,
                                                                                        AiAssistantKn kn,
                                                                                        Function<T, R> mapper,
@@ -150,11 +154,13 @@ public class KnnApiService {
         if (!StringUtils.hasText(embeddingApiKey)) {
             return null;
         }
-        OpenAiEmbeddingModel[] models = modelMap.computeIfAbsent(assistant.getAssistantId(), e -> {
+        String embeddingBaseUrl = assistant.getEmbeddingBaseUrl();
+        String embeddingModelName = assistant.getEmbeddingModelName();
+        Integer embeddingDimensions = assistant.getEmbeddingDimensions();
+        OpenAiEmbeddingModel[] models = modelMap.computeIfAbsent(uniqueKey(embeddingModelName, embeddingApiKey, embeddingBaseUrl, embeddingDimensions), e -> {
             OpenAiEmbeddingModel[] arrays = new OpenAiEmbeddingModel[concurrentEmbeddingModelCount];
             for (int i = 0; i < arrays.length; i++) {
-                arrays[i] = create(assistant.getEmbeddingApiKey(), assistant.getEmbeddingBaseUrl(),
-                        assistant.getEmbeddingModelName(), assistant.getEmbeddingDimensions());
+                arrays[i] = create(embeddingApiKey, embeddingBaseUrl, embeddingModelName, embeddingDimensions);
             }
             return arrays;
         });
