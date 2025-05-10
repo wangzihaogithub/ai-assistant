@@ -95,6 +95,10 @@ public class Mybatis3DAOProvider extends DAOProvider {
         return mapperClass.cast(mapper);
     }
 
+    public SqlSessionFactory getSqlSessionFactory() {
+        return sqlSessionFactory;
+    }
+
     public interface Mybatis3DAOProviderMapper {
 
     }

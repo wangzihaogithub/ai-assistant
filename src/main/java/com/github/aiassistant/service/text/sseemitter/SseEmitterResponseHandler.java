@@ -123,7 +123,8 @@ public class SseEmitterResponseHandler implements ChatStreamingResponseHandler {
     @Override
     public void onAudio(AudioChunk audioChunk) {
         sendToClient(emitter, "audio-chunk",
-                "audioBase64", audioChunk.getBase64());
+                "audioBase64", audioChunk.getBase64(),
+                "transcript", audioChunk.getTranscript());
     }
 
     @Override
