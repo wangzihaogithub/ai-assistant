@@ -18,6 +18,7 @@ import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.ToolExecutionResultMessage;
 import dev.langchain4j.data.message.UserMessage;
+import dev.langchain4j.model.openai.AudioChunk;
 import dev.langchain4j.model.output.Response;
 
 import java.util.List;
@@ -33,6 +34,10 @@ public interface ChatStreamingResponseHandler {
 
     default ChatStreamingResponseHandler getUserHandler() {
         return this;
+    }
+
+    default void onAudio(AudioChunk audioChunk) {
+
     }
 
     default void onBeforeModelThinking() {

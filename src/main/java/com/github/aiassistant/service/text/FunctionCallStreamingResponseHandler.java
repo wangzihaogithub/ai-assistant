@@ -1,9 +1,9 @@
 package com.github.aiassistant.service.text;
 
-import com.github.aiassistant.entity.model.langchain4j.LangChainUserMessage;
 import com.github.aiassistant.entity.model.chat.MemoryIdVO;
-import com.github.aiassistant.entity.model.langchain4j.MetadataAiMessage;
 import com.github.aiassistant.entity.model.chat.QuestionClassifyListVO;
+import com.github.aiassistant.entity.model.langchain4j.LangChainUserMessage;
+import com.github.aiassistant.entity.model.langchain4j.MetadataAiMessage;
 import com.github.aiassistant.exception.AiAssistantException;
 import com.github.aiassistant.exception.ModelApiGenerateException;
 import com.github.aiassistant.exception.TokenReadTimeoutException;
@@ -21,6 +21,9 @@ import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.data.message.ToolExecutionResultMessage;
 import dev.langchain4j.memory.ChatMemory;
+import dev.langchain4j.model.StreamingResponseHandler;
+import dev.langchain4j.model.openai.AudioChunk;
+import dev.langchain4j.model.openai.AudioStreamingResponseHandler;
 import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
 import dev.langchain4j.model.openai.ThinkingStreamingResponseHandler;
 import dev.langchain4j.model.output.FinishReason;
@@ -39,7 +42,7 @@ import java.util.stream.Collectors;
 /**
  * 流式处理AI结果（同时调用工具库）
  */
-public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void> implements ThinkingStreamingResponseHandler<AiMessage> {
+public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void> implements ThinkingStreamingResponseHandler, AudioStreamingResponseHandler, StreamingResponseHandler<AiMessage> {
     public static final long READ_DONE = -1L;
     private static final ScheduledThreadPoolExecutor READ_TIMEOUT_SCHEDULED = new ScheduledThreadPoolExecutor(1, new ThreadFactory() {
 
@@ -226,6 +229,20 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
             functionCallIfNeed(response);
         } catch (Exception e) {
             onError(e);
+        }
+    }
+
+    /**
+     * 语音回复（多模态）
+     *
+     * @param audioChunk 部分语音回复块
+     */
+    @Override
+    public void onAudio(AudioChunk audioChunk) {
+        try {
+            bizHandler.onAudio(audioChunk);
+        } catch (Exception e) {
+            log.error("onAudio failed {}", e.toString(), e);
         }
     }
 

@@ -12,10 +12,10 @@ import dev.langchain4j.model.output.FinishReason;
 import dev.langchain4j.model.output.Response;
 import dev.langchain4j.model.output.TokenUsage;
 
-import java.io.IOException;
-import java.io.PipedInputStream;
-import java.io.PipedOutputStream;
-import java.util.*;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static dev.langchain4j.model.openai.InternalOpenAiHelper.finishReasonFrom;
@@ -38,8 +38,6 @@ public class OpenAiStreamingResponseBuilder {
     // hao, 解决供应商不返回toolCall.index()字段，导致空指针，ConcurrentHashMap改成HashMap
     private final Map<Integer, ToolExecutionRequestBuilder> indexToToolExecutionRequestBuilder = Collections.synchronizedMap(new HashMap<>());
     private final AtomicInteger state = new AtomicInteger(STATE_OUTPUT);
-    private volatile PipedInputStream audioBuilderInput;
-    private volatile PipedOutputStream audioBuilderOutput;
     private volatile TokenUsage tokenUsage;
     private volatile FinishReason finishReason;
     // hotfix: requestID传下来。wangzihao
@@ -136,20 +134,6 @@ public class OpenAiStreamingResponseBuilder {
             return;
         }
 
-        Delta.Audio audio = delta.audio();
-        if (audio != null) {
-            String data = audio.getData();
-            if (data != null && !data.isEmpty()) {
-                initAudioBuilderIfNeed();
-                byte[] decode = Base64.getDecoder().decode(data);
-                try {
-                    audioBuilderOutput.write(decode);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-        }
-
         String reasoningContent = delta.reasoningContent();
         if (reasoningContent != null && !reasoningContent.isEmpty()) {
             reasoningContentBuilder.append(reasoningContent);
@@ -188,25 +172,6 @@ public class OpenAiStreamingResponseBuilder {
 
             if (functionCall1.arguments() != null) {
                 toolExecutionRequestBuilder.argumentsBuilder.append(functionCall1.arguments());
-            }
-        }
-    }
-
-    public PipedInputStream getAudioBuilderInput() {
-        return audioBuilderInput;
-    }
-
-    private void initAudioBuilderIfNeed() {
-        if (audioBuilderInput == null) {
-            synchronized (this) {
-                if (audioBuilderInput == null) {
-                    audioBuilderInput = new PipedInputStream(4096);
-                    try {
-                        audioBuilderOutput = new PipedOutputStream(audioBuilderInput);
-                    } catch (IOException e) {
-                        throw new RuntimeException(e);
-                    }
-                }
             }
         }
     }

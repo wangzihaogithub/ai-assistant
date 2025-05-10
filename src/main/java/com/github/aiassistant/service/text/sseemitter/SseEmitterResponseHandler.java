@@ -18,6 +18,7 @@ import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.ToolExecutionResultMessage;
 import dev.langchain4j.data.message.UserMessage;
+import dev.langchain4j.model.openai.AudioChunk;
 import dev.langchain4j.model.output.FinishReason;
 import dev.langchain4j.model.output.Response;
 import org.slf4j.Logger;
@@ -117,6 +118,12 @@ public class SseEmitterResponseHandler implements ChatStreamingResponseHandler {
                 "addMessageCount", addMessageCount,
                 "messageIndex", baseMessageIndex + addMessageCount,
                 "token", token.getChatString());
+    }
+
+    @Override
+    public void onAudio(AudioChunk audioChunk) {
+        sendToClient(emitter, "audio-chunk",
+                "audioBase64", audioChunk.getBase64());
     }
 
     @Override

@@ -160,10 +160,17 @@ public class OpenAiStreamingChatModel implements StreamingChatLanguageModel {
             return;
         }
 
+        // h.onAudioChunk
+        Delta.Audio audio = delta.audio();
+        if (audio != null && handler instanceof AudioStreamingResponseHandler) {
+            AudioStreamingResponseHandler h = ((AudioStreamingResponseHandler) handler);
+            h.onAudio(new AudioChunk(audio));
+        }
+
         // h.onThinkingToken
         String reasoningContent = delta.reasoningContent();
         if (reasoningContent != null && !reasoningContent.isEmpty() && handler instanceof ThinkingStreamingResponseHandler) {
-            ThinkingStreamingResponseHandler h = ((ThinkingStreamingResponseHandler<AiMessage>) handler);
+            ThinkingStreamingResponseHandler h = ((ThinkingStreamingResponseHandler) handler);
             if (responseBuilder.compareAndSet(
                     OpenAiStreamingResponseBuilder.STATE_OUTPUT,
                     OpenAiStreamingResponseBuilder.STATE_THINKING)) {
@@ -172,13 +179,14 @@ public class OpenAiStreamingChatModel implements StreamingChatLanguageModel {
             h.onThinkingToken(reasoningContent);
         }
 
+        // h.onCompleteThinking
         // handler.onNext
         String content = delta.content();
         if (content != null && !content.isEmpty()) {
             if (responseBuilder.compareAndSet(
                     OpenAiStreamingResponseBuilder.STATE_THINKING,
                     OpenAiStreamingResponseBuilder.STATE_OUTPUT)) {
-                ThinkingStreamingResponseHandler h = ((ThinkingStreamingResponseHandler<AiMessage>) handler);
+                ThinkingStreamingResponseHandler h = ((ThinkingStreamingResponseHandler) handler);
                 h.onCompleteThinking(responseBuilder.build(OpenAiStreamingResponseBuilder.STATE_THINKING));
             }
             handler.onNext(content);
@@ -256,7 +264,7 @@ public class OpenAiStreamingChatModel implements StreamingChatLanguageModel {
                 .onComplete(() -> {
                     Response<AiMessage> response = responseBuilder.build(OpenAiStreamingResponseBuilder.STATE_OUTPUT);
                     if (handler instanceof ThinkingStreamingResponseHandler && response.content() instanceof ThinkingAiMessage) {
-                        ThinkingStreamingResponseHandler h = ((ThinkingStreamingResponseHandler<AiMessage>) handler);
+                        ThinkingStreamingResponseHandler h = ((ThinkingStreamingResponseHandler) handler);
                         h.onCompleteThinking(response);
                     }
                     ChatModelResponse modelListenerResponse = createModelListenerResponse(

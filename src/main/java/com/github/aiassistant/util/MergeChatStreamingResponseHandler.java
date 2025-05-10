@@ -17,6 +17,7 @@ import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.ToolExecutionResultMessage;
 import dev.langchain4j.data.message.UserMessage;
+import dev.langchain4j.model.openai.AudioChunk;
 import dev.langchain4j.model.output.Response;
 
 import java.util.List;
@@ -37,6 +38,13 @@ public class MergeChatStreamingResponseHandler implements ChatStreamingResponseH
     }
 
     @Override
+    public void onAudio(AudioChunk audioChunk) {
+        for (ChatStreamingResponseHandler h : list) {
+            h.onAudio(audioChunk);
+        }
+    }
+
+    @Override
     public void onTokenBegin(int baseMessageIndex, int addMessageCount, int generateCount) {
         for (ChatStreamingResponseHandler h : list) {
             h.onTokenBegin(baseMessageIndex, addMessageCount, generateCount);
@@ -51,7 +59,7 @@ public class MergeChatStreamingResponseHandler implements ChatStreamingResponseH
     }
 
     @Override
-    public void onAfterModelThinking(Response<AiMessage>  thinkingResponse) {
+    public void onAfterModelThinking(Response<AiMessage> thinkingResponse) {
         for (ChatStreamingResponseHandler h : list) {
             h.onAfterModelThinking(thinkingResponse);
         }

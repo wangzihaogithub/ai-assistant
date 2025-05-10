@@ -1,15 +1,12 @@
 package dev.langchain4j.model.openai;
 
 import dev.langchain4j.data.message.AiMessage;
-import dev.langchain4j.model.StreamingResponseHandler;
 import dev.langchain4j.model.output.Response;
 
 /**
  * 模型层的思考
- *
- * @param <T> T
  */
-public interface ThinkingStreamingResponseHandler<T> extends StreamingResponseHandler<T> {
+public interface ThinkingStreamingResponseHandler {
     /**
      * 开始思考
      */
