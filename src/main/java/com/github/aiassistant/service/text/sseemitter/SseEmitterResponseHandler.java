@@ -163,7 +163,7 @@ public class SseEmitterResponseHandler implements ChatStreamingResponseHandler {
         sendToClient(emitter, "api-error",
                 "errorType", errorTypeEnum.getCode(),
                 "messageText", errorTypeEnum.getMessageText(),
-                "error", error.toString());
+                "error", debug ? error.toString() : "hidden");
         log.error("sse api error {}", error.toString(), error);
 
         sendToClient(emitter, "complete",
