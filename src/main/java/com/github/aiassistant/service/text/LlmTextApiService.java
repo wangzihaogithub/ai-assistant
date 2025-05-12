@@ -394,11 +394,11 @@ public class LlmTextApiService {
             // 3.思考并行动
             CompletableFuture<ActingService.Plan> reasoningResultFuture;
             boolean reasoningAndActing = !interrupt && classifyListVO.isWtcj() && isEnableReasoning(reasoning, assistantConfig, knPromptText, mstatePromptText, lastQuestion);
-            // 是否需要思考并行动的事件通知
-            responseHandler.onBeforeReasoningAndActing(reasoningAndActing);
             if (reasoningAndActing) {
                 reasoningResultFuture = reasoningAndActing(knnFuture, webSearchResult, lastQuestion, memoryId, reasoningAndActingParallel, responseHandler, websearch, classifyListVO);
             } else {
+                // 是否需要思考并行动的事件通知
+                responseHandler.onBeforeReasoningAndActing(false);
                 reasoningResultFuture = CompletableFuture.completedFuture(null);
             }
 
@@ -685,8 +685,10 @@ public class LlmTextApiService {
         CompletableFuture<CompletableFuture<ActingService.Plan>> future = knnFuture
                 .handle((qaList, throwable) -> {
                     if (throwable != null) {
+                        responseHandler.onBeforeReasoningAndActing(false);
                         return CompletableFuture.completedFuture(null);
                     } else if (qaList != null && !qaList.isEmpty()) {
+                        responseHandler.onBeforeReasoningAndActing(false);
                         return CompletableFuture.completedFuture(null);
                     } else {
                         // 事件通知
@@ -696,6 +698,8 @@ public class LlmTextApiService {
                                 // 制作一份计划(联网搜索后再开始)
                                 webSearchResult.thenApply(s -> reasoningService.makePlan(lastQuestion, memoryIdVO)
                                         .thenApply(result -> {
+                                            // 是否需要思考并行动的事件通知
+                                            responseHandler.onBeforeReasoningAndActing(result != null);
                                             // 事件通知
                                             if (result != null) {
                                                 responseHandler.onReasoning(lastQuestion, result);
