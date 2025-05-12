@@ -16,6 +16,7 @@ import org.slf4j.LoggerFactory;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -92,10 +93,18 @@ public class AiChatReasoningServiceImpl {
     private void insert(List<AiChatReasoningRequest> list) {
         JsonUtil.ObjectWriter objectWriter = JsonUtil.objectWriter();
         Collection<AiChatReasoningRequest> errorList = Collections.newSetFromMap(new IdentityHashMap<>());
-        for (AiChatReasoningRequest request : list) {
+        Map<Boolean, List<AiChatReasoningServiceImpl.AiChatReasoningRequest>> doneListMap = list.stream().collect(Collectors.groupingBy(e -> e.user.isDone()));
+        List<AiChatReasoningServiceImpl.AiChatReasoningRequest> undoneList = doneListMap.get(Boolean.FALSE);
+        if (undoneList != null) {
+            for (AiChatReasoningRequest request : undoneList) {
+                request.user.whenComplete((aiChatRequest, throwable) -> insert(Collections.singletonList(request)));
+            }
+        }
+
+        for (AiChatReasoningRequest request : doneListMap.getOrDefault(Boolean.TRUE, Collections.emptyList())) {
             try {
-                AiChatHistoryServiceImpl.AiChatRequest user = request.user.get();
-                Integer userChatHistoryId = user.getUserChatHistoryId(aiChatHistoryMapper).get();
+                AiChatHistoryServiceImpl.AiChatRequest user = request.user.get(3, TimeUnit.SECONDS);
+                Integer userChatHistoryId = user.getUserChatHistoryId(aiChatHistoryMapper).get(3, TimeUnit.SECONDS);
 
                 request.setAiChatId(user.getId());
                 request.setQuestion(StringUtils.left(request.question, 3950, true));

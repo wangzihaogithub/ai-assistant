@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -93,10 +94,18 @@ public class AiChatWebsearchServiceImpl {
      */
     private void insert(List<AiChatWebsearchRequest> list) {
         Collection<AiChatWebsearchRequest> errorList = Collections.newSetFromMap(new IdentityHashMap<>());
-        for (AiChatWebsearchRequest request : list) {
+        Map<Boolean, List<AiChatWebsearchRequest>> doneListMap = list.stream().collect(Collectors.groupingBy(e -> e.user.isDone()));
+        List<AiChatWebsearchRequest> undoneList = doneListMap.get(Boolean.FALSE);
+        if (undoneList != null) {
+            for (AiChatWebsearchServiceImpl.AiChatWebsearchRequest request : undoneList) {
+                request.user.whenComplete((aiChatRequest, throwable) -> insert(Collections.singletonList(request)));
+            }
+        }
+
+        for (AiChatWebsearchRequest request : doneListMap.getOrDefault(Boolean.TRUE, Collections.emptyList())) {
             try {
-                AiChatHistoryServiceImpl.AiChatRequest user = request.user.get();
-                Integer userChatHistoryId = user.getUserChatHistoryId(aiChatHistoryMapper).get();
+                AiChatHistoryServiceImpl.AiChatRequest user = request.user.get(3, TimeUnit.SECONDS);
+                Integer userChatHistoryId = user.getUserChatHistoryId(aiChatHistoryMapper).get(3, TimeUnit.SECONDS);
                 request.setAiChatId(user.getId());
                 request.setUserChatHistoryId(userChatHistoryId);
 
