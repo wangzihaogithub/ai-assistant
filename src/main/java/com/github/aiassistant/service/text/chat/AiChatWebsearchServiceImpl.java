@@ -15,7 +15,6 @@ import org.slf4j.LoggerFactory;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -97,15 +96,21 @@ public class AiChatWebsearchServiceImpl {
         Map<Boolean, List<AiChatWebsearchRequest>> doneListMap = list.stream().collect(Collectors.groupingBy(e -> e.user.isDone()));
         List<AiChatWebsearchRequest> undoneList = doneListMap.get(Boolean.FALSE);
         if (undoneList != null) {
-            for (AiChatWebsearchServiceImpl.AiChatWebsearchRequest request : undoneList) {
-                request.user.whenComplete((aiChatRequest, throwable) -> insert(Collections.singletonList(request)));
+            Map<CompletableFuture<AiChatHistoryServiceImpl.AiChatRequest>, List<AiChatWebsearchRequest>> userGroupMap = undoneList.stream().collect(Collectors.groupingBy(e -> e.user, IdentityHashMap::new, Collectors.toList()));
+            for (List<AiChatWebsearchRequest> value : userGroupMap.values()) {
+                // 相同的future，保持组内一起
+                List<AiChatWebsearchRequest> groupValues = new ArrayList<>(value);
+                CompletableFuture[] futures = groupValues.stream().map(e -> e.user).toArray(value1 -> new CompletableFuture[0]);
+                CompletableFuture.allOf(futures)
+                        .whenComplete((unused, throwable) -> insert(groupValues));
             }
         }
 
-        for (AiChatWebsearchRequest request : doneListMap.getOrDefault(Boolean.TRUE, Collections.emptyList())) {
+        Collection<AiChatWebsearchRequest> doneList = doneListMap.getOrDefault(Boolean.TRUE, Collections.emptyList());
+        for (AiChatWebsearchRequest request : doneList) {
             try {
-                AiChatHistoryServiceImpl.AiChatRequest user = request.user.get(3, TimeUnit.SECONDS);
-                Integer userChatHistoryId = user.getUserChatHistoryId(aiChatHistoryMapper).get(3, TimeUnit.SECONDS);
+                AiChatHistoryServiceImpl.AiChatRequest user = request.user.get();
+                Integer userChatHistoryId = user.getUserChatHistoryId(aiChatHistoryMapper).get();
                 request.setAiChatId(user.getId());
                 request.setUserChatHistoryId(userChatHistoryId);
 
@@ -130,7 +135,7 @@ public class AiChatWebsearchServiceImpl {
                 errorList.add(request);
             }
         }
-        List<AiChatWebsearchRequest> insert = list.stream().filter(e -> !errorList.contains(e)).collect(Collectors.toList());
+        List<AiChatWebsearchRequest> insert = doneList.stream().filter(e -> !errorList.contains(e)).collect(Collectors.toList());
         try {
             Lists.partition(insert, insertPartitionSize).forEach(aiChatWebsearchMapper::insertBatchSomeColumn);
 

@@ -16,7 +16,6 @@ import org.slf4j.LoggerFactory;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -96,15 +95,20 @@ public class AiChatReasoningServiceImpl {
         Map<Boolean, List<AiChatReasoningServiceImpl.AiChatReasoningRequest>> doneListMap = list.stream().collect(Collectors.groupingBy(e -> e.user.isDone()));
         List<AiChatReasoningServiceImpl.AiChatReasoningRequest> undoneList = doneListMap.get(Boolean.FALSE);
         if (undoneList != null) {
-            for (AiChatReasoningRequest request : undoneList) {
-                request.user.whenComplete((aiChatRequest, throwable) -> insert(Collections.singletonList(request)));
+            Map<CompletableFuture<AiChatHistoryServiceImpl.AiChatRequest>, List<AiChatReasoningServiceImpl.AiChatReasoningRequest>> userGroupMap = undoneList.stream().collect(Collectors.groupingBy(e -> e.user, IdentityHashMap::new, Collectors.toList()));
+            for (List<AiChatReasoningServiceImpl.AiChatReasoningRequest> value : userGroupMap.values()) {
+                // 相同的future，保持组内一起
+                List<AiChatReasoningServiceImpl.AiChatReasoningRequest> groupValues = new ArrayList<>(value);
+                CompletableFuture[] futures = groupValues.stream().map(e -> e.user).toArray(value1 -> new CompletableFuture[0]);
+                CompletableFuture.allOf(futures)
+                        .whenComplete((unused, throwable) -> insert(groupValues));
             }
         }
-
-        for (AiChatReasoningRequest request : doneListMap.getOrDefault(Boolean.TRUE, Collections.emptyList())) {
+        Collection<AiChatReasoningRequest> doneList = doneListMap.getOrDefault(Boolean.TRUE, Collections.emptyList());
+        for (AiChatReasoningRequest request : doneList) {
             try {
-                AiChatHistoryServiceImpl.AiChatRequest user = request.user.get(3, TimeUnit.SECONDS);
-                Integer userChatHistoryId = user.getUserChatHistoryId(aiChatHistoryMapper).get(3, TimeUnit.SECONDS);
+                AiChatHistoryServiceImpl.AiChatRequest user = request.user.get();
+                Integer userChatHistoryId = user.getUserChatHistoryId(aiChatHistoryMapper).get();
 
                 request.setAiChatId(user.getId());
                 request.setQuestion(StringUtils.left(request.question, 3950, true));
@@ -133,7 +137,7 @@ public class AiChatReasoningServiceImpl {
                 errorList.add(request);
             }
         }
-        List<AiChatReasoningRequest> insert = list.stream().filter(e -> !errorList.contains(e)).collect(Collectors.toList());
+        List<AiChatReasoningRequest> insert = doneList.stream().filter(e -> !errorList.contains(e)).collect(Collectors.toList());
         try {
             Lists.partition(insert, insertPartitionSize).forEach(aiChatReasoningMapper::insertBatchSomeColumn);
 
