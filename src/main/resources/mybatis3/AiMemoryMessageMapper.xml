@@ -39,7 +39,9 @@
         )
         AND (
             NOT EXISTS ( SELECT * FROM ai_memory_error ame WHERE ame.user_query_trace_number = amm.user_query_trace_number )
-            OR ( amm.id = ( SELECT max( id )  FROM ai_memory_message inneramm WHERE inneramm.ai_memory_id = #{arg0} and user_query_flag = true) )
+            <if test="arg1 != null and arg1 !=''">
+                OR ( amm.id = ( SELECT max( id )  FROM ai_memory_message inneramm WHERE inneramm.ai_memory_id = #{arg0} and user_query_flag = true) )
+            </if>
         )
         <if test="arg1 != null and arg1 !=''">
             AND ( amm.user_query_trace_number, amm.stage_enum ) != (#{arg1}, 'Response' )
