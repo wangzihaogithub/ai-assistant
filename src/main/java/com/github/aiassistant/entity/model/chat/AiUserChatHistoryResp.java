@@ -69,14 +69,17 @@ public class AiUserChatHistoryResp {
             List<AiChatHistoryResp> historyList = groupByUser.getOrDefault(user.getId(), Collections.emptyList());
 
             Object lastEvent = getLastEvent(abort, error, historyList);
-            List<AiChatHistoryResp> historyRespList = null;
+            List<AiChatHistoryResp> historyRespList = historyList.stream().filter(e -> e != user).collect(Collectors.toList());
             AiUserChatHistoryResp resp = BeanUtil.toBean(user, AiUserChatHistoryResp.class);
             String lastUserQueryTraceNumber;
+            Boolean lastReasoningFlag = historyRespList.stream().anyMatch(e -> Boolean.TRUE.equals(e.getReasoningFlag()));
+            boolean needAdd;
             if (lastEvent instanceof AiChatAbort) {
                 AiChatAbort cast = (AiChatAbort) lastEvent;
                 resp.setAbort(BeanUtil.toBean(lastEvent, Abort.class));
                 resp.setAiHistoryList(new ArrayList<>());
                 lastUserQueryTraceNumber = cast.getUserQueryTraceNumber();
+                needAdd = true;
             } else if (lastEvent instanceof AiMemoryError) {
                 AiMemoryError cast = (AiMemoryError) lastEvent;
                 String errorType = cast.getErrorType();
@@ -98,16 +101,16 @@ public class AiUserChatHistoryResp {
                 resp.setAiHistoryList(new ArrayList<>());
                 resp.setError(errorVO);
                 lastUserQueryTraceNumber = cast.getUserQueryTraceNumber();
+                needAdd = false;
             } else {
-                historyRespList = historyList.stream()
-                        .filter(e -> e != user)
-                        .collect(Collectors.toList());
                 resp.setAiHistoryList(historyRespList);
                 lastUserQueryTraceNumber = historyList.isEmpty() ? userQueryTraceNumber : historyList.get(historyList.size() - 1).getUserQueryTraceNumber();
+                needAdd = !historyRespList.isEmpty();
             }
             resp.setLastUserQueryTraceNumber(lastUserQueryTraceNumber);
             resp.setWebsearch(websearchMap.getOrDefault(lastUserQueryTraceNumber, Collections.emptyList()));
-            if (historyRespList == null || !historyRespList.isEmpty()) {
+            resp.setLastReasoningFlag(lastReasoningFlag);
+            if (needAdd) {
                 // historyRespList == null的情况是终止或出错。
                 // !historyRespList.isEmpty()的情况是已回复完成
                 result.add(resp);
