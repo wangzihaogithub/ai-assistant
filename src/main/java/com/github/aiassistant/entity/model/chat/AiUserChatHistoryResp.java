@@ -72,7 +72,7 @@ public class AiUserChatHistoryResp {
             List<AiChatHistoryResp> historyRespList = historyList.stream().filter(e -> e != user).collect(Collectors.toList());
             AiUserChatHistoryResp resp = BeanUtil.toBean(user, AiUserChatHistoryResp.class);
             String lastUserQueryTraceNumber;
-            Boolean lastReasoningFlag = historyRespList.stream().anyMatch(e -> Boolean.TRUE.equals(e.getReasoningFlag()));
+            Boolean lastReasoningFlag = historyRespList.isEmpty() ? Boolean.TRUE.equals(user.getReasoningFlag()) : historyRespList.stream().anyMatch(e -> Boolean.TRUE.equals(e.getReasoningFlag()));
             boolean needAdd = true;
             if (lastEvent instanceof AiChatAbort) {
                 AiChatAbort cast = (AiChatAbort) lastEvent;
