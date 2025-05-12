@@ -138,14 +138,23 @@ public class AiUserChatHistoryResp {
                 .filter(e -> chatTimeGetter.apply(e) != null)
                 .max(Comparator.comparing(chatTimeGetter));
 
-        Map<Object, Date> map = new IdentityHashMap<>();
-        lastAbort.ifPresent(e -> map.put(e, abortTimeGetter.apply(e)));
-        lastError.ifPresent(e -> map.put(e, errorTimeGetter.apply(e)));
-        lastAgain.ifPresent(e -> map.put(e, chatTimeGetter.apply(e)));
-        user.ifPresent(e -> map.put(e, chatTimeGetter.apply(e)));
-        return map.entrySet().stream()
-                .max(Map.Entry.comparingByValue())
-                .map(Map.Entry::getKey)
+        class Sort {
+            final Object source;
+            final Date sort;
+
+            Sort(Object source, Date sort) {
+                this.source = source;
+                this.sort = sort;
+            }
+        }
+        List<Sort> sortList = new ArrayList<>();
+        // 顺序相同时，按照原优先级
+        lastAbort.ifPresent(e -> sortList.add(new Sort(e, abortTimeGetter.apply(e))));
+        lastError.ifPresent(e -> sortList.add(new Sort(e, errorTimeGetter.apply(e))));
+        lastAgain.ifPresent(e -> sortList.add(new Sort(e, chatTimeGetter.apply(e))));
+        user.ifPresent(e -> sortList.add(new Sort(e, chatTimeGetter.apply(e))));
+        return sortList.stream().max(Comparator.comparing(e -> e.sort))
+                .map(e -> e.source)
                 .orElse(null);
     }
 
