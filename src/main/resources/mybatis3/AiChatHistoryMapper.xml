@@ -49,7 +49,9 @@
         SELECT
             ifnull(sum(ach.text_char_length),0) 's'
         FROM ai_chat_history ach
-        WHERE ach.ai_chat_id in (SELECT id FROM ai_chat ac WHERE ac.create_uid = #{arg1} AND ac.uid_type = #{arg0} )
+        WHERE EXISTS (
+            SELECT *  FROM ai_chat ac WHERE ach.ai_chat_id  = ac.id and ac.create_uid = #{arg1} AND ac.uid_type = #{arg0}
+        )
         and ach.create_time between left(now(),10) and now()
     </select>
 
