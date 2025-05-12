@@ -95,15 +95,15 @@ public class AiChatReasoningServiceImpl {
         Map<Boolean, List<AiChatReasoningServiceImpl.AiChatReasoningRequest>> doneListMap = list.stream().collect(Collectors.groupingBy(e -> e.user.isDone()));
         List<AiChatReasoningServiceImpl.AiChatReasoningRequest> undoneList = doneListMap.get(Boolean.FALSE);
         if (undoneList != null) {
-            Map<CompletableFuture<AiChatHistoryServiceImpl.AiChatRequest>, List<AiChatReasoningServiceImpl.AiChatReasoningRequest>> userGroupMap = undoneList.stream().collect(Collectors.groupingBy(e -> e.user, IdentityHashMap::new, Collectors.toList()));
-            for (List<AiChatReasoningServiceImpl.AiChatReasoningRequest> value : userGroupMap.values()) {
+            Map<CompletableFuture<AiChatHistoryServiceImpl.AiChatRequest>, List<AiChatReasoningRequest>> userGroupMap = undoneList.stream()
+                    .collect(Collectors.groupingBy(e -> e.user, IdentityHashMap::new, Collectors.toList()));
+            for (Map.Entry<CompletableFuture<AiChatHistoryServiceImpl.AiChatRequest>, List<AiChatReasoningRequest>> entry : userGroupMap.entrySet()) {
                 // 相同的future，保持组内一起
-                List<AiChatReasoningServiceImpl.AiChatReasoningRequest> groupValues = new ArrayList<>(value);
-                CompletableFuture[] futures = groupValues.stream().map(e -> e.user).toArray(value1 -> new CompletableFuture[0]);
-                CompletableFuture.allOf(futures)
-                        .whenComplete((unused, throwable) -> insert(groupValues));
+                ArrayList<AiChatReasoningRequest> values = new ArrayList<>(entry.getValue());
+                entry.getKey().whenComplete((unused, throwable) -> insert(values));
             }
         }
+
         Collection<AiChatReasoningRequest> doneList = doneListMap.getOrDefault(Boolean.TRUE, Collections.emptyList());
         for (AiChatReasoningRequest request : doneList) {
             try {

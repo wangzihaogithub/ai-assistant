@@ -33,6 +33,10 @@ public class AiUserChatHistoryResp {
      * 重新回答时，取这个参数传过来againUserQueryTraceNumber
      */
     private String lastUserQueryTraceNumber;
+    /**
+     * 最后一次是否思考
+     */
+    private Boolean lastReasoningFlag;
     private Boolean websearchFlag;
     /**
      * 是否思考
@@ -254,6 +258,14 @@ public class AiUserChatHistoryResp {
                 .filter(Objects::nonNull)
                 .mapToInt(e -> e)
                 .sum();
+    }
+
+    public Boolean getLastReasoningFlag() {
+        return lastReasoningFlag;
+    }
+
+    public void setLastReasoningFlag(Boolean lastReasoningFlag) {
+        this.lastReasoningFlag = lastReasoningFlag;
     }
 
     @Override

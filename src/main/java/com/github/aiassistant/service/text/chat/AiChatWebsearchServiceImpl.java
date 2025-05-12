@@ -96,13 +96,13 @@ public class AiChatWebsearchServiceImpl {
         Map<Boolean, List<AiChatWebsearchRequest>> doneListMap = list.stream().collect(Collectors.groupingBy(e -> e.user.isDone()));
         List<AiChatWebsearchRequest> undoneList = doneListMap.get(Boolean.FALSE);
         if (undoneList != null) {
-            Map<CompletableFuture<AiChatHistoryServiceImpl.AiChatRequest>, List<AiChatWebsearchRequest>> userGroupMap = undoneList.stream().collect(Collectors.groupingBy(e -> e.user, IdentityHashMap::new, Collectors.toList()));
-            for (List<AiChatWebsearchRequest> value : userGroupMap.values()) {
+            Map<CompletableFuture<AiChatHistoryServiceImpl.AiChatRequest>, List<AiChatWebsearchRequest>> userGroupMap = undoneList.stream()
+                    .collect(Collectors.groupingBy(e -> e.user, IdentityHashMap::new, Collectors.toList()));
+            // 相同的future，保持组内一起
+            for (Map.Entry<CompletableFuture<AiChatHistoryServiceImpl.AiChatRequest>, List<AiChatWebsearchRequest>> entry : userGroupMap.entrySet()) {
                 // 相同的future，保持组内一起
-                List<AiChatWebsearchRequest> groupValues = new ArrayList<>(value);
-                CompletableFuture[] futures = groupValues.stream().map(e -> e.user).toArray(value1 -> new CompletableFuture[0]);
-                CompletableFuture.allOf(futures)
-                        .whenComplete((unused, throwable) -> insert(groupValues));
+                ArrayList<AiChatWebsearchRequest> values = new ArrayList<>(entry.getValue());
+                entry.getKey().whenComplete((unused, throwable) -> insert(values));
             }
         }
 
