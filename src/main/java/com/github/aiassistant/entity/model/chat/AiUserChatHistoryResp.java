@@ -73,13 +73,12 @@ public class AiUserChatHistoryResp {
             AiUserChatHistoryResp resp = BeanUtil.toBean(user, AiUserChatHistoryResp.class);
             String lastUserQueryTraceNumber;
             Boolean lastReasoningFlag = historyRespList.stream().anyMatch(e -> Boolean.TRUE.equals(e.getReasoningFlag()));
-            boolean needAdd;
+            boolean needAdd = true;
             if (lastEvent instanceof AiChatAbort) {
                 AiChatAbort cast = (AiChatAbort) lastEvent;
                 resp.setAbort(BeanUtil.toBean(lastEvent, Abort.class));
                 resp.setAiHistoryList(new ArrayList<>());
                 lastUserQueryTraceNumber = cast.getUserQueryTraceNumber();
-                needAdd = true;
             } else if (lastEvent instanceof AiMemoryError) {
                 AiMemoryError cast = (AiMemoryError) lastEvent;
                 String errorType = cast.getErrorType();
@@ -101,7 +100,6 @@ public class AiUserChatHistoryResp {
                 resp.setAiHistoryList(new ArrayList<>());
                 resp.setError(errorVO);
                 lastUserQueryTraceNumber = cast.getUserQueryTraceNumber();
-                needAdd = false;
             } else {
                 resp.setAiHistoryList(historyRespList);
                 lastUserQueryTraceNumber = historyList.isEmpty() ? userQueryTraceNumber : historyList.get(historyList.size() - 1).getUserQueryTraceNumber();
