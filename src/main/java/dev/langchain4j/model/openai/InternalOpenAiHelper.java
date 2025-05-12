@@ -243,6 +243,8 @@ public class InternalOpenAiHelper {
 
     /**
      * @deprecated Functions are deprecated by OpenAI, use {@link #toTools(Collection, boolean)} instead
+     * @param toolSpecifications toolSpecifications
+     * @return Function
      */
     @Deprecated
     public static List<Function> toFunctions(Collection<ToolSpecification> toolSpecifications) {
@@ -253,6 +255,8 @@ public class InternalOpenAiHelper {
 
     /**
      * @deprecated Functions are deprecated by OpenAI, use {@link #toTool(ToolSpecification, boolean)} instead
+     * @param toolSpecification toolSpecification
+     * @return Function
      */
     @Deprecated
     private static Function toFunction(ToolSpecification toolSpecification) {

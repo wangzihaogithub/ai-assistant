@@ -14,7 +14,7 @@ public interface AudioStreamingResponseHandler {
      * 如：audio={"voice": "Cherry", "format": "wav"}，
      * 其中商业版模型voice参数可选值为：["Cherry", "Serena", "Ethan", "Chelsie"]，
      * 开源版模型voice参数可选值为：["Ethan", "Chelsie"]。
-     * https://bailian.console.aliyun.com/?tab=api#/api/?type=model&url=https%3A%2F%2Fhelp.aliyun.com%2Fdocument_detail%2F2867839.html
+     * https://bailian.console.aliyun.com/?tab=api#/api/?type=model
      *
      * @param audioChunk 部分语音回复块
      */
