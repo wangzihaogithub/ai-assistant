@@ -20,10 +20,7 @@ import org.slf4j.LoggerFactory;
 
 import java.net.Proxy;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
@@ -236,6 +233,7 @@ public class OpenAiStreamingChatModel implements StreamingChatLanguageModel {
             if (Boolean.TRUE.equals(request.getToolChoiceRequired())) {
                 ToolSpecification first = toolSpecifications.iterator().next();
                 builder.toolChoice(toTool(first, strictTools));
+                builder.tools(toTools(Collections.singletonList(first), strictTools));
             } else {
                 builder.tools(toTools(toolSpecifications, strictTools));
             }
