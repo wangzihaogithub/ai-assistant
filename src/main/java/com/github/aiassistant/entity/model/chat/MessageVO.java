@@ -174,4 +174,9 @@ public class MessageVO<U> {
     public void setToolRequests(List<ToolRequestVO> toolRequests) {
         this.toolRequests = toolRequests;
     }
+
+    @Override
+    public String toString() {
+        return type + "(" + text + ")";
+    }
 }
