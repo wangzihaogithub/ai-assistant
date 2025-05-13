@@ -33,13 +33,12 @@ public class AiErrorTypeEnum {
     });
     public static final AiErrorTypeEnum limit_requests = create("limit_requests", "限流", "当前使用人数较多，建议等待片刻后重新提问。", e -> {
         // 供应商接口返回的错误信息
-        return e.getMessage().contains("limit_requests");
+        return Objects.toString(e.getMessage(), "").contains("limit_requests");
     });
     public static final AiErrorTypeEnum data_inspection_failed = create("data_inspection_failed", "违规", "根据相关规定暂无法回答，我们可以聊聊其他话题吗？", e -> {
         // 供应商接口返回的错误信息
-        return e instanceof DataInspectionFailedException || e.getMessage().contains("data_inspection_failed");
+        return e instanceof DataInspectionFailedException || Objects.toString(e.getMessage(), "").contains("data_inspection_failed");
     });
-
     public static final AiErrorTypeEnum api_generate_exception = create("api_generate_exception", "供应商接口异常", "供应商接口异常", e -> {
         // 供应商接口异常
         return e instanceof ModelApiGenerateException;
