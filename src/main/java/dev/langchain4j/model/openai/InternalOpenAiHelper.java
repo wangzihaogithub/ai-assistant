@@ -229,7 +229,7 @@ public class InternalOpenAiHelper {
                 .collect(toList());
     }
 
-    private static Tool toTool(ToolSpecification toolSpecification, boolean strict) {
+    /*private*/ static Tool toTool(ToolSpecification toolSpecification, boolean strict) {
         Function.Builder functionBuilder = Function.builder()
                 .name(toolSpecification.name())
                 .description(toolSpecification.description())

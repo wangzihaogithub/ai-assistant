@@ -233,7 +233,12 @@ public class OpenAiStreamingChatModel implements StreamingChatLanguageModel {
         builder.audio(request.getAudio());
         builder.messages(toOpenAiMessages(messages));
         if (toolSpecifications != null && !toolSpecifications.isEmpty()) {
-            builder.tools(toTools(toolSpecifications, strictTools));
+            if (Boolean.TRUE.equals(request.getToolChoiceRequired())) {
+                ToolSpecification first = toolSpecifications.iterator().next();
+                builder.toolChoice(toTool(first, strictTools));
+            } else {
+                builder.tools(toTools(toolSpecifications, strictTools));
+            }
         }
         dev.langchain4j.model.chat.request.ResponseFormatType openAiResponseFormatType;
         JsonSchema jsonSchema;

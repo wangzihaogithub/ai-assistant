@@ -25,6 +25,18 @@ public class GenerateRequest implements Cloneable {
      */
     List<ToolSpecification> toolSpecificationList;
     /**
+     * 默认情况下，模型将决定何时以及使用多少工具。您可以使用tool_choice参数强制特定行为。
+     * tool_choice string 或 object （可选）默认值为 "auto"
+     * 如果您希望对于某一类问题，大模型能够采取制定好的工具选择策略（如强制使用某个工具、强制使用至少一个工具、强制不使用工具等），可以通过修改tool_choice参数来强制指定工具调用的策略。可选值：
+     * "auto"
+     * 表示由大模型进行工具策略的选择。
+     * "none"
+     * 如果您希望无论输入什么问题，Function Calling 都不会进行工具调用，可以设定tool_choice参数为"none"；
+     * {"type": "function", "function": {"name": "the_function_to_call"}}
+     * 如果您希望对于某一类问题，Function Calling 能够强制调用某个工具，可以设定tool_choice参数为{"type": "function", "function": {"name": "the_function_to_call"}}，其中the_function_to_call是您指定的工具函数名称。
+     */
+    private Boolean toolChoiceRequired;
+    /**
      * 开启联网搜索的参数（供应商提供的实现）
      */
     private Boolean enableSearch;
@@ -110,6 +122,58 @@ public class GenerateRequest implements Cloneable {
      */
     public void setJsonSchema(JsonSchema jsonSchema) {
         this.jsonSchema = jsonSchema;
+    }
+
+    /**
+     * 默认情况下，模型将决定何时以及使用多少工具。您可以使用tool_choice参数强制特定行为。
+     * tool_choice string 或 object （可选）默认值为 "auto"
+     * 如果您希望对于某一类问题，大模型能够采取制定好的工具选择策略（如强制使用某个工具、强制使用至少一个工具、强制不使用工具等），可以通过修改tool_choice参数来强制指定工具调用的策略。可选值：
+     * "auto"
+     * 表示由大模型进行工具策略的选择。
+     * "none"
+     * 如果您希望无论输入什么问题，Function Calling 都不会进行工具调用，可以设定tool_choice参数为"none"；
+     * {"type": "function", "function": {"name": "the_function_to_call"}}
+     * 如果您希望对于某一类问题，Function Calling 能够强制调用某个工具，可以设定tool_choice参数为{"type": "function", "function": {"name": "the_function_to_call"}}，其中the_function_to_call是您指定的工具函数名称。
+     *
+     * @return * 默认情况下，模型将决定何时以及使用多少工具。您可以使用tool_choice参数强制特定行为。
+     * * tool_choice string 或 object （可选）默认值为 "auto"
+     * * 如果您希望对于某一类问题，大模型能够采取制定好的工具选择策略（如强制使用某个工具、强制使用至少一个工具、强制不使用工具等），可以通过修改tool_choice参数来强制指定工具调用的策略。可选值：
+     * * "auto"
+     * * 表示由大模型进行工具策略的选择。
+     * * "none"
+     * * 如果您希望无论输入什么问题，Function Calling 都不会进行工具调用，可以设定tool_choice参数为"none"；
+     * * {"type": "function", "function": {"name": "the_function_to_call"}}
+     * * 如果您希望对于某一类问题，Function Calling 能够强制调用某个工具，可以设定tool_choice参数为{"type": "function", "function": {"name": "the_function_to_call"}}，其中the_function_to_call是您指定的工具函数名称。
+     * *
+     */
+    public Boolean getToolChoiceRequired() {
+        return toolChoiceRequired;
+    }
+
+    /**
+     * 默认情况下，模型将决定何时以及使用多少工具。您可以使用tool_choice参数强制特定行为。
+     * tool_choice string 或 object （可选）默认值为 "auto"
+     * 如果您希望对于某一类问题，大模型能够采取制定好的工具选择策略（如强制使用某个工具、强制使用至少一个工具、强制不使用工具等），可以通过修改tool_choice参数来强制指定工具调用的策略。可选值：
+     * "auto"
+     * 表示由大模型进行工具策略的选择。
+     * "none"
+     * 如果您希望无论输入什么问题，Function Calling 都不会进行工具调用，可以设定tool_choice参数为"none"；
+     * {"type": "function", "function": {"name": "the_function_to_call"}}
+     * 如果您希望对于某一类问题，Function Calling 能够强制调用某个工具，可以设定tool_choice参数为{"type": "function", "function": {"name": "the_function_to_call"}}，其中the_function_to_call是您指定的工具函数名称。
+     *
+     * @param toolChoiceRequired * 默认情况下，模型将决定何时以及使用多少工具。您可以使用tool_choice参数强制特定行为。
+     *                           * tool_choice string 或 object （可选）默认值为 "auto"
+     *                           * 如果您希望对于某一类问题，大模型能够采取制定好的工具选择策略（如强制使用某个工具、强制使用至少一个工具、强制不使用工具等），可以通过修改tool_choice参数来强制指定工具调用的策略。可选值：
+     *                           * "auto"
+     *                           * 表示由大模型进行工具策略的选择。
+     *                           * "none"
+     *                           * 如果您希望无论输入什么问题，Function Calling 都不会进行工具调用，可以设定tool_choice参数为"none"；
+     *                           * {"type": "function", "function": {"name": "the_function_to_call"}}
+     *                           * 如果您希望对于某一类问题，Function Calling 能够强制调用某个工具，可以设定tool_choice参数为{"type": "function", "function": {"name": "the_function_to_call"}}，其中the_function_to_call是您指定的工具函数名称。
+     *                           *
+     */
+    public void setToolChoiceRequired(Boolean toolChoiceRequired) {
+        this.toolChoiceRequired = toolChoiceRequired;
     }
 
     /**
