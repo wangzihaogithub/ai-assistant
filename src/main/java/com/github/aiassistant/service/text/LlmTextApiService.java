@@ -108,6 +108,10 @@ public class LlmTextApiService {
      * 是否并行执行，思考的子问题（注：并行不能携带上一个子问题的执行结果,如果子问题需要依赖上一个子问题的执行结果，需要改为false）
      */
     public boolean reasoningAndActingParallel = true;
+    /**
+     * 大模型请求超时时间
+     */
+    private Duration timeout = Duration.ofSeconds(120);
 
     public LlmTextApiService(LlmJsonSchemaApiService llmJsonSchemaApiService,
                              AiQuestionClassifyService aiQuestionClassifyService,
@@ -868,7 +872,7 @@ public class LlmTextApiService {
                                                      Double temperature,
                                                      Integer maxCompletionTokens) {
         OpenAiStreamingChatModel.OpenAiStreamingChatModelBuilder builder = OpenAiStreamingChatModel.builder()
-                .timeout(Duration.ofSeconds(120))
+                .timeout(timeout)
                 .temperature(temperature)
                 .apiKey(apiKey)
                 .baseUrl(baseUrl)
@@ -878,6 +882,14 @@ public class LlmTextApiService {
             builder = builder.maxCompletionTokens(maxCompletionTokens);
         }
         return builder.build();
+    }
+
+    public Duration getTimeout() {
+        return timeout;
+    }
+
+    public void setTimeout(Duration timeout) {
+        this.timeout = timeout;
     }
 
     /**

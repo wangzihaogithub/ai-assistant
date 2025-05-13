@@ -40,6 +40,19 @@ public class AiJsonschema {
      */
     private String remark;
 
+    /**
+     * 超时时间（单位：毫秒）
+     */
+    private Integer timeoutMs;
+
+    public Integer getTimeoutMs() {
+        return timeoutMs;
+    }
+
+    public void setTimeoutMs(Integer timeoutMs) {
+        this.timeoutMs = timeoutMs;
+    }
+
     public Integer getId() {
         return id;
     }

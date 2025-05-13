@@ -4,40 +4,30 @@ import com.github.aiassistant.entity.model.chat.QuestionClassifyListVO;
 import com.github.aiassistant.entity.model.chat.WebSearchResultVO;
 import com.github.aiassistant.enums.AiWebSearchSourceEnum;
 import com.github.aiassistant.exception.JsonschemaConfigException;
+import com.github.aiassistant.service.jsonschema.JsonSchemaApi;
 import com.github.aiassistant.service.text.ChatStreamingResponseHandler;
 import com.github.aiassistant.service.text.sseemitter.AiMessageString;
 import com.github.aiassistant.service.text.tools.Tools;
 import com.github.aiassistant.service.text.tools.functioncall.UrlReadTools;
 import com.github.aiassistant.util.ReflectUtil;
-import dev.langchain4j.agent.tool.ToolExecutionRequest;
-import dev.langchain4j.agent.tool.ToolSpecification;
+import dev.langchain4j.data.message.AiMessage;
+import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.UserMessage;
-import dev.langchain4j.data.message.*;
 import dev.langchain4j.exception.IllegalConfigurationException;
 import dev.langchain4j.memory.ChatMemory;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
-import dev.langchain4j.model.chat.request.ChatRequest;
-import dev.langchain4j.model.chat.request.ResponseFormat;
-import dev.langchain4j.model.chat.request.json.JsonSchema;
-import dev.langchain4j.model.chat.response.ChatResponse;
 import dev.langchain4j.model.input.Prompt;
 import dev.langchain4j.model.input.PromptTemplate;
 import dev.langchain4j.model.input.structured.StructuredPrompt;
 import dev.langchain4j.model.input.structured.StructuredPromptProcessor;
-import dev.langchain4j.model.moderation.Moderation;
 import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
 import dev.langchain4j.model.output.Response;
-import dev.langchain4j.model.output.TokenUsage;
 import dev.langchain4j.rag.AugmentationRequest;
 import dev.langchain4j.rag.AugmentationResult;
 import dev.langchain4j.rag.content.Content;
 import dev.langchain4j.rag.query.Metadata;
 import dev.langchain4j.service.output.ServiceOutputParser;
-import dev.langchain4j.service.tool.ToolExecution;
-import dev.langchain4j.service.tool.ToolExecutor;
-import dev.langchain4j.service.tool.ToolProviderRequest;
-import dev.langchain4j.service.tool.ToolProviderResult;
 import dev.langchain4j.spi.services.TokenStreamAdapter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,29 +35,24 @@ import org.slf4j.LoggerFactory;
 import java.io.InputStream;
 import java.lang.reflect.*;
 import java.util.*;
-import java.util.concurrent.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 import static dev.langchain4j.exception.IllegalConfigurationException.illegalConfiguration;
 import static dev.langchain4j.internal.Exceptions.illegalArgument;
-import static dev.langchain4j.internal.Exceptions.runtime;
 import static dev.langchain4j.internal.Utils.isNotNullOrBlank;
 import static dev.langchain4j.internal.ValidationUtils.ensureNotEmpty;
 import static dev.langchain4j.internal.ValidationUtils.ensureNotNull;
-import static dev.langchain4j.model.chat.Capability.RESPONSE_FORMAT_JSON_SCHEMA;
-import static dev.langchain4j.model.chat.request.ResponseFormatType.JSON;
-import static dev.langchain4j.service.TypeUtils.typeHasRawClass;
-import static dev.langchain4j.service.output.JsonSchemas.jsonSchemaFrom;
 import static dev.langchain4j.spi.ServiceHelper.loadFactories;
 
 public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
 
-    private static final int MAX_SEQUENTIAL_TOOL_EXECUTIONS = 100;
-
-    private static final Logger log = LoggerFactory.getLogger(FunctionalInterfaceAiServices.class);
     private static final Map<Class, AtomicInteger> threadExecutorCounter = new ConcurrentHashMap<>();
-
+    private final Logger log;
     private final ServiceOutputParser serviceOutputParser = new ServiceOutputParser();
     private final Collection<TokenStreamAdapter> tokenStreamAdapters = loadFactories(TokenStreamAdapter.class);
     private final String systemMessage;
@@ -103,8 +88,17 @@ public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
         this.toolMethodList = toolMethodList;
         Class<?> aiServiceClass = context.aiServiceClass;
         if (!aiServiceClass.isAnnotationPresent(FunctionalInterface.class)) {
-            throw new UnsupportedOperationException("must FunctionalInterface");
+            throw new UnsupportedOperationException(String.format("JsonSchema aiServiceClass must FunctionalInterface! %s", aiServiceClass));
         }
+        Method method = Arrays.stream(aiServiceClass.getMethods()).filter(e -> !e.isDefault()).findFirst().orElse(null);
+        if (method != null) {
+            Class<?> returnType = method.getReturnType();
+            boolean streaming = returnType == TokenStream.class || canAdaptTokenStreamTo(returnType);
+            if (!streaming) {
+                throw new UnsupportedOperationException(String.format("JsonSchema aiServiceClass must streaming! %s %s", aiServiceClass, method));
+            }
+        }
+        this.log = LoggerFactory.getLogger(aiServiceClass);
         this.responseHandler = responseHandler == null ? ChatStreamingResponseHandler.EMPTY : responseHandler;
         this.systemMessage = systemMessage;
         this.userMessage = userMessage;
@@ -286,270 +280,24 @@ public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
         return executor;
     }
 
-    @Override
-    public T build() {
-
-        performBasicValidation();
-
-        for (Method method : context.aiServiceClass.getMethods()) {
-            if (method.isAnnotationPresent(Moderate.class) && context.moderationModel == null) {
-                throw illegalConfiguration("The @Moderate annotation is present, but the moderationModel is not set up. " +
-                        "Please ensure a valid moderationModel is configured before using the @Moderate annotation.");
-            }
-            if (method.getReturnType() == Result.class ||
-                    method.getReturnType() == List.class ||
-                    method.getReturnType() == Set.class) {
-                TypeUtils.validateReturnTypesAreProperlyParametrized(method.getName(), method.getGenericReturnType());
+    private boolean canAdaptTokenStreamTo(Type returnType) {
+        for (TokenStreamAdapter tokenStreamAdapter : tokenStreamAdapters) {
+            if (tokenStreamAdapter.canAdaptTokenStreamTo(returnType)) {
+                return true;
             }
         }
+        return false;
+    }
+
+    @Override
+    public T build() {
+        performBasicValidation();
         List<Class<?>> interfaces = new ArrayList<>(Arrays.asList(context.aiServiceClass.getInterfaces()));
         interfaces.add(context.aiServiceClass);
         Object proxyInstance = Proxy.newProxyInstance(
                 context.aiServiceClass.getClassLoader(),
                 interfaces.toArray(new Class[interfaces.size()]),
-                new InvocationHandler() {
-
-                    @Override
-                    public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-
-                        if (method.getDeclaringClass() == Object.class) {
-                            // methods like equals(), hashCode() and toString() should not be handled by this proxy
-                            return method.invoke(this, args);
-                        }
-
-                        // wangzihao 12-11， 支持默认方法
-                        if (method.isDefault()) {
-                            return ReflectUtil.invokeMethodHandle(true, proxy, method, args);
-                        }
-
-                        validateParameters(method);
-
-                        Object memoryId = findMemoryId(method, args).orElse(FunctionalInterfaceAiServices.this.memoryId);
-
-                        Optional<SystemMessage> systemMessage = prepareSystemMessage(memoryId, method, args);
-                        UserMessage userMessage = prepareUserMessage(method, args);
-                        AugmentationResult augmentationResult = null;
-                        if (context.retrievalAugmentor != null) {
-                            List<ChatMessage> chatMemory = context.hasChatMemory()
-                                    ? context.chatMemory(memoryId).messages()
-                                    : null;
-                            Metadata metadata = Metadata.from(userMessage, memoryId, chatMemory);
-                            AugmentationRequest augmentationRequest = new AugmentationRequest(userMessage, metadata);
-                            augmentationResult = context.retrievalAugmentor.augment(augmentationRequest);
-                            userMessage = (UserMessage) augmentationResult.chatMessage();
-                        }
-
-                        // TODO give user ability to provide custom OutputParser
-                        Type returnType = method.getGenericReturnType();
-
-                        boolean streaming = returnType == TokenStream.class || canAdaptTokenStreamTo(returnType);
-
-                        boolean supportsJsonSchema = supportsJsonSchema();
-                        Optional<JsonSchema> jsonSchema = Optional.empty();
-                        if (supportsJsonSchema && !streaming) {
-                            jsonSchema = jsonSchemaFrom(returnType);
-                        }
-
-                        if ((!supportsJsonSchema || !jsonSchema.isPresent()) && !streaming) {
-                            // TODO append after storing in the memory?
-                            userMessage = appendOutputFormatInstructions(returnType, userMessage);
-                        }
-
-                        if (context.hasChatMemory()) {
-                            ChatMemory chatMemory = context.chatMemory(memoryId);
-                            systemMessage.ifPresent(chatMemory::add);
-                            chatMemory.add(userMessage);
-                        }
-
-                        List<ChatMessage> messages;
-                        if (context.hasChatMemory()) {
-                            messages = context.chatMemory(memoryId).messages();
-                        } else {
-                            messages = new ArrayList<>();
-                            systemMessage.ifPresent(messages::add);
-                            messages.add(userMessage);
-                        }
-
-                        Future<Moderation> moderationFuture = triggerModerationIfNeeded(method, messages);
-
-                        List<ToolSpecification> toolSpecifications = context.toolSpecifications;
-                        Map<String, ToolExecutor> toolExecutors = context.toolExecutors;
-
-                        if (context.toolProvider != null) {
-                            toolSpecifications = new ArrayList<>();
-                            toolExecutors = new HashMap<>();
-                            ToolProviderRequest toolProviderRequest = new ToolProviderRequest(memoryId, userMessage);
-                            ToolProviderResult toolProviderResult = context.toolProvider.provideTools(toolProviderRequest);
-                            if (toolProviderResult != null) {
-                                Map<ToolSpecification, ToolExecutor> tools = toolProviderResult.tools();
-                                for (ToolSpecification toolSpecification : tools.keySet()) {
-                                    toolSpecifications.add(toolSpecification);
-                                    toolExecutors.put(toolSpecification.name(), tools.get(toolSpecification));
-                                }
-                            }
-                        }
-
-                        if (streaming) {
-                            TokenStream tokenStream = new AiServiceTokenStream(
-                                    modelName,
-                                    messages,
-                                    augmentationResult != null ? augmentationResult.contents() : null,
-                                    context,
-                                    toolMethodList,
-                                    isSupportChineseToolName,
-                                    memoryId,
-                                    userMessage,
-                                    systemMessage.orElse(null),
-                                    classifyListVO,
-                                    websearch, reasoning,
-                                    responseHandler
-                            );
-                            // TODO moderation
-                            if (returnType == TokenStream.class) {
-                                return tokenStream;
-                            } else {
-                                return adapt(tokenStream, returnType);
-                            }
-                        }
-
-                        Response<AiMessage> response;
-                        if (supportsJsonSchema && jsonSchema.isPresent()) {
-                            ChatRequest chatRequest = ChatRequest.builder()
-                                    .messages(messages)
-                                    .toolSpecifications(toolSpecifications)
-                                    .responseFormat(ResponseFormat.builder()
-                                            .type(JSON)
-                                            .jsonSchema(jsonSchema.get())
-                                            .build())
-                                    .build();
-                            ChatResponse chatResponse = context.chatModel.chat(chatRequest);
-
-                            response = new Response<>(
-                                    chatResponse.aiMessage(),
-                                    chatResponse.tokenUsage(),
-                                    chatResponse.finishReason()
-                            );
-                        } else {
-                            // TODO migrate to new API
-                            response = toolSpecifications == null
-                                    ? context.chatModel.generate(messages)
-                                    : context.chatModel.generate(messages, toolSpecifications);
-                        }
-                        responseHandler.onJsonSchema(context.aiServiceClass, systemMessage.orElse(null), userMessage, response.content());
-
-                        TokenUsage tokenUsageAccumulator = response.tokenUsage();
-
-                        verifyModerationIfNeeded(moderationFuture);
-
-                        int executionsLeft = MAX_SEQUENTIAL_TOOL_EXECUTIONS;
-                        List<ToolExecution> toolExecutions = new ArrayList<>();
-                        while (true) {
-
-                            if (executionsLeft-- == 0) {
-                                throw runtime("Something is wrong, exceeded %s sequential tool executions",
-                                        MAX_SEQUENTIAL_TOOL_EXECUTIONS);
-                            }
-
-                            AiMessage aiMessage = response.content();
-
-                            if (context.hasChatMemory()) {
-                                context.chatMemory(memoryId).add(aiMessage);
-                            } else {
-                                messages = new ArrayList<>(messages);
-                                messages.add(aiMessage);
-                            }
-
-                            if (!aiMessage.hasToolExecutionRequests()) {
-                                break;
-                            }
-
-                            for (ToolExecutionRequest toolExecutionRequest : aiMessage.toolExecutionRequests()) {
-                                ToolExecutor toolExecutor = toolExecutors.get(toolExecutionRequest.name());
-                                String toolExecutionResult = toolExecutor.execute(toolExecutionRequest, memoryId);
-                                toolExecutions.add(ToolExecution.builder()
-                                        .request(toolExecutionRequest)
-                                        .result(toolExecutionResult)
-                                        .build());
-                                ToolExecutionResultMessage toolExecutionResultMessage = ToolExecutionResultMessage.from(
-                                        toolExecutionRequest,
-                                        toolExecutionResult
-                                );
-                                if (context.hasChatMemory()) {
-                                    context.chatMemory(memoryId).add(toolExecutionResultMessage);
-                                } else {
-                                    messages.add(toolExecutionResultMessage);
-                                }
-                            }
-
-                            if (context.hasChatMemory()) {
-                                messages = context.chatMemory(memoryId).messages();
-                            }
-
-                            response = context.chatModel.generate(messages, toolSpecifications);
-                            tokenUsageAccumulator = TokenUsage.sum(tokenUsageAccumulator, response.tokenUsage());
-                        }
-
-                        response = Response.from(response.content(), tokenUsageAccumulator, response.finishReason());
-
-                        Object parsedResponse = serviceOutputParser.parse(response, returnType);
-                        if (typeHasRawClass(returnType, Result.class)) {
-                            return Result.builder()
-                                    .content(parsedResponse)
-                                    .tokenUsage(tokenUsageAccumulator)
-                                    .sources(augmentationResult == null ? null : augmentationResult.contents())
-                                    .finishReason(response.finishReason())
-                                    .toolExecutions(toolExecutions)
-                                    .build();
-                        } else {
-                            return parsedResponse;
-                        }
-                    }
-
-                    private boolean canAdaptTokenStreamTo(Type returnType) {
-                        for (TokenStreamAdapter tokenStreamAdapter : tokenStreamAdapters) {
-                            if (tokenStreamAdapter.canAdaptTokenStreamTo(returnType)) {
-                                return true;
-                            }
-                        }
-                        return false;
-                    }
-
-                    private Object adapt(TokenStream tokenStream, Type returnType) {
-                        for (TokenStreamAdapter tokenStreamAdapter : tokenStreamAdapters) {
-                            if (tokenStreamAdapter.canAdaptTokenStreamTo(returnType)) {
-                                return tokenStreamAdapter.adapt(tokenStream);
-                            }
-                        }
-                        throw new IllegalStateException("Can't find suitable TokenStreamAdapter");
-                    }
-
-                    private boolean supportsJsonSchema() {
-                        return context.chatModel != null
-                                && context.chatModel.supportedCapabilities().contains(RESPONSE_FORMAT_JSON_SCHEMA);
-                    }
-
-                    private UserMessage appendOutputFormatInstructions(Type returnType, UserMessage userMessage) {
-                        String outputFormatInstructions = serviceOutputParser.outputFormatInstructions(returnType);
-                        String text = userMessage.singleText() + outputFormatInstructions;
-                        if (isNotNullOrBlank(userMessage.name())) {
-                            userMessage = UserMessage.from(userMessage.name(), text);
-                        } else {
-                            userMessage = UserMessage.from(text);
-                        }
-                        return userMessage;
-                    }
-
-                    private Future<Moderation> triggerModerationIfNeeded(Method method, List<ChatMessage> messages) {
-                        if (method.isAnnotationPresent(Moderate.class)) {
-                            return getExecutor(context.aiServiceClass).submit(() -> {
-                                List<ChatMessage> messagesToModerate = removeToolMessages(messages);
-                                return context.moderationModel.moderate(messagesToModerate).content();
-                            });
-                        }
-                        return null;
-                    }
-                });
-
+                new StreamInvocationHandler());
         return (T) proxyInstance;
     }
 
@@ -657,6 +405,8 @@ public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
         private final QuestionClassifyListVO classifyListVO;
         private final Boolean websearch;
         private final Boolean reasoning;
+        private final Object proxy;
+        private final Logger log;
         private Consumer<AiMessageString> tokenHandler;
         private Consumer<List<Content>> contentsHandler;
         private Consumer<Throwable> errorHandler;
@@ -678,12 +428,15 @@ public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
                                     QuestionClassifyListVO classifyListVO,
                                     Boolean websearch,
                                     Boolean reasoning,
-                                    ChatStreamingResponseHandler responseHandler) {
+                                    ChatStreamingResponseHandler responseHandler,
+                                    Object proxy,
+                                    Logger log) {
             this.classifyListVO = classifyListVO;
             this.websearch = websearch;
             this.reasoning = reasoning;
             this.modelName = modelName;
             this.memoryId = memoryId;
+            this.log = log;
             this.isSupportChineseToolName = isSupportChineseToolName;
             this.toolMethodList = toolMethodList;
             this.messages = ensureNotEmpty(messages, "messages");
@@ -693,6 +446,7 @@ public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
             this.responseHandler = responseHandler;
             this.userMessage = userMessage;
             this.systemMessage = systemMessage;
+            this.proxy = proxy;
         }
 
         @Override
@@ -829,7 +583,13 @@ public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
             if (contentsHandler != null && retrievedContents != null) {
                 contentsHandler.accept(retrievedContents);
             }
-            handler.generate();
+            handler.generate((handler1, request) -> {
+                if (proxy instanceof JsonSchemaApi) {
+                    JsonSchemaApi api = (JsonSchemaApi) proxy;
+                    request.setJsonSchema(api.getJsonSchema());
+                    api.config(handler1, request);
+                }
+            });
         }
 
         private void validateConfiguration() {
@@ -849,6 +609,98 @@ public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
                 throw new IllegalConfigurationException("One of onError or ignoreErrors must be invoked exactly 1 time");
             }
         }
+    }
+
+    class StreamInvocationHandler implements InvocationHandler {
+
+        @Override
+        public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+
+            if (method.getDeclaringClass() == Object.class) {
+                // methods like equals(), hashCode() and toString() should not be handled by this proxy
+                return method.invoke(this, args);
+            }
+
+            // wangzihao 12-11， 支持默认方法
+            if (method.isDefault()) {
+                return ReflectUtil.invokeMethodHandle(true, proxy, method, args);
+            }
+
+            validateParameters(method);
+
+            Object memoryId = findMemoryId(method, args).orElse(FunctionalInterfaceAiServices.this.memoryId);
+
+            Optional<SystemMessage> systemMessage = prepareSystemMessage(memoryId, method, args);
+            UserMessage userMessage = prepareUserMessage(method, args);
+            AugmentationResult augmentationResult = null;
+            if (context.retrievalAugmentor != null) {
+                List<ChatMessage> chatMemory = context.hasChatMemory()
+                        ? context.chatMemory(memoryId).messages()
+                        : null;
+                Metadata metadata = Metadata.from(userMessage, memoryId, chatMemory);
+                AugmentationRequest augmentationRequest = new AugmentationRequest(userMessage, metadata);
+                augmentationResult = context.retrievalAugmentor.augment(augmentationRequest);
+                userMessage = (UserMessage) augmentationResult.chatMessage();
+            }
+
+            if (context.hasChatMemory()) {
+                ChatMemory chatMemory = context.chatMemory(memoryId);
+                systemMessage.ifPresent(chatMemory::add);
+                chatMemory.add(userMessage);
+            }
+
+            List<ChatMessage> messages;
+            if (context.hasChatMemory()) {
+                messages = context.chatMemory(memoryId).messages();
+            } else {
+                messages = new ArrayList<>();
+                systemMessage.ifPresent(messages::add);
+                messages.add(userMessage);
+            }
+            TokenStream tokenStream = new AiServiceTokenStream(
+                    modelName,
+                    messages,
+                    augmentationResult != null ? augmentationResult.contents() : null,
+                    context,
+                    toolMethodList,
+                    isSupportChineseToolName,
+                    memoryId,
+                    userMessage,
+                    systemMessage.orElse(null),
+                    classifyListVO,
+                    websearch, reasoning,
+                    responseHandler,
+                    proxy,
+                    log
+            );
+            Type returnType = method.getReturnType();
+            if (returnType == TokenStream.class) {
+                return tokenStream;
+            } else {
+                return adapt(tokenStream, returnType);
+            }
+        }
+
+        private Object adapt(TokenStream tokenStream, Type returnType) {
+            for (TokenStreamAdapter tokenStreamAdapter : tokenStreamAdapters) {
+                if (tokenStreamAdapter.canAdaptTokenStreamTo(returnType)) {
+                    return tokenStreamAdapter.adapt(tokenStream);
+                }
+            }
+            throw new IllegalStateException("Can't find suitable TokenStreamAdapter");
+        }
+
+        private UserMessage appendOutputFormatInstructions(Type returnType, UserMessage userMessage) {
+            String outputFormatInstructions = serviceOutputParser.outputFormatInstructions(returnType);
+            String text = userMessage.singleText() + outputFormatInstructions;
+            if (isNotNullOrBlank(userMessage.name())) {
+                userMessage = UserMessage.from(userMessage.name(), text);
+            } else {
+                userMessage = UserMessage.from(text);
+            }
+            return userMessage;
+        }
+
     }
 
 }

@@ -1,9 +1,8 @@
 package com.github.aiassistant.service.jsonschema;
 
 import com.github.aiassistant.util.AiUtil;
-import dev.langchain4j.model.chat.request.json.JsonObjectSchema;
 import dev.langchain4j.model.chat.request.json.JsonSchema;
-import dev.langchain4j.model.chat.request.json.JsonSchemaElement;
+import dev.langchain4j.model.openai.JsonSchemasString;
 import dev.langchain4j.model.output.structured.Description;
 import dev.langchain4j.service.SystemMessage;
 import dev.langchain4j.service.TokenStream;
@@ -12,22 +11,23 @@ import dev.langchain4j.service.V;
 import dev.langchain4j.service.output.JsonSchemas;
 
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /**
  * 执行
  */
 @FunctionalInterface
-public interface ActingJsonSchema {
+public interface ActingJsonSchema extends JsonSchemaApi {
     /**
      * 因为有些供应商并没有实现完全最新的OpenAi接口，所以还是要靠提示词方式保持兼容性。例如（阿里千问）
      */
-    Map<String, JsonSchemaElement> jsonSchema = JsonSchemas.jsonSchemaFrom(Result.class)
-            .map(JsonSchema::rootElement)
-            .map(e -> (JsonObjectSchema) e)
-            .map(JsonObjectSchema::properties)
-            .orElse(null);
+    JsonSchema jsonSchema = JsonSchemas.jsonSchemaFrom(Result.class).orElse(null);
+    String jsonSchemaString = JsonSchemasString.toJsonString(jsonSchema);
+
+    @Override
+    default JsonSchema getJsonSchema() {
+        return jsonSchema;
+    }
 
     @SystemMessage("# Role: 负责执行任务的机器人\n" +
             "\n" +
@@ -51,7 +51,7 @@ public interface ActingJsonSchema {
                       @V("jsonSchema") String jsonSchema);
 
     default CompletableFuture<Result> future(String task, String question, String taskList, String taskAnswerList) {
-        TokenStream stream = parse(task, question, taskList, taskAnswerList, jsonSchema.toString());
+        TokenStream stream = parse(task, question, taskList, taskAnswerList, jsonSchemaString);
         return AiUtil.toFutureJson(stream, Result.class, getClass());
     }
 

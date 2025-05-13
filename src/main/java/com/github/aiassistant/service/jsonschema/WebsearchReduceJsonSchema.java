@@ -4,9 +4,8 @@ import com.github.aiassistant.entity.model.chat.WebSearchResultVO;
 import com.github.aiassistant.util.AiUtil;
 import com.github.aiassistant.util.Lists;
 import com.github.aiassistant.util.StringUtils;
-import dev.langchain4j.model.chat.request.json.JsonObjectSchema;
 import dev.langchain4j.model.chat.request.json.JsonSchema;
-import dev.langchain4j.model.chat.request.json.JsonSchemaElement;
+import dev.langchain4j.model.openai.JsonSchemasString;
 import dev.langchain4j.model.output.structured.Description;
 import dev.langchain4j.service.SystemMessage;
 import dev.langchain4j.service.TokenStream;
@@ -25,16 +24,19 @@ import java.util.stream.Stream;
  * 联网搜索结果合并
  */
 @FunctionalInterface
-public interface WebsearchReduceJsonSchema {
+public interface WebsearchReduceJsonSchema extends JsonSchemaApi {
     /**
      * 因为有些供应商并没有实现完全最新的OpenAi接口，所以还是要靠提示词方式保持兼容性。例如（阿里千问）
      */
-    Map<String, JsonSchemaElement> jsonSchema = JsonSchemas.jsonSchemaFrom(Result.class)
-            .map(JsonSchema::rootElement)
-            .map(e -> (JsonObjectSchema) e)
-            .map(JsonObjectSchema::properties)
-            .orElse(null);
+    JsonSchema jsonSchema = JsonSchemas.jsonSchemaFrom(Result.class).orElse(null);
+    String jsonSchemaString = JsonSchemasString.toJsonString(jsonSchema);
+
     Logger log = LoggerFactory.getLogger(WebsearchReduceJsonSchema.class);
+
+    @Override
+    default JsonSchema getJsonSchema() {
+        return jsonSchema;
+    }
 
     @SystemMessage("# Role: 网络内容结果筛选专家\n" +
             "\n" +
@@ -53,7 +55,7 @@ public interface WebsearchReduceJsonSchema {
                       @V("jsonSchema") String jsonSchema);
 
     default CompletableFuture<Result> future(String websearchResult, String question) {
-        TokenStream stream = parse(websearchResult, "10", question, jsonSchema.toString());
+        TokenStream stream = parse(websearchResult, "10", question, jsonSchemaString);
         return AiUtil.toFutureJson(stream, Result.class, getClass());
     }
 
@@ -75,7 +77,7 @@ public interface WebsearchReduceJsonSchema {
             WebSearchResultVO req = new WebSearchResultVO();
             req.setList(prows);
             String websearchString = WebSearchResultVO.toAiString(req);
-            TokenStream stream = parse(websearchString, String.valueOf(rowTopN), question, jsonSchema.toString());
+            TokenStream stream = parse(websearchString, String.valueOf(rowTopN), question, jsonSchemaString);
             CompletableFuture<WebSearchResultVO> f = AiUtil.toFutureJson(stream, Result.class, getClass())
                     .thenApply(results -> {
                         WebSearchResultVO vo = new WebSearchResultVO();

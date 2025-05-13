@@ -476,7 +476,7 @@ public class InternalOpenAiHelper {
         }
     }
 
-    private static dev.ai4j.openai4j.chat.JsonSchemaElement toOpenAiJsonSchemaElement(JsonSchemaElement jsonSchemaElement) {
+    /*private*/ static dev.ai4j.openai4j.chat.JsonSchemaElement toOpenAiJsonSchemaElement(JsonSchemaElement jsonSchemaElement) {
         if (jsonSchemaElement instanceof JsonStringSchema) {
             return dev.ai4j.openai4j.chat.JsonStringSchema.builder()
                     .description(((JsonStringSchema) jsonSchemaElement).description())

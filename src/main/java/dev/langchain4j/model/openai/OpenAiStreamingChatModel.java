@@ -12,6 +12,7 @@ import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.model.StreamingResponseHandler;
 import dev.langchain4j.model.chat.StreamingChatLanguageModel;
 import dev.langchain4j.model.chat.listener.*;
+import dev.langchain4j.model.chat.request.json.JsonSchema;
 import dev.langchain4j.model.openai.spi.OpenAiStreamingChatModelBuilderFactory;
 import dev.langchain4j.model.output.Response;
 import org.slf4j.Logger;
@@ -44,7 +45,9 @@ public class OpenAiStreamingChatModel implements StreamingChatLanguageModel {
     private static final Logger log = LoggerFactory.getLogger(OpenAiStreamingChatModel.class);
     private final OpenAiClient client;
     private final Boolean strictTools;
+    private final Boolean strictJsonSchema;
     private final String modelName;
+    private final ResponseFormatType responseFormat;
     private final List<ChatModelListener> listeners;
     private final Supplier<ChatCompletionRequest.Builder> requestBuilder;
 
@@ -102,7 +105,8 @@ public class OpenAiStreamingChatModel implements StreamingChatLanguageModel {
                                      * 设置较大的 n 值不会增加输入 Token 消耗，会增加输出 Token 的消耗。
                                      */
                                     Integer n,
-                                    List<ChatModelListener> listeners) {
+                                    List<ChatModelListener> listeners,
+                                    Boolean strictJsonSchema) {
 
         timeout = getOrDefault(timeout, ofSeconds(60));
 
@@ -121,7 +125,9 @@ public class OpenAiStreamingChatModel implements StreamingChatLanguageModel {
                 .customHeaders(customHeaders)
                 .build();
         this.modelName = modelName;
+        this.responseFormat = ResponseFormatType.valueOf(responseFormat.toUpperCase(Locale.ROOT));
         this.strictTools = strictTools != null && strictTools;
+        this.strictJsonSchema = strictJsonSchema;
         this.listeners = listeners == null ? emptyList() : new ArrayList<>(listeners);
         this.requestBuilder = () -> ChatCompletionRequest.builder().stream(true)
                 .streamOptions(StreamOptions.builder()
@@ -136,9 +142,6 @@ public class OpenAiStreamingChatModel implements StreamingChatLanguageModel {
                 .presencePenalty(presencePenalty)
                 .frequencyPenalty(frequencyPenalty)
                 .logitBias(logitBias)
-                .responseFormat(responseFormat == null ? null : ResponseFormat.builder()
-                        .type(ResponseFormatType.valueOf(responseFormat.toUpperCase(Locale.ROOT)))
-                        .build())
                 .seed(seed)
                 .user(user)
                 .parallelToolCalls(parallelToolCalls);
@@ -232,6 +235,29 @@ public class OpenAiStreamingChatModel implements StreamingChatLanguageModel {
         if (toolSpecifications != null && !toolSpecifications.isEmpty()) {
             builder.tools(toTools(toolSpecifications, strictTools));
         }
+        dev.langchain4j.model.chat.request.ResponseFormatType openAiResponseFormatType;
+        JsonSchema jsonSchema;
+        if (responseFormat == null) {
+            openAiResponseFormatType = null;
+            jsonSchema = null;
+        } else if (responseFormat == ResponseFormatType.JSON_OBJECT) {
+            openAiResponseFormatType = dev.langchain4j.model.chat.request.ResponseFormatType.JSON;
+            jsonSchema = null;
+        } else if (responseFormat == ResponseFormatType.JSON_SCHEMA) {
+            openAiResponseFormatType = dev.langchain4j.model.chat.request.ResponseFormatType.JSON;
+            jsonSchema = request.getJsonSchema();
+        } else if (responseFormat == ResponseFormatType.TEXT) {
+            openAiResponseFormatType = dev.langchain4j.model.chat.request.ResponseFormatType.TEXT;
+            jsonSchema = null;
+        } else {
+            openAiResponseFormatType = null;
+            jsonSchema = null;
+        }
+        ResponseFormat openAiResponseFormat = toOpenAiResponseFormat(dev.langchain4j.model.chat.request.ResponseFormat.builder()
+                .type(openAiResponseFormatType)
+                .jsonSchema(jsonSchema)
+                .build(), strictJsonSchema);
+        builder.responseFormat(openAiResponseFormat);
 
         ChatCompletionRequest completionRequest = builder.build();
 
@@ -340,8 +366,14 @@ public class OpenAiStreamingChatModel implements StreamingChatLanguageModel {
         private Boolean logResponses;
         private Map<String, String> customHeaders;
         private List<ChatModelListener> listeners;
+        private Boolean strictJsonSchema;
 
         public OpenAiStreamingChatModelBuilder() {
+        }
+
+        public OpenAiStreamingChatModelBuilder strictJsonSchema(Boolean strictJsonSchema) {
+            this.strictJsonSchema = strictJsonSchema;
+            return this;
         }
 
         public OpenAiStreamingChatModelBuilder modelName(String modelName) {
@@ -470,7 +502,7 @@ public class OpenAiStreamingChatModel implements StreamingChatLanguageModel {
                     this.presencePenalty, this.frequencyPenalty, this.logitBias, this.responseFormat,
                     this.seed, this.user, this.strictTools, this.parallelToolCalls,
                     this.timeout, this.proxy, this.logRequests, this.logResponses,
-                    this.customHeaders, this.n, this.listeners);
+                    this.customHeaders, this.n, this.listeners, this.strictJsonSchema);
         }
     }
 }

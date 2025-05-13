@@ -4,6 +4,7 @@ import com.github.aiassistant.util.AiUtil;
 import dev.ai4j.openai4j.chat.Audio;
 import dev.langchain4j.agent.tool.ToolSpecification;
 import dev.langchain4j.data.message.*;
+import dev.langchain4j.model.chat.request.json.JsonSchema;
 
 import java.util.List;
 import java.util.Map;
@@ -62,6 +63,54 @@ public class GenerateRequest implements Cloneable {
      * 开源版模型voice参数可选值为：["Ethan", "Chelsie"]。
      */
     private Audio audio;
+
+    /**
+     * JsonSchema
+     * response_format 参数的新选项
+     * 开发者现在可以通过 response_format 参数的新选项 json_schema 提供 JSON 架构。
+     * 当模型不调用工具时，但以结构化方式响应用户时，这非常有用。
+     * 此功能适用于我们最新的 GPT-4o 模型：今天发布的 gpt-4o-2024-08-06 和 gpt-4o-mini-2024-07-18。
+     * 当提供了 response_format 并设置 strict: true 时，模型输出将匹配提供的架构。
+     */
+    private JsonSchema jsonSchema;
+
+    /**
+     * JsonSchema
+     * response_format 参数的新选项
+     * 开发者现在可以通过 response_format 参数的新选项 json_schema 提供 JSON 架构。
+     * 当模型不调用工具时，但以结构化方式响应用户时，这非常有用。
+     * 此功能适用于我们最新的 GPT-4o 模型：今天发布的 gpt-4o-2024-08-06 和 gpt-4o-mini-2024-07-18。
+     * 当提供了 response_format 并设置 strict: true 时，模型输出将匹配提供的架构。
+     *
+     * @return * JsonSchema
+     * * response_format 参数的新选项
+     * * 开发者现在可以通过 response_format 参数的新选项 json_schema 提供 JSON 架构。
+     * * 当模型不调用工具时，但以结构化方式响应用户时，这非常有用。
+     * * 此功能适用于我们最新的 GPT-4o 模型：今天发布的 gpt-4o-2024-08-06 和 gpt-4o-mini-2024-07-18。
+     * * 当提供了 response_format 并设置 strict: true 时，模型输出将匹配提供的架构。
+     */
+    public JsonSchema getJsonSchema() {
+        return jsonSchema;
+    }
+
+    /**
+     * JsonSchema
+     * response_format 参数的新选项
+     * 开发者现在可以通过 response_format 参数的新选项 json_schema 提供 JSON 架构。
+     * 当模型不调用工具时，但以结构化方式响应用户时，这非常有用。
+     * 此功能适用于我们最新的 GPT-4o 模型：今天发布的 gpt-4o-2024-08-06 和 gpt-4o-mini-2024-07-18。
+     * 当提供了 response_format 并设置 strict: true 时，模型输出将匹配提供的架构。
+     *
+     * @param jsonSchema * JsonSchema
+     *                   * response_format 参数的新选项
+     *                   * 开发者现在可以通过 response_format 参数的新选项 json_schema 提供 JSON 架构。
+     *                   * 当模型不调用工具时，但以结构化方式响应用户时，这非常有用。
+     *                   * 此功能适用于我们最新的 GPT-4o 模型：今天发布的 gpt-4o-2024-08-06 和 gpt-4o-mini-2024-07-18。
+     *                   * 当提供了 response_format 并设置 strict: true 时，模型输出将匹配提供的架构。
+     */
+    public void setJsonSchema(JsonSchema jsonSchema) {
+        this.jsonSchema = jsonSchema;
+    }
 
     /**
      * 输出音频的音色与文件格式（只支持设定为"wav"）通过audio参数来配置，

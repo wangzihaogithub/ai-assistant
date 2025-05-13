@@ -14,7 +14,6 @@ import com.github.aiassistant.service.text.tools.Tools;
 import com.github.aiassistant.util.AiUtil;
 import com.github.aiassistant.util.BeanUtil;
 import com.github.aiassistant.util.StringUtils;
-import dev.ai4j.openai4j.chat.ResponseFormatType;
 import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
 import dev.langchain4j.service.AiServiceContext;
 import dev.langchain4j.service.AiServices;
@@ -188,6 +187,7 @@ public class LlmJsonSchemaApiService {
         if (jsonschema == null) {
             return null;
         }
+
         String apiKey = jsonschema.getApiKey();
         String baseUrl = jsonschema.getBaseUrl();
         String modelName = jsonschema.getModelName();
@@ -195,12 +195,13 @@ public class LlmJsonSchemaApiService {
         Double topP = jsonschema.getTopP();
         Double temperature = jsonschema.getTemperature();
         Integer maxCompletionTokens = jsonschema.getMaxCompletionTokens();
+        Integer timeoutMs = jsonschema.getTimeoutMs();
         AiModelVO[] aiModels = jsonSchemaInstanceMap
-                .computeIfAbsent(uniqueKey(apiKey, baseUrl, modelName, responseFormat, maxCompletionTokens, temperature, topP, type), k -> Collections.synchronizedMap(new WeakHashMap<>()))
+                .computeIfAbsent(uniqueKey(apiKey, baseUrl, modelName, responseFormat, maxCompletionTokens, temperature, topP, type, timeoutMs), k -> Collections.synchronizedMap(new WeakHashMap<>()))
                 .computeIfAbsent(type, k -> {
                     AiModelVO[] arrays = new AiModelVO[schemaInstanceCount];
                     for (int i = 0; i < arrays.length; i++) {
-                        arrays[i] = createJsonSchemaModel(apiKey, baseUrl, modelName, maxCompletionTokens, temperature, topP, responseFormat);
+                        arrays[i] = createJsonSchemaModel(apiKey, baseUrl, modelName, maxCompletionTokens, temperature, topP, responseFormat, timeoutMs);
                     }
                     return arrays;
                 });
@@ -308,6 +309,7 @@ public class LlmJsonSchemaApiService {
      * @param temperature         temperature
      * @param topP                topP
      * @param responseFormat      responseFormat
+     * @param timeoutMs           timeoutMs
      * @return JsonSchema类型的模型
      */
     private AiModelVO createJsonSchemaModel(String apiKey,
@@ -316,8 +318,8 @@ public class LlmJsonSchemaApiService {
                                             Integer maxCompletionTokens,
                                             Double temperature,
                                             Double topP,
-                                            String responseFormat) {
-        ResponseFormatType responseFormatType = ResponseFormatType.valueOf(responseFormat);
+                                            String responseFormat,
+                                            Integer timeoutMs) {
         if (topP == null || topP <= 0) {
             topP = 0.1;
         }
@@ -341,6 +343,9 @@ public class LlmJsonSchemaApiService {
 //                .timeout(ofSeconds(60))
 //                .tokenizer(new OpenAiTokenizer())
 //                .build();
+        if (timeoutMs == null || timeoutMs <= 0) {
+            timeoutMs = 60_000;
+        }
         // 大模型stream需要4.12.0, 大模型非stream需要okhttp3，这里舍弃非stream，保持整个项目全用stream
         OpenAiStreamingChatModel streaming = OpenAiStreamingChatModel.builder()
                 .topP(topP)
@@ -349,8 +354,9 @@ public class LlmJsonSchemaApiService {
                 .apiKey(apiKey)
                 .baseUrl(baseUrl)
                 .modelName(modelName)
-                .responseFormat(responseFormatType == ResponseFormatType.JSON_SCHEMA ? ResponseFormatType.JSON_OBJECT.name() : responseFormatType.name())
-                .timeout(Duration.ofSeconds(60))
+                .responseFormat(responseFormat)
+                .timeout(Duration.ofMillis(timeoutMs))
+                .strictJsonSchema(true)
                 .build();
         return new AiModelVO(baseUrl, modelName, null, streaming);
     }
