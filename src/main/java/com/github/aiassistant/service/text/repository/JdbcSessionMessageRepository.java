@@ -258,7 +258,7 @@ public class JdbcSessionMessageRepository extends AbstractSessionMessageReposito
         if (mock) {
             return;
         }
-        aiMemoryErrorService.insertByInner(throwable, baseMessageIndex, addMessageCount, generateCount, requestTrace);
+        aiMemoryErrorService.insertByInner(throwable, baseMessageIndex, addMessageCount, generateCount, requestTrace,chatQueryRequest);
     }
 
 }

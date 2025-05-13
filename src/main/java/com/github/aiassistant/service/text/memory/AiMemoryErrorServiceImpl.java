@@ -2,6 +2,7 @@ package com.github.aiassistant.service.text.memory;
 
 import com.github.aiassistant.dao.AiMemoryErrorMapper;
 import com.github.aiassistant.entity.AiMemoryError;
+import com.github.aiassistant.entity.model.chat.ChatQueryReq;
 import com.github.aiassistant.entity.model.chat.MemoryIdVO;
 import com.github.aiassistant.entity.model.chat.RequestTraceVO;
 import com.github.aiassistant.entity.model.user.AiAccessUserVO;
@@ -37,10 +38,13 @@ public class AiMemoryErrorServiceImpl {
      * @param baseMessageIndex 消息下标
      * @param addMessageCount  本次多少
      * @param generateCount    生成数量
-     * @param requestTrace     请求
+     * @param requestTrace     大模型请求
+     * @param chatQueryReq     http请求
      * @return AiMemoryError
      */
-    public AiMemoryError insertByInner(Throwable throwable, int baseMessageIndex, int addMessageCount, int generateCount, RequestTraceVO<MemoryIdVO, AiAccessUserVO> requestTrace) {
+    public AiMemoryError insertByInner(Throwable throwable, int baseMessageIndex, int addMessageCount, int generateCount,
+                                       RequestTraceVO<MemoryIdVO, AiAccessUserVO> requestTrace,
+                                       ChatQueryReq chatQueryReq) {
         StringWriter buf = new StringWriter();
         throwable.printStackTrace(new PrintWriter(buf));
 
@@ -64,9 +68,13 @@ public class AiMemoryErrorServiceImpl {
         error.setErrorType(errorTypeEnum.getCode());
         error.setMessageText(StringUtils.left(errorTypeEnum.getMessageText(), 512, true));
         error.setAttachmentJson("");
-        if (StringUtils.hasText(userQueryTraceNumber)) {
-            String rootAgainUserQueryTraceNumber = aiChatHistoryService.selectRootAgainUserQueryTraceNumberMap(Collections.singletonList(userQueryTraceNumber)).get(userQueryTraceNumber);
-            error.setRootAgainUserQueryTraceNumber(Objects.toString(rootAgainUserQueryTraceNumber, userQueryTraceNumber));
+        String againUserQueryTraceNumber = chatQueryReq.getAgainUserQueryTraceNumber();
+        if (!StringUtils.hasText(againUserQueryTraceNumber)) {
+            againUserQueryTraceNumber = userQueryTraceNumber;
+        }
+        if (StringUtils.hasText(againUserQueryTraceNumber)) {
+            String rootAgainUserQueryTraceNumber = aiChatHistoryService.selectRootAgainUserQueryTraceNumberMap(Collections.singletonList(againUserQueryTraceNumber)).get(againUserQueryTraceNumber);
+            error.setRootAgainUserQueryTraceNumber(Objects.toString(rootAgainUserQueryTraceNumber, againUserQueryTraceNumber));
         } else {
             error.setRootAgainUserQueryTraceNumber("");
         }
