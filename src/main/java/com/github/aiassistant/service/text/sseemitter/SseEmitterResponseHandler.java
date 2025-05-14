@@ -32,6 +32,7 @@ import java.util.stream.Collectors;
  * SseEmitter流式推送前端
  */
 public class SseEmitterResponseHandler implements ChatStreamingResponseHandler {
+    public static final String FINISH_REASON_API_ERROR = "API_ERROR";
     protected static final Logger log = LoggerFactory.getLogger(SseEmitterResponseHandler.class);
     private final Emitter emitter;
     private final boolean debug;
@@ -64,7 +65,7 @@ public class SseEmitterResponseHandler implements ChatStreamingResponseHandler {
         Map<String, Object> errorMap = new HashMap<>();
         errorMap.put("errorType", errorType);
         errorMap.put("error", error);
-        errorMap.put("finishReason", "API_ERROR");
+        errorMap.put("finishReason", FINISH_REASON_API_ERROR);
         emitter.send(null, "api-error", errorMap);
         emitter.send(null, "complete", errorMap);
     }
@@ -167,7 +168,7 @@ public class SseEmitterResponseHandler implements ChatStreamingResponseHandler {
         log.error("sse api error {}", error.toString(), error);
 
         try {
-            complete(emitter, null, error, "API_ERROR", baseMessageIndex, addMessageCount);
+            complete(emitter, null, error, FINISH_REASON_API_ERROR);
         } catch (Exception e) {
             if (log.isDebugEnabled()) {
                 log.debug("Error completing emitter {}", e.toString(), e);
@@ -383,10 +384,10 @@ public class SseEmitterResponseHandler implements ChatStreamingResponseHandler {
             if (completeEvent != null) {
                 Response<AiMessage> response = completeEvent.response;
                 FinishReason finishReason = response != null ? response.finishReason() : FinishReason.STOP;
-                int baseMessageIndex = completeEvent.baseMessageIndex;
-                int addMessageCount = completeEvent.addMessageCount;
+                this.baseMessageIndex = completeEvent.baseMessageIndex;
+                this.addMessageCount = completeEvent.addMessageCount;
                 try {
-                    complete(emitter, response, null, finishReason.name(), baseMessageIndex, addMessageCount);
+                    complete(emitter, response, null, finishReason.name());
                 } catch (Exception e) {
                     if (log.isDebugEnabled()) {
                         log.debug("Error completing emitter {}", e.toString(), e);
@@ -512,14 +513,9 @@ public class SseEmitterResponseHandler implements ChatStreamingResponseHandler {
     protected void complete(Emitter emitter,
                             Response<AiMessage> response,
                             Throwable error,
-                            String finishReason,
-                            int baseMessageIndex,
-                            int addMessageCount) {
+                            String finishReason) {
         sendToClient(emitter, "complete",
-                "finishReason", finishReason,
-                "baseMessageIndex", baseMessageIndex,
-                "addMessageCount", addMessageCount,
-                "messageIndex", baseMessageIndex + addMessageCount);
+                "finishReason", finishReason);
         try {
             emitter.complete();
         } catch (Exception e) {
