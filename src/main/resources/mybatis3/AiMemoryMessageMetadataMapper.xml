@@ -15,7 +15,7 @@
     <select id="selectListByChatId" resultType="com.github.aiassistant.entity.AiMemoryMessageMetadata">
         select ammm.*
         from ai_memory_message_metadata ammm
-        where ammm.memory_id in
+        where ammm.ai_memory_id in
               (
                   select ai_memory_id from ai_chat where id = #{arg0}
               )
