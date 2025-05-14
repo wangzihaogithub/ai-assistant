@@ -2,6 +2,7 @@ package com.github.aiassistant;
 
 import com.github.aiassistant.entity.AiChatAbort;
 import com.github.aiassistant.entity.AiMemoryMessage;
+import com.github.aiassistant.entity.AiMemoryMessageMetadata;
 
 import java.beans.BeanInfo;
 import java.beans.IntrospectionException;
@@ -18,7 +19,7 @@ class SqlColumnTests {
     private static final Pattern HUMP_PATTERN = Pattern.compile("[A-Z]");
 
     public static void main(String[] args) throws IntrospectionException {
-        Class clazz = AiMemoryMessage.class;
+        Class clazz = AiMemoryMessageMetadata.class;
         String column = column(clazz);
         String values = values(clazz, "item");
 

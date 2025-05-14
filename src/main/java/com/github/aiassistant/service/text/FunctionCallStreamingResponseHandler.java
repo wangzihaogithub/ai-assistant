@@ -716,6 +716,7 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
     private static class SseHttpResponseImpl implements SseHttpResponse {
         private final FunctionCallStreamingResponseHandler handler;
         private final Response<AiMessage> lastResponse;
+        private final List<Map<String, Object>> stringMetaMapList = Collections.synchronizedList(new ArrayList<>());
         private final StringBuilder chatStringBuilder = new StringBuilder();
         private final StringBuilder memoryStringBuilder = new StringBuilder();
         private final LinkedBlockingQueue<Runnable> pendingEventList = new LinkedBlockingQueue<>();
@@ -774,6 +775,11 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
             }
             String chatString = messageString.getChatString();
             String memoryString = messageString.getMemoryString();
+            Map<String, Object> stringMetaMap = messageString.getStringMetaMap();
+            if (stringMetaMap == null) {
+                stringMetaMap = Collections.emptyMap();
+            }
+            stringMetaMapList.add(stringMetaMap);
             if (chatString != null && !chatString.isEmpty()) {
                 chatStringBuilder.append(chatString);
             }
@@ -817,6 +823,7 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
                 }
                 String memoryString = memoryStringBuilder.toString();
                 metadata.put(MetadataAiMessage.METADATA_KEY_MEMORY_STRING, memoryString);
+                metadata.put(MetadataAiMessage.METADATA_KEY_STRING_META_MAP_LIST, new ArrayList<>(stringMetaMapList));
                 tokenEnd = new Response<>(aiMessage, tokenUsage, finishReason, metadata);
                 handler.hookOnTokenEnd(tokenEnd);
             }

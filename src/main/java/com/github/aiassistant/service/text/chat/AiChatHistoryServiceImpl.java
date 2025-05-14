@@ -4,6 +4,7 @@ import com.github.aiassistant.dao.*;
 import com.github.aiassistant.entity.AiChatAbort;
 import com.github.aiassistant.entity.AiChatHistory;
 import com.github.aiassistant.entity.AiMemoryError;
+import com.github.aiassistant.entity.AiMemoryMessageMetadata;
 import com.github.aiassistant.entity.model.chat.*;
 import com.github.aiassistant.entity.model.user.AiAccessUserVO;
 import com.github.aiassistant.enums.AiChatUidTypeEnum;
@@ -42,6 +43,7 @@ public class AiChatHistoryServiceImpl {
     private final AiMemoryErrorMapper aiMemoryErrorMapper;
     // @Resource
     private final AiChatWebsearchMapper aiChatWebsearchMapper;
+    private final AiMemoryMessageMetadataMapper aiMemoryMessageMetadataMapper;
     // @Resource
     private final AiChatMapper aiChatMapper;
     // @Resource
@@ -56,9 +58,11 @@ public class AiChatHistoryServiceImpl {
                                     AiChatWebsearchMapper aiChatWebsearchMapper,
                                     AiChatMapper aiChatMapper,
                                     AiChatAbortMapper aiChatAbortMapper,
+                                    AiMemoryMessageMetadataMapper aiMemoryMessageMetadataMapper,
                                     Supplier<Collection<AiChatHistoryServiceIntercept>> interceptList) {
         this.aiMemoryMessageMapper = aiMemoryMessageMapper;
         this.aiChatHistoryMapper = aiChatHistoryMapper;
+        this.aiMemoryMessageMetadataMapper = aiMemoryMessageMetadataMapper;
 //        this.aiChatHistoryJobMapper = aiChatHistoryJobMapper;
         this.aiMemoryErrorMapper = aiMemoryErrorMapper;
         this.aiChatWebsearchMapper = aiChatWebsearchMapper;
@@ -152,28 +156,14 @@ public class AiChatHistoryServiceImpl {
         if (list.isEmpty()) {
             return Collections.emptyList();
         }
+        // 通过AiMessageString放置的元数据，用于给业务做判断
+        List<AiMemoryMessageMetadata> metadataList = aiMemoryMessageMetadataMapper.selectListByChatId(aiChatId);
         // 联网
         List<AiChatWebsearchResp> websearchList = aiChatWebsearchMapper.selectListByChatId(aiChatId);
         // 查询终止回复
         List<AiChatAbort> abortList = aiChatAbortMapper.selectListByChatId(aiChatId);
         // 查询错误
         List<AiMemoryError> memoryErrorList = aiMemoryErrorMapper.selectListByChatId(aiChatId);
-
-        // 查询岗位
-//        List<AiChatHistoryJobResp> knJobList = aiChatHistoryJobMapper.selectListByHistoryId(CollUtil.map(list, AiChatHistoryResp::getId, true));
-//        Map<Integer, List<AiChatHistoryJobResp>> jobListMap = knJobList.stream().collect(Collectors.groupingBy(AiChatHistoryJobResp::getAiChatHistoryId));
-//        List<Integer> jobIdList = CollUtil.map(knJobList, e -> Integer.valueOf(e.getId()), true);
-
-        // 转换岗位
-//        Map<String, AiJobSearchVO> jobModelMap = jobSearchAdapter.convertJob(jobIdList);
-//        for (AiChatHistoryResp row : list) {
-//            List<AiChatHistoryJobResp> rowKnJobList = jobListMap.get(row.getId());
-//            if (rowKnJobList != null) {
-//                row.setJobList(rowKnJobList.stream()
-//                        .map(e -> KnEsJob.convert((AiChatHistoryJobResp) null, jobModelMap.get(e.getId())))
-//                        .collect(Collectors.toList()));
-//            }
-//        }
 
         // post before intercepts
         Collection<AiChatHistoryServiceIntercept> intercepts = interceptList.get();
@@ -182,7 +172,7 @@ public class AiChatHistoryServiceImpl {
         }
 
         // 根据用户问题分组
-        List<AiUserChatHistoryResp> result = AiUserChatHistoryResp.groupByUser(list, abortList, memoryErrorList, websearchList);
+        List<AiUserChatHistoryResp> result = AiUserChatHistoryResp.groupByUser(list, abortList, memoryErrorList, websearchList, metadataList);
 
         // post after intercepts
         for (AiChatHistoryServiceIntercept intercept : intercepts) {

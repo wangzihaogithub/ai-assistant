@@ -14,6 +14,13 @@ public class AiChatHistory {
         this.id = id;
     }
 
+    public String getStringTypeEnum() {
+        return stringTypeEnum;
+    }
+
+    public void setStringTypeEnum(String stringTypeEnum) {
+        this.stringTypeEnum = stringTypeEnum;
+    }
     public Integer getAiChatId() {
         return aiChatId;
     }
@@ -181,6 +188,8 @@ public class AiChatHistory {
     // @ApiModelProperty(value = "是否联网", example = "101")
     private Boolean websearchFlag;
     private Boolean userQueryFlag; // bit(1) 类型在 Java 中通常映射为 boolean
+    // @ApiModelProperty(value = "这段文字的类型", example = "101")
+    private String stringTypeEnum;
 
     @Override
     public String toString() {

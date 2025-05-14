@@ -6,6 +6,46 @@ import java.util.Date;
 // @Data
 // @TableName("ai_memory_message")
 public class AiMemoryMessage {
+    // @TableId(value = "id", type = IdType.AUTO)
+    private Integer id;
+    private Integer aiMemoryId;
+    private Integer messageIndex;
+    private String messageText;
+    private String messageTypeEnum;
+    private Boolean userQueryFlag; // bit(1) 类型在 Java 中通常映射为 boolean
+    private Date createTime;
+    /**
+     * 开始时间
+     */
+    private Date startTime;
+    private Date commitTime;
+    private Date firstTokenTime;
+    private Boolean useKnowledgeFlag; // bit(1) 类型在 Java 中通常映射为 boolean
+    private Boolean useToolFlag; // bit(1) 类型在 Java 中通常映射为 boolean
+    private String replyToolRequestId;
+    private String replyToolName;
+    private Integer tokenCount;
+    private Integer charLength;
+    private Integer userTokenCount;
+    private Integer aiTokenCount;
+    private Integer knowledgeTokenCount;
+    private Integer userCharLength;
+    private Integer knowledgeCharLength;
+    private Integer aiCharLength;
+    // @ApiModelProperty(value = "用户问题聊天追踪号", example = "101")
+    private String userQueryTraceNumber;
+    // @ApiModelProperty(value = "重新回答用户问题聊天追踪号", example = "101")
+    private String againUserQueryTraceNumber;
+    // @ApiModelProperty(value = "重新回答用户问题聊天追踪号，根问题", example = "101")
+    private String rootUserQueryTraceNumber;
+    // @ApiModelProperty(value = "数据是哪个阶段生产出来的，取值范围【Request,Response】", example = "101")
+    private String stageEnum;
+    private Date deleteTime;
+    // @ApiModelProperty(value = "供应商的请求id，用于向供应商反馈错误问题", example = "101")
+    private String openAiRequestId;
+    // @ApiModelProperty(value = "是否联网", example = "101")
+    private Boolean websearchFlag;
+
     public Integer getId() {
         return id;
     }
@@ -237,65 +277,6 @@ public class AiMemoryMessage {
     public void setWebsearchFlag(Boolean websearchFlag) {
         this.websearchFlag = websearchFlag;
     }
-
-    // @TableId(value = "id", type = IdType.AUTO)
-    private Integer id;
-
-    private Integer aiMemoryId;
-
-    private Integer messageIndex;
-
-    private String messageText;
-
-    private String messageTypeEnum;
-
-    private Boolean userQueryFlag; // bit(1) 类型在 Java 中通常映射为 boolean
-
-    private Date createTime;
-    /**
-     * 开始时间
-     */
-    private Date startTime;
-    private Date commitTime;
-    private Date firstTokenTime;
-    private Boolean useKnowledgeFlag; // bit(1) 类型在 Java 中通常映射为 boolean
-
-    private Boolean useToolFlag; // bit(1) 类型在 Java 中通常映射为 boolean
-
-    private String replyToolRequestId;
-
-    private String replyToolName;
-
-    private Integer tokenCount;
-    private Integer charLength;
-
-    private Integer userTokenCount;
-    private Integer aiTokenCount;
-    private Integer knowledgeTokenCount;
-
-    private Integer userCharLength;
-    private Integer knowledgeCharLength;
-    private Integer aiCharLength;
-
-    // @ApiModelProperty(value = "用户问题聊天追踪号", example = "101")
-    private String userQueryTraceNumber;
-
-    // @ApiModelProperty(value = "重新回答用户问题聊天追踪号", example = "101")
-    private String againUserQueryTraceNumber;
-
-    // @ApiModelProperty(value = "重新回答用户问题聊天追踪号，根问题", example = "101")
-    private String rootUserQueryTraceNumber;
-
-    // @ApiModelProperty(value = "数据是哪个阶段生产出来的，取值范围【Request,Response】", example = "101")
-    private String stageEnum;
-
-    private Date deleteTime;
-
-    // @ApiModelProperty(value = "供应商的请求id，用于向供应商反馈错误问题", example = "101")
-    private String openAiRequestId;
-
-    // @ApiModelProperty(value = "是否联网", example = "101")
-    private Boolean websearchFlag;
 
     @Override
     public String toString() {

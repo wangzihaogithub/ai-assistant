@@ -12,6 +12,7 @@ import java.util.Objects;
 
 public class MetadataAiMessage extends AiMessage {
     public static final String METADATA_KEY_MEMORY_STRING = "memoryString";
+    public static final String METADATA_KEY_STRING_META_MAP_LIST = "stringMetaMapList";
 
     private final Response<AiMessage> response;
 
@@ -57,6 +58,15 @@ public class MetadataAiMessage extends AiMessage {
             memoryString = Objects.toString(metadata.get(METADATA_KEY_MEMORY_STRING), null);
         }
         return memoryString;
+    }
+
+    public List<Map<String, Object>> getStringMetaMapList() {
+        Map<String, Object> metadata = response.metadata();
+        List<Map<String, Object>> list = null;
+        if (metadata != null) {
+            list = (List<Map<String, Object>>) metadata.get(METADATA_KEY_STRING_META_MAP_LIST);
+        }
+        return list;
     }
 
     public int getTotalTokenCount() {

@@ -35,6 +35,7 @@ public class Mybatis3DAOProvider extends DAOProvider {
             "mybatis3/AiMemoryMapper.xml",
             "mybatis3/AiMemoryMessageMapper.xml",
             "mybatis3/AiMemoryMessageToolMapper.xml",
+            "mybatis3/AiMemoryMessageMetadataMapper.xml",
             "mybatis3/AiMemoryMstateMapper.xml",
             "mybatis3/AiQuestionClassifyMapper.xml",
             "mybatis3/AiToolMapper.xml",

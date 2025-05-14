@@ -1,11 +1,9 @@
 package com.github.aiassistant.service.text.memory;
 
-import com.github.aiassistant.dao.AiMemoryMapper;
-import com.github.aiassistant.dao.AiMemoryMessageKnMapper;
-import com.github.aiassistant.dao.AiMemoryMessageMapper;
-import com.github.aiassistant.dao.AiMemoryMessageToolMapper;
+import com.github.aiassistant.dao.*;
 import com.github.aiassistant.entity.AiMemoryMessage;
 import com.github.aiassistant.entity.AiMemoryMessageKn;
+import com.github.aiassistant.entity.AiMemoryMessageMetadata;
 import com.github.aiassistant.entity.AiMemoryMessageTool;
 import com.github.aiassistant.entity.model.chat.*;
 import com.github.aiassistant.entity.model.user.AiAccessUserVO;
@@ -43,6 +41,7 @@ public class AiMemoryMessageServiceImpl {
 //    private final AiMemoryMessageToolJobMapper aiMemoryMessageToolJobMapper;
     // @Resource
     private final AiMemoryMessageToolMapper aiMemoryMessageToolMapper;
+    private final AiMemoryMessageMetadataMapper aiMemoryMessageMetadataMapper;
     private final Supplier<Collection<AiMemoryMessageServiceIntercept>> interceptList;
     private int insertPartitionSize = 100;
 
@@ -51,10 +50,12 @@ public class AiMemoryMessageServiceImpl {
                                       AiMemoryMessageMapper aiMemoryMessageMapper,
 //                                      AiMemoryMessageToolJobMapper aiMemoryMessageToolJobMapper,
                                       AiMemoryMessageToolMapper aiMemoryMessageToolMapper,
+                                      AiMemoryMessageMetadataMapper aiMemoryMessageMetadataMapper,
                                       Supplier<Collection<AiMemoryMessageServiceIntercept>> interceptList) {
         this.aiMemoryMapper = aiMemoryMapper;
         this.aiMemoryMessageKnMapper = aiMemoryMessageKnMapper;
         this.aiMemoryMessageMapper = aiMemoryMessageMapper;
+        this.aiMemoryMessageMetadataMapper = aiMemoryMessageMetadataMapper;
 //        this.aiMemoryMessageToolJobMapper = aiMemoryMessageToolJobMapper;
         this.aiMemoryMessageToolMapper = aiMemoryMessageToolMapper;
         this.interceptList = interceptList;
@@ -183,6 +184,7 @@ public class AiMemoryMessageServiceImpl {
             for (AiMemoryMessageVO messageVO : messageVOList) {
                 Integer id = messageVO.getId();
                 messageVO.getToolList().forEach(e -> e.setAiMemoryMessageId(id));
+                messageVO.getMetadataList().forEach(e -> e.setAiMemoryMessageId(id));
             }
             for (AiMemoryVO aiMemoryVO : list) {
                 AiMemoryMessageVO user = aiMemoryVO.getMessageList().stream().filter(AiMemoryMessage::getUserQueryFlag).findFirst().orElse(null);
@@ -194,8 +196,10 @@ public class AiMemoryMessageServiceImpl {
             }
 
             List<AiMemoryMessageTool> toolList = messageVOList.stream().flatMap(e -> e.getToolList().stream()).collect(Collectors.toList());
+            List<AiMemoryMessageMetadata> metadataList = messageVOList.stream().flatMap(e -> e.getMetadataList().stream()).collect(Collectors.toList());
             List<AiMemoryMessageKn> knList = list.stream().flatMap(e -> e.getKnList().stream()).filter(e -> e.getAiMemoryMessageId() != null).collect(Collectors.toList());
             Lists.partition(toolList, insertPartitionSize).forEach(aiMemoryMessageToolMapper::insertBatchSomeColumn);
+            Lists.partition(metadataList, insertPartitionSize).forEach(aiMemoryMessageMetadataMapper::insertBatchSomeColumn);
             Lists.partition(knList, insertPartitionSize).forEach(aiMemoryMessageKnMapper::insertBatchSomeColumn);
 
             for (AiMemoryMessageServiceIntercept intercept : interceptList.get()) {
@@ -254,6 +258,7 @@ public class AiMemoryMessageServiceImpl {
             Integer outputTokenCount = message.getOutputTokenCount();
 
 //            List<KnJobVO> jobList = message.getJobList();
+            List<Map<String, Object>> stringMetaMapList = message.getStringMetaMapList();
             String memoryString = message.getMemoryString();
             if (memoryString == null) {
                 memoryString = message.getText();
@@ -299,6 +304,25 @@ public class AiMemoryMessageServiceImpl {
                 }
             }
 
+            if (stringMetaMapList != null) {
+                int i = 0;
+                for (Map<String, Object> stringMetaMap : stringMetaMapList) {
+                    if (stringMetaMap != null) {
+                        for (Map.Entry<String, Object> entry : stringMetaMap.entrySet()) {
+                            AiMemoryMessageMetadata metadataVo = new AiMemoryMessageMetadata();
+                            metadataVo.setAiMemoryId(memoryId);
+                            metadataVo.setMetaIndex(i);
+                            metadataVo.setMetaKey(StringUtils.left(Objects.toString(entry.getKey(), ""), 32, true));
+                            metadataVo.setMetaValue(StringUtils.left(Objects.toString(entry.getValue(), ""), 255, true));
+                            metadataVo.setUserQueryTraceNumber(vo.getUserQueryTraceNumber());
+                            metadataVo.setAgainUserQueryTraceNumber(vo.getAgainUserQueryTraceNumber());
+                            metadataVo.setRootUserQueryTraceNumber(vo.getRootUserQueryTraceNumber());
+                            vo.getMetadataList().add(metadataVo);
+                        }
+                    }
+                    i++;
+                }
+            }
             for (AiMemoryMessageServiceIntercept intercept : intercepts) {
                 vo = intercept.afterMessage(vo, now, requestTrace, againUserQueryTraceNumber, websearch, message);
             }
@@ -425,14 +449,15 @@ public class AiMemoryMessageServiceImpl {
     }
 
     public static class AiMemoryMessageVO extends AiMemoryMessage {
-        private List<AiMemoryMessageTool> toolList = new ArrayList<>();
+        private final List<AiMemoryMessageTool> toolList = new ArrayList<>();
+        private final List<AiMemoryMessageMetadata> metadataList = new ArrayList<>();
+
+        public List<AiMemoryMessageMetadata> getMetadataList() {
+            return metadataList;
+        }
 
         public List<AiMemoryMessageTool> getToolList() {
             return toolList;
-        }
-
-        public void setToolList(List<AiMemoryMessageTool> toolList) {
-            this.toolList = toolList;
         }
     }
 

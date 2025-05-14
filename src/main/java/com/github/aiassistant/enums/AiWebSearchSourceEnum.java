@@ -41,6 +41,16 @@ public class AiWebSearchSourceEnum {
         return CODE_VALUES.values().toArray(new AiWebSearchSourceEnum[0]);
     }
 
+    @Override
+    public boolean equals(Object obj) {
+        return super.equals(obj);
+    }
+
+    @Override
+    public int hashCode() {
+        return super.hashCode();
+    }
+
     public String getCode() {
         return code;
     }

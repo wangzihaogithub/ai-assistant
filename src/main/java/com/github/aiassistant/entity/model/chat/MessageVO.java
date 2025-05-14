@@ -8,6 +8,7 @@ import dev.langchain4j.data.message.ToolExecutionResultMessage;
 
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 
 public class MessageVO<U> {
     private ChatMessage source;
@@ -50,6 +51,14 @@ public class MessageVO<U> {
     public String getMemoryString() {
         if (source instanceof MetadataAiMessage) {
             return ((MetadataAiMessage) source).getMemoryString();
+        } else {
+            return null;
+        }
+    }
+
+    public List<Map<String, Object>> getStringMetaMapList() {
+        if (source instanceof MetadataAiMessage) {
+            return ((MetadataAiMessage) source).getStringMetaMapList();
         } else {
             return null;
         }

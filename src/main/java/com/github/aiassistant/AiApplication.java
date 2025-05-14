@@ -49,6 +49,7 @@ public class AiApplication {
     private final AiMemoryMessageKnMapper aiMemoryMessageKnMapper;
     private final AiMemoryMessageMapper aiMemoryMessageMapper;
     private final AiMemoryMessageToolMapper aiMemoryMessageToolMapper;
+    private final AiMemoryMessageMetadataMapper aiMemoryMessageMetadataMapper;
     private final AiChatAbortMapper aiChatAbortMapper;
     private final AiAssistantFewshotMapper aiAssistantFewshotMapper;
     private final AiAssistantJsonschemaMapper aiAssistantJsonschemaMapper;
@@ -129,6 +130,7 @@ public class AiApplication {
         this.aiChatReasoningPlanMapper = daoProvider.getMapper(AiChatReasoningPlanMapper.class);
         this.aiChatWebsearchMapper = daoProvider.getMapper(AiChatWebsearchMapper.class);
         this.aiChatWebsearchResultMapper = daoProvider.getMapper(AiChatWebsearchResultMapper.class);
+        this.aiMemoryMessageMetadataMapper = daoProvider.getMapper(AiMemoryMessageMetadataMapper.class);
 
         this.aiToolService = new AiToolServiceImpl(aiToolMapper, aiToolParameterMapper, toolsMap);
         this.llmJsonSchemaApiService = new LlmJsonSchemaApiService(aiToolService);
@@ -138,11 +140,11 @@ public class AiApplication {
         this.aiQuestionClassifyService = new AiQuestionClassifyService(aiQuestionClassifyMapper, aiQuestionClassifyAssistantMapper, llmJsonSchemaApiService);
         this.knSettingWebsearchBlacklistServiceImpl = new KnSettingWebsearchBlacklistServiceImpl(knSettingWebsearchBlacklistMapper);
         this.aiMemoryService = new AiMemoryServiceImpl(aiMemoryMapper);
-        this.aiMemoryMessageService = new AiMemoryMessageServiceImpl(aiMemoryMapper, aiMemoryMessageKnMapper, aiMemoryMessageMapper, aiMemoryMessageToolMapper, getServiceInterceptSupplier(AiMemoryMessageServiceIntercept.class, interceptMap));
+        this.aiMemoryMessageService = new AiMemoryMessageServiceImpl(aiMemoryMapper, aiMemoryMessageKnMapper, aiMemoryMessageMapper, aiMemoryMessageToolMapper, aiMemoryMessageMetadataMapper, getServiceInterceptSupplier(AiMemoryMessageServiceIntercept.class, interceptMap));
         this.aiAssistantService = new AiAssistantServiceImpl(aiAssistantMapper);
         this.aiChatClassifyService = new AiChatClassifyServiceImpl(aiChatClassifyMapper);
         this.aiChatService = new AiChatServiceImpl(aiChatMapper, aiChatHistoryMapper, aiMemoryService);
-        this.aiChatHistoryService = new AiChatHistoryServiceImpl(aiMemoryMessageMapper, aiChatHistoryMapper, aiMemoryErrorMapper, aiChatWebsearchMapper, aiChatMapper, aiChatAbortMapper, getServiceInterceptSupplier(AiChatHistoryServiceIntercept.class, interceptMap));
+        this.aiChatHistoryService = new AiChatHistoryServiceImpl(aiMemoryMessageMapper, aiChatHistoryMapper, aiMemoryErrorMapper, aiChatWebsearchMapper, aiChatMapper, aiChatAbortMapper, aiMemoryMessageMetadataMapper, getServiceInterceptSupplier(AiChatHistoryServiceIntercept.class, interceptMap));
 
         this.aiChatReasoningService = new AiChatReasoningServiceImpl(aiChatReasoningMapper, aiChatReasoningPlanMapper, aiChatHistoryMapper);
         this.aiChatWebsearchService = new AiChatWebsearchServiceImpl(aiChatWebsearchMapper, aiChatWebsearchResultMapper, aiChatHistoryMapper);

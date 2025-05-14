@@ -1,6 +1,8 @@
 package com.github.aiassistant.entity.model.chat;
 
 import java.util.Date;
+import java.util.List;
+import java.util.Map;
 
 // @Data
 public class AiChatHistoryResp {
@@ -35,8 +37,17 @@ public class AiChatHistoryResp {
     private Boolean reasoningFlag;
     // @ApiModelProperty(value = "重新回答用户问题聊天追踪号", example = "101")
     private String againUserQueryTraceNumber;
+    private List<Map<String, String>> metadataList;
 
     //     private List<KnEsJob<AiChatHistoryJobResp>> jobList;
+
+    public List<Map<String, String>> getMetadataList() {
+        return metadataList;
+    }
+
+    public void setMetadataList(List<Map<String, String>> metadataList) {
+        this.metadataList = metadataList;
+    }
 
     public Integer getId() {
         return id;

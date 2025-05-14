@@ -2,6 +2,7 @@ package com.github.aiassistant.entity.model.chat;
 
 import com.github.aiassistant.entity.AiChatAbort;
 import com.github.aiassistant.entity.AiMemoryError;
+import com.github.aiassistant.entity.AiMemoryMessageMetadata;
 import com.github.aiassistant.platform.JsonUtil;
 import com.github.aiassistant.util.BeanUtil;
 import com.github.aiassistant.util.StringUtils;
@@ -50,13 +51,16 @@ public class AiUserChatHistoryResp {
     public static List<AiUserChatHistoryResp> groupByUser(List<AiChatHistoryResp> list,
                                                           List<AiChatAbort> abortList,
                                                           List<AiMemoryError> memoryErrorList,
-                                                          List<AiChatWebsearchResp> websearchList) {
+                                                          List<AiChatWebsearchResp> websearchList,
+                                                          List<AiMemoryMessageMetadata> metadataList) {
         Map<String, List<AiChatAbort>> abortMap = abortList.stream()
                 .collect(Collectors.groupingBy(AiChatAbort::getRootAgainUserQueryTraceNumber));
         Map<String, List<AiMemoryError>> errorMap = memoryErrorList.stream()
                 .collect(Collectors.groupingBy(e -> Objects.toString(e.getRootAgainUserQueryTraceNumber(), e.getUserQueryTraceNumber())));
         Map<String, List<AiChatWebsearchResp>> websearchMap = websearchList.stream()
                 .collect(Collectors.groupingBy(AiChatWebsearchResp::getUserQueryTraceNumber));
+        Map<String, List<AiMemoryMessageMetadata>> metadataMap = metadataList.stream()
+                .collect(Collectors.groupingBy(AiMemoryMessageMetadata::getUserQueryTraceNumber));
         Map<Integer, List<AiChatHistoryResp>> groupByUser = list.stream()
                 .collect(Collectors.groupingBy(AiChatHistoryResp::getUserChatHistoryId,
                         LinkedHashMap::new, Collectors.toList()));
@@ -102,11 +106,15 @@ public class AiUserChatHistoryResp {
                 lastUserQueryTraceNumber = cast.getUserQueryTraceNumber();
             } else {
                 resp.setAiHistoryList(historyRespList);
+                for (AiChatHistoryResp history : historyRespList) {
+                    history.setMetadataList(AiMemoryMessageMetadata.convertMapList(metadataMap.get(history.getUserQueryTraceNumber())));
+                }
                 lastUserQueryTraceNumber = historyList.isEmpty() ? userQueryTraceNumber : historyList.get(historyList.size() - 1).getUserQueryTraceNumber();
                 needAdd = !historyRespList.isEmpty();
             }
             resp.setLastUserQueryTraceNumber(lastUserQueryTraceNumber);
             resp.setWebsearch(websearchMap.getOrDefault(lastUserQueryTraceNumber, Collections.emptyList()));
+
             resp.setLastReasoningFlag(lastReasoningFlag);
             if (needAdd) {
                 // historyRespList == null的情况是终止或出错。
