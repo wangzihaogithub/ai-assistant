@@ -25,6 +25,7 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
@@ -120,7 +121,7 @@ public class AiApplicationTest {
             }
 
             @Override
-            protected void afterSendToClient(Emitter emitter, String name, Object... data) {
+            protected void afterSendToClient(Emitter emitter, int id, String name, Map<Object, Object> map) {
                 System.out.println("name = " + name);
             }
 
