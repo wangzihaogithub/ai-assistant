@@ -26,6 +26,12 @@ public class AiMessageString {
         this.stringMetaMap = stringMetaMap;
     }
 
+    public AiMessageString(String chatString, String memoryString) {
+        this.chatString = chatString;
+        this.memoryString = memoryString;
+        this.stringMetaMap = null;
+    }
+
     public AiMessageString(String string, Map<String, Object> stringMetaMap) {
         this.memoryString = string;
         this.chatString = string;
