@@ -32,7 +32,7 @@ import java.util.stream.Collectors;
  * SseEmitter流式推送前端
  */
 public class SseEmitterResponseHandler implements ChatStreamingResponseHandler {
-    private static final Logger log = LoggerFactory.getLogger(SseEmitterResponseHandler.class);
+    protected static final Logger log = LoggerFactory.getLogger(SseEmitterResponseHandler.class);
     private final Emitter emitter;
     private final boolean debug;
     private final List<OnWebSearchRead> onWebSearchReadList = new ArrayList<>();
@@ -542,7 +542,7 @@ public class SseEmitterResponseHandler implements ChatStreamingResponseHandler {
         sendToClient(emitter, name, data);
     }
 
-    private void sendToClient(Emitter emitter, String name, Object... data) {
+    protected void sendToClient(Emitter emitter, String name, Object... data) {
         if (close) {
             return;
         }
