@@ -538,6 +538,7 @@ public class AiChatHistoryServiceImpl {
 
     // @Data
     public static class AiChatHistoryVO extends AiChatHistory {
+        // 可以继承，需要getset
 //        private List<AiChatHistoryJob> jobList = new ArrayList<>();
     }
 

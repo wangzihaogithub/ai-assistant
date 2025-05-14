@@ -162,7 +162,9 @@ public class AiMemoryMessageServiceImpl {
         Map<String, String> rootAgainUserQueryTraceNumberMap = selectRootAgainUserQueryTraceNumberMap(againUserQueryTraceNumberList);
         for (AiMemoryMessageVO vo : historyList) {
             // 冗余一下原始问题编号。方便查询
-            vo.setRootUserQueryTraceNumber(Objects.toString(rootAgainUserQueryTraceNumberMap.get(vo.getAgainUserQueryTraceNumber()), ""));
+            String rootUserQueryTraceNumber = Objects.toString(rootAgainUserQueryTraceNumberMap.get(vo.getAgainUserQueryTraceNumber()), "");
+            vo.setRootUserQueryTraceNumber(rootUserQueryTraceNumber);
+            vo.getMetadataList().forEach(e -> e.setRootUserQueryTraceNumber(rootUserQueryTraceNumber));
         }
     }
 
@@ -316,7 +318,6 @@ public class AiMemoryMessageServiceImpl {
                             metadataVo.setMetaValue(StringUtils.left(Objects.toString(entry.getValue(), ""), 255, true));
                             metadataVo.setUserQueryTraceNumber(vo.getUserQueryTraceNumber());
                             metadataVo.setAgainUserQueryTraceNumber(vo.getAgainUserQueryTraceNumber());
-                            metadataVo.setRootUserQueryTraceNumber(vo.getRootUserQueryTraceNumber());
                             vo.getMetadataList().add(metadataVo);
                         }
                     }
@@ -449,15 +450,25 @@ public class AiMemoryMessageServiceImpl {
     }
 
     public static class AiMemoryMessageVO extends AiMemoryMessage {
-        private final List<AiMemoryMessageTool> toolList = new ArrayList<>();
-        private final List<AiMemoryMessageMetadata> metadataList = new ArrayList<>();
+        // 可以继承，需要getset
+        private List<AiMemoryMessageTool> toolList = new ArrayList<>();
+        // 可以继承，需要getset
+        private List<AiMemoryMessageMetadata> metadataList = new ArrayList<>();
 
         public List<AiMemoryMessageMetadata> getMetadataList() {
             return metadataList;
         }
 
+        public void setMetadataList(List<AiMemoryMessageMetadata> metadataList) {
+            this.metadataList = metadataList;
+        }
+
         public List<AiMemoryMessageTool> getToolList() {
             return toolList;
+        }
+
+        public void setToolList(List<AiMemoryMessageTool> toolList) {
+            this.toolList = toolList;
         }
     }
 
