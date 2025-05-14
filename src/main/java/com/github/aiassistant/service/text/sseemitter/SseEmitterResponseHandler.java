@@ -166,12 +166,15 @@ public class SseEmitterResponseHandler implements ChatStreamingResponseHandler {
                 "error", debug ? error.toString() : "hidden");
         log.error("sse api error {}", error.toString(), error);
 
-        sendToClient(emitter, "complete",
-                "finishReason", "API_ERROR",
-                "baseMessageIndex", baseMessageIndex,
-                "addMessageCount", addMessageCount,
-                "messageIndex", baseMessageIndex + addMessageCount);
-        complete(emitter);
+        try {
+            complete(emitter, null, error, "API_ERROR", baseMessageIndex, addMessageCount);
+        } catch (Exception e) {
+            if (log.isDebugEnabled()) {
+                log.debug("Error completing emitter {}", e.toString(), e);
+            }
+        } finally {
+            this.close = true;
+        }
     }
 
     @Override
@@ -382,12 +385,15 @@ public class SseEmitterResponseHandler implements ChatStreamingResponseHandler {
                 FinishReason finishReason = response != null ? response.finishReason() : FinishReason.STOP;
                 int baseMessageIndex = completeEvent.baseMessageIndex;
                 int addMessageCount = completeEvent.addMessageCount;
-                sendToClient(emitter, "complete",
-                        "finishReason", finishReason.name(),
-                        "baseMessageIndex", baseMessageIndex,
-                        "addMessageCount", addMessageCount,
-                        "messageIndex", baseMessageIndex + addMessageCount);
-                complete(emitter);
+                try {
+                    complete(emitter, response, null, finishReason.name(), baseMessageIndex, addMessageCount);
+                } catch (Exception e) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("Error completing emitter {}", e.toString(), e);
+                    }
+                } finally {
+                    this.close = true;
+                }
             }
         }
     }
@@ -503,19 +509,32 @@ public class SseEmitterResponseHandler implements ChatStreamingResponseHandler {
         );
     }
 
-    private void complete(Emitter emitter) {
+    protected void complete(Emitter emitter,
+                            Response<AiMessage> response,
+                            Throwable error,
+                            String finishReason,
+                            int baseMessageIndex,
+                            int addMessageCount) {
+        sendToClient(emitter, "complete",
+                "finishReason", finishReason,
+                "baseMessageIndex", baseMessageIndex,
+                "addMessageCount", addMessageCount,
+                "messageIndex", baseMessageIndex + addMessageCount);
         try {
             emitter.complete();
         } catch (Exception e) {
             if (log.isDebugEnabled()) {
                 log.debug("Error completing emitter {}", e.toString(), e);
             }
-        } finally {
-            this.close = true;
         }
     }
 
-    protected void afterSendToClient(Emitter emitter, String name, Object... data) {
+
+    protected void beforeSendToClient(Emitter emitter, int id, String name, Map<Object, Object> map) {
+
+    }
+
+    protected void afterSendToClient(Emitter emitter, int id, String name, Map<Object, Object> map) {
 
     }
 
@@ -531,8 +550,10 @@ public class SseEmitterResponseHandler implements ChatStreamingResponseHandler {
         for (int i = 0; i < data.length; i += 2) {
             map.put(data[i], data[i + 1]);
         }
+        int id = ++eventId;
+        beforeSendToClient(emitter, id, name, map);
         try {
-            emitter.send(String.valueOf(++eventId), name, map);
+            emitter.send(String.valueOf(id), name, map);
         } catch (IOException | IllegalStateException e) {
             Throwable cause = e.getCause();
             if (cause == null) {
@@ -547,7 +568,7 @@ public class SseEmitterResponseHandler implements ChatStreamingResponseHandler {
         } catch (Throwable e) {
             log.warn("send fail error  {} ", e.toString(), e);
         }
-        afterSendToClient(emitter, name, data);
+        afterSendToClient(emitter, id, name, map);
     }
 
     public interface Emitter {
