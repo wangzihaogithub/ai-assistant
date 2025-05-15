@@ -1,7 +1,6 @@
 package com.github.aiassistant.entity.model.chat;
 
 import com.github.aiassistant.util.AiUtil;
-import com.github.aiassistant.util.StringUtils;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -17,9 +16,8 @@ public class QaKnVO extends KnVO {
         StringJoiner joiner = new StringJoiner("\n");
         Map<String, List<T>> distinctMap = QaKnVO.distinct(resultMap);
         for (Map.Entry<String, List<T>> entry : distinctMap.entrySet()) {
-            String q = StringUtils.left(entry.getKey(), 64, true);
             String a = QaKnVO.answerToString(entry.getValue());
-            joiner.add(AiUtil.toAiXmlString(q, a));
+            joiner.add(AiUtil.toAiXmlString(entry.getKey(), a));
         }
         return joiner.toString();
     }
@@ -28,9 +26,8 @@ public class QaKnVO extends KnVO {
         StringJoiner joiner = new StringJoiner("\n");
         Map<String, List<T>> distinctMap = QaKnVO.distinct(resultMap);
         for (Map.Entry<String, List<T>> entry : distinctMap.entrySet()) {
-            String q = StringUtils.left(entry.getKey(), 64, true);
             String a = QaKnVO.questionAnswerToString(entry.getValue());
-            joiner.add(AiUtil.toAiXmlString(q, a));
+            joiner.add(AiUtil.toAiXmlString(entry.getKey(), a));
         }
         return joiner.toString();
     }
@@ -60,9 +57,7 @@ public class QaKnVO extends KnVO {
         StringJoiner joiner = new StringJoiner(",\n");
         for (List<QaKnVO> qaKnVOS : qaKnVOList) {
             for (QaKnVO qaKnVO : qaKnVOS) {
-                String q = StringUtils.left(qaKnVO.getQuestion(), 64, true);
-                String a = qaKnVO.getAnswer();
-                joiner.add(AiUtil.toAiXmlString(q, a));
+                joiner.add(AiUtil.toAiXmlString(qaKnVO.getQuestion(), qaKnVO.getAnswer()));
             }
         }
         return joiner.toString();
@@ -74,9 +69,7 @@ public class QaKnVO extends KnVO {
         }
         StringJoiner joiner = new StringJoiner(",\n");
         for (T qaKnVO : knLibList) {
-            String q = StringUtils.left(qaKnVO.getQuestion(), 64, true);
-            String a = qaKnVO.getAnswer();
-            joiner.add(AiUtil.toAiXmlString(q, a));
+            joiner.add(AiUtil.toAiXmlString(qaKnVO.getQuestion(), qaKnVO.getAnswer()));
         }
         return joiner.toString();
     }

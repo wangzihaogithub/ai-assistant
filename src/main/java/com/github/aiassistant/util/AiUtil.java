@@ -33,6 +33,7 @@ public class AiUtil {
     public static final AiMessage NULL = new AiMessage("null");
     private static final Pattern VARIABLE_PATTERN = Pattern.compile("\\{\\{(.+?)\\}\\}");
     private static final Pattern TRAILING_COMMA_PATTERN = Pattern.compile(",(\\s*[}\\]])");
+    public static int MAX_KEY_LENGTH = 18;
 
     /**
      * 是否是联网工具
@@ -346,7 +347,11 @@ public class AiUtil {
     }
 
     public static String toAiXmlString(String key, String value) {
-        String key64 = StringUtils.left(key, 64, true);
+        return toAiXmlString(key, value, MAX_KEY_LENGTH);
+    }
+
+    public static String toAiXmlString(String key, String value, int maxKeyLength) {
+        String key64 = StringUtils.left(key, maxKeyLength, true);
         return "<" + key64 + ">" + value + "</" + key64 + ">";
     }
 
