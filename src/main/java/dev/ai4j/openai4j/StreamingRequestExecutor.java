@@ -17,14 +17,12 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-import static dev.ai4j.openai4j.Utils.toException;
-
 /**
  * wangzihao 2025-03-25
  * 大模型StreamingRequestExecutor#stream#RequestBody需要4.12.0, 其他需要okhttp3.14.9，这里重写StreamingRequestExecutor保持兼容
  *
- * @param <Request> Request
- * @param <Response> Response
+ * @param <Request>         Request
+ * @param <Response>        Response
  * @param <ResponseContent> ResponseContent
  */
 class StreamingRequestExecutor<Request, Response, ResponseContent> {
@@ -223,10 +221,10 @@ class StreamingRequestExecutor<Request, Response, ResponseContent> {
 
             @Override
             public void onClosed(EventSource eventSource) {
-                if (responseHandle.cancelled) {
-                    eventSource.cancel();
-                    return;
-                }
+//                if (responseHandle.cancelled) {
+//                    eventSource.cancel();
+//                    return;
+//                }
 
                 if (logStreamingResponses) {
                     log.debug("onClosed()");
@@ -250,14 +248,28 @@ class StreamingRequestExecutor<Request, Response, ResponseContent> {
                     responseLogger.log(response);
                 }
 
-                if (t != null) {
-                    errorHandler.accept(t); // TODO also include information from response?
-                } else {
+                OpenAiHttpException openAiHttpException = null;
+                if (response != null) {
+                    String bodyString;
+                    int code = response.code();
                     try {
-                        errorHandler.accept(toException(response));
-                    } catch (IOException e) {
-                        errorHandler.accept(e); // TODO right thing to do?
+                        bodyString = response.body().string();
+                    } catch (Exception e) {
+                        bodyString = "response.body().string() fail:" + e.toString();
                     }
+                    openAiHttpException = new OpenAiHttpException(code, bodyString);
+                }
+                if (t != null) {
+                    if (openAiHttpException != null) {
+                        openAiHttpException.initCause(t);
+                        errorHandler.accept(openAiHttpException);
+                    } else {
+                        errorHandler.accept(t);
+                    }
+                } else if (openAiHttpException != null) {
+                    errorHandler.accept(openAiHttpException);
+                } else {
+                    errorHandler.accept(new OpenAiHttpException(400, "onFailure"));
                 }
             }
         };

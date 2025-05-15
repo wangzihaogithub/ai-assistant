@@ -91,6 +91,7 @@ public class OpenAiStreamingChatModel implements StreamingChatLanguageModel {
                                     Boolean strictTools,
                                     Boolean parallelToolCalls,
                                     Duration timeout,
+                                    Duration connectTimeout,
                                     Proxy proxy,
                                     Boolean logRequests,
                                     Boolean logResponses,
@@ -112,7 +113,7 @@ public class OpenAiStreamingChatModel implements StreamingChatLanguageModel {
                 .openAiApiKey(apiKey)
                 .organizationId(organizationId)
                 .callTimeout(timeout)
-                .connectTimeout(timeout)
+                .connectTimeout(connectTimeout == null ? timeout : connectTimeout)
                 .readTimeout(timeout)
                 .writeTimeout(timeout)
                 .proxy(proxy)
@@ -371,6 +372,7 @@ public class OpenAiStreamingChatModel implements StreamingChatLanguageModel {
         private Boolean strictTools;
         private Boolean parallelToolCalls;
         private Duration timeout;
+        private Duration connectTimeout;
         private Proxy proxy;
         private Integer n;
         private Boolean logRequests;
@@ -482,6 +484,11 @@ public class OpenAiStreamingChatModel implements StreamingChatLanguageModel {
             return this;
         }
 
+        public OpenAiStreamingChatModelBuilder connectTimeout(Duration connectTimeout) {
+            this.connectTimeout = connectTimeout;
+            return this;
+        }
+
         public OpenAiStreamingChatModelBuilder proxy(Proxy proxy) {
             this.proxy = proxy;
             return this;
@@ -512,7 +519,7 @@ public class OpenAiStreamingChatModel implements StreamingChatLanguageModel {
                     this.modelName, this.temperature, this.topP, this.stop, this.maxCompletionTokens,
                     this.presencePenalty, this.frequencyPenalty, this.logitBias, this.responseFormat,
                     this.seed, this.user, this.strictTools, this.parallelToolCalls,
-                    this.timeout, this.proxy, this.logRequests, this.logResponses,
+                    this.timeout, this.connectTimeout, this.proxy, this.logRequests, this.logResponses,
                     this.customHeaders, this.n, this.listeners, this.strictJsonSchema);
         }
     }

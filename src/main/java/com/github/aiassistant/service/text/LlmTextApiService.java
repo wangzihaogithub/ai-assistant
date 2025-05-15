@@ -112,6 +112,10 @@ public class LlmTextApiService {
      * 大模型请求超时时间
      */
     private Duration timeout = Duration.ofSeconds(120);
+    /**
+     * 大模型建立socket链接超时时间
+     */
+    private Duration connectTimeout = Duration.ofSeconds(3);
 
     public LlmTextApiService(LlmJsonSchemaApiService llmJsonSchemaApiService,
                              AiQuestionClassifyService aiQuestionClassifyService,
@@ -873,6 +877,7 @@ public class LlmTextApiService {
                                                      Integer maxCompletionTokens) {
         OpenAiStreamingChatModel.OpenAiStreamingChatModelBuilder builder = OpenAiStreamingChatModel.builder()
                 .timeout(timeout)
+                .connectTimeout(connectTimeout)
                 .temperature(temperature)
                 .apiKey(apiKey)
                 .baseUrl(baseUrl)
@@ -882,6 +887,14 @@ public class LlmTextApiService {
             builder = builder.maxCompletionTokens(maxCompletionTokens);
         }
         return builder.build();
+    }
+
+    public Duration getConnectTimeout() {
+        return connectTimeout;
+    }
+
+    public void setConnectTimeout(Duration connectTimeout) {
+        this.connectTimeout = connectTimeout;
     }
 
     public Duration getTimeout() {

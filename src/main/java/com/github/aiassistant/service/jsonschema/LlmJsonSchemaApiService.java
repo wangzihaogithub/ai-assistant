@@ -42,6 +42,10 @@ public class LlmJsonSchemaApiService {
     private final Map<Class, AtomicInteger> schemasIndexMap = Collections.synchronizedMap(new WeakHashMap<>());
     // @Autowired
     private final AiToolServiceImpl aiToolService;
+    /**
+     * 大模型建立socket链接超时时间
+     */
+    private Duration connectTimeout = Duration.ofSeconds(3);
 
     public LlmJsonSchemaApiService(AiToolServiceImpl aiToolService) {
         this(aiToolService, 3);
@@ -356,9 +360,18 @@ public class LlmJsonSchemaApiService {
                 .modelName(modelName)
                 .responseFormat(responseFormat)
                 .timeout(Duration.ofMillis(timeoutMs))
+                .connectTimeout(connectTimeout)
                 .strictJsonSchema(true)
                 .build();
         return new AiModelVO(baseUrl, modelName, null, streaming);
+    }
+
+    public Duration getConnectTimeout() {
+        return connectTimeout;
+    }
+
+    public void setConnectTimeout(Duration connectTimeout) {
+        this.connectTimeout = connectTimeout;
     }
 
     public static class Session {
