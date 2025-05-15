@@ -222,6 +222,14 @@ public class OpenAiStreamingChatModel implements StreamingChatLanguageModel {
         List<ToolSpecification> toolSpecifications = request.getToolSpecificationList();
 
         ChatCompletionRequest.Builder builder = requestBuilder.get();
+        Boolean parallelToolCalls = request.getParallelToolCalls();
+        if (parallelToolCalls != null) {
+            builder.parallelToolCalls(parallelToolCalls);
+        }
+        Double temperature = request.getTemperature();
+        if (temperature != null) {
+            builder.temperature(temperature);
+        }
         builder.enableSearch(request.getEnableSearch());
         builder.searchOptions(request.getSearchOptions());
         builder.enableThinking(request.getEnableThinking());

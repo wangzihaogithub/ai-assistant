@@ -87,6 +87,50 @@ public class GenerateRequest implements Cloneable {
     private JsonSchema jsonSchema;
 
     /**
+     * 使用场景和效果
+     * ‌并行调用‌：在需要同时执行多个独立任务时，使用并行调用可以提高效率。例如，在处理多个天气查询时，可以并行调用获取不同城市的天气信息。
+     * ‌顺序调用‌：在某些情况下，可能需要按顺序执行任务，以确保前一个任务的输出是后一个任务的输入。例如，在处理复杂的逻辑链时，每个步骤都需要前一步的输出结果。
+     */
+    private Boolean parallelToolCalls;
+    private Double temperature;
+
+    public Double getTemperature() {
+        return temperature;
+    }
+
+    public void setTemperature(Double temperature) {
+        this.temperature = temperature;
+    }
+
+    /**
+     * 使用场景和效果
+     * ‌并行调用‌：在需要同时执行多个独立任务时，使用并行调用可以提高效率。例如，在处理多个天气查询时，可以并行调用获取不同城市的天气信息。
+     * ‌顺序调用‌：在某些情况下，可能需要按顺序执行任务，以确保前一个任务的输出是后一个任务的输入。例如，在处理复杂的逻辑链时，每个步骤都需要前一步的输出结果。
+     *
+     * @return * 使用场景和效果
+     * * ‌并行调用‌：在需要同时执行多个独立任务时，使用并行调用可以提高效率。例如，在处理多个天气查询时，可以并行调用获取不同城市的天气信息。
+     * * ‌顺序调用‌：在某些情况下，可能需要按顺序执行任务，以确保前一个任务的输出是后一个任务的输入。例如，在处理复杂的逻辑链时，每个步骤都需要前一步的输出结果。
+     * *
+     */
+    public Boolean getParallelToolCalls() {
+        return parallelToolCalls;
+    }
+
+    /**
+     * 使用场景和效果
+     * ‌并行调用‌：在需要同时执行多个独立任务时，使用并行调用可以提高效率。例如，在处理多个天气查询时，可以并行调用获取不同城市的天气信息。
+     * ‌顺序调用‌：在某些情况下，可能需要按顺序执行任务，以确保前一个任务的输出是后一个任务的输入。例如，在处理复杂的逻辑链时，每个步骤都需要前一步的输出结果。
+     *
+     * @param parallelToolCalls * 使用场景和效果
+     *                          * ‌并行调用‌：在需要同时执行多个独立任务时，使用并行调用可以提高效率。例如，在处理多个天气查询时，可以并行调用获取不同城市的天气信息。
+     *                          * ‌顺序调用‌：在某些情况下，可能需要按顺序执行任务，以确保前一个任务的输出是后一个任务的输入。例如，在处理复杂的逻辑链时，每个步骤都需要前一步的输出结果。
+     *                          *
+     */
+    public void setParallelToolCalls(Boolean parallelToolCalls) {
+        this.parallelToolCalls = parallelToolCalls;
+    }
+
+    /**
      * JsonSchema
      * response_format 参数的新选项
      * 开发者现在可以通过 response_format 参数的新选项 json_schema 提供 JSON 架构。
