@@ -68,12 +68,12 @@ public class AiToolServiceImpl {
             tool.setBeanName(toolEnum);
             String toolFunctionName = aiTool.getToolFunctionName();
             String toolFunctionEnum = aiTool.getToolFunctionEnum();
-            String englishName = toolEnum + "-" + toolFunctionEnum + "_" + aiTool.getId();
             Method functionMethod = getToolFunctionMethod(tool.getClass(), toolFunctionEnum);
             if (functionMethod == null) {
                 log.warn("tool {} name {} not exist!", toolEnum, aiTool.getToolFunctionEnum());
                 continue;
             }
+            String englishName = toolFunctionEnum + "_" + aiTool.getId();
             String[] methodParameterNames = ParameterNamesUtil.getParameterNames(functionMethod, e -> e.isAnnotationPresent(P.class));
             Map<String, AiToolParameter> parameterMap = parameters.get(aiTool.getId());
             Map<String, String> parameterDefaultValueMap = new HashMap<>();
