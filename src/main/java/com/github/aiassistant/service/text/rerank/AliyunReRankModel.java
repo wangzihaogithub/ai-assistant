@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import com.github.aiassistant.platform.JsonUtil;
+import com.github.aiassistant.util.FutureUtil;
 import okhttp3.*;
 import okio.BufferedSink;
 
@@ -14,10 +15,17 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
 /**
- * https://help.aliyun.com/zh/model-studio/text-rerank-api
+ * 使用阿里云Rerank模型进行rerank
+ * <p>
+ * -------------------------------------------------------------------------------------
+ * ｜ 模型中文名  ｜ 模型英文名     ｜ 最大Document数量 ｜ 单行最大输入Token ｜ 最大输入Token ｜
+ * -------------------------------------------------------------------------------------
+ * ｜ 通用文本排序 ｜ gte-rerank   ｜500              ｜  4,000          ｜ 30,000      ｜
+ * -------------------------------------------------------------------------------------
+ * <p>
+ * 接口文档 https://help.aliyun.com/zh/model-studio/text-rerank-api
  */
 public class AliyunReRankModel implements ReRankModel {
     private static final JsonUtil.ObjectWriter objectWriter = JsonUtil.objectWriter();
@@ -41,12 +49,10 @@ public class AliyunReRankModel implements ReRankModel {
     }
 
     @Override
-    public <E, M extends ReRankModel, K extends SortKey<E>> CompletableFuture<List<E>> topN(String query, Collection<E> documents, Function<E, String> reRankKey, int topN, BiFunction<M, List<K>, CompletableFuture<List<K>>> filter) {
-        if (documents.size() <= topN) {
-            return CompletableFuture.completedFuture(new ArrayList<>(documents));
-        }
+    public <E, M extends ReRankModel, K extends SortKey<E>> CompletableFuture<List<K>> sortKey(String query, Collection<E> documents, Function<E, String> reRankKey, int topN, BiFunction<M, List<K>, CompletableFuture<List<K>>> filter) {
         OkHttpClient client = getClient();
-        ArrayList<E> documentsCopy = new ArrayList<>(documents);
+        LinkedHashMap<String, List<E>> groupByKeyMap = groupByKey(documents, reRankKey);
+        ArrayList<String> documentsCopy = new ArrayList<>(groupByKeyMap.keySet());
         Request request = new Request.Builder()
                 .url(url)
                 .post(new RequestBody() {
@@ -61,7 +67,7 @@ public class AliyunReRankModel implements ReRankModel {
                         rerankRequest.setModel(model);
                         RerankRequest.Input input = new RerankRequest.Input();
                         input.setQuery(query);
-                        input.setDocuments(documentsCopy.stream().map(reRankKey).collect(Collectors.toList()));
+                        input.setDocuments(documentsCopy);
                         rerankRequest.setInput(input);
                         RerankRequest.Parameters parameters = new RerankRequest.Parameters();
                         parameters.setTopN(topN);
@@ -86,11 +92,9 @@ public class AliyunReRankModel implements ReRankModel {
                     }
                 })
                 .build();
-
         // 异步调用
         Call call = client.newCall(request);
-
-        TopNCompletableFuture<List<E>> future = new TopNCompletableFuture<>(call);
+        TopNCompletableFuture<List<K>> future = new TopNCompletableFuture<>(call);
         call.enqueue(new Callback() {
             @Override
             public void onFailure(Call call, IOException e) {
@@ -103,20 +107,18 @@ public class AliyunReRankModel implements ReRankModel {
                     ResponseBody body = response.body();
                     if (response.isSuccessful() && body != null) {
                         RerankResponse rerankResponse = objectReader.readValue(body.byteStream(), RerankResponse.class);
-                        List<K> list = new ArrayList<>(documentsCopy.size());
+                        List<K> list = new ArrayList<>(groupByKeyMap.size());
                         for (RerankResponse.Result result : rerankResponse.output.results) {
-                            E e = documentsCopy.get(result.index);
-                            list.add((K) new SortKeyString<>(e, reRankKey, result.relevanceScore));
+                            String key = documentsCopy.get(result.index);
+                            List<E> valueList = groupByKeyMap.get(key);
+                            list.add((K) new SortKeyImpl<>(valueList, key, result.relevanceScore));
                         }
-                        CompletableFuture<List<K>> f = filter != null ? filter.apply((M) AliyunReRankModel.this, list) : CompletableFuture.completedFuture(list);
-                        f.thenAccept(ks -> future.complete(ks.stream().map(SortKey::getValueList)
-                                        .filter(Objects::nonNull)
-                                        .flatMap(Collection::stream)
-                                        .collect(Collectors.toList())))
-                                .exceptionally(throwable -> {
-                                    future.completeExceptionally(throwable);
-                                    return null;
-                                });
+                        if (filter == null) {
+                            future.complete(list);
+                        } else {
+                            CompletableFuture<List<K>> f = filter.apply((M) AliyunReRankModel.this, list);
+                            FutureUtil.join(f, future);
+                        }
                     } else {
                         String string = body == null ? "" : body.string();
                         future.completeExceptionally(new IOException("rerank fail! code=" + response.code() + ", body=" + string));
@@ -192,38 +194,6 @@ public class AliyunReRankModel implements ReRankModel {
 
     public void setModel(String model) {
         this.model = model;
-    }
-
-    public static class SortKeyString<E> implements SortKey<E> {
-        private final E value;
-        private final Function<E, String> reRankKey;
-        private final Double similarity;
-
-        private SortKeyString(E value, Function<E, String> reRankKey, Double similarity) {
-            this.value = value;
-            this.reRankKey = reRankKey;
-            this.similarity = similarity;
-        }
-
-        @Override
-        public String getKey() {
-            return reRankKey.apply(value);
-        }
-
-        @Override
-        public float getSimilarity() {
-            return similarity.floatValue();
-        }
-
-        @Override
-        public List<E> getValueList() {
-            return Collections.singletonList(value);
-        }
-
-        @Override
-        public String toString() {
-            return "(" + Math.round(similarity * 100) * 0.01 + ")" + getKey();
-        }
     }
 
     public static class TopNCompletableFuture<T> extends CompletableFuture<T> {

@@ -763,7 +763,7 @@ public class LlmTextApiService {
     /**
      * 黑名单关键词过滤
      */
-    private BiFunction<EmbeddingReRankModel, List<EmbeddingReRankModel.SortKeyGroup<WebSearchResultVO.Row>>, CompletableFuture<List<EmbeddingReRankModel.SortKeyGroup<WebSearchResultVO.Row>>>>
+    private BiFunction<EmbeddingReRankModel, List<EmbeddingReRankModel.EmbeddingSortKey<WebSearchResultVO.Row>>, CompletableFuture<List<EmbeddingReRankModel.EmbeddingSortKey<WebSearchResultVO.Row>>>>
     createWebSearchFilter() {
         List<EmbeddingReRankModel.QuestionVO> questionList = knSettingWebsearchBlacklistService.selectBlackList();
         return EmbeddingReRankModel.blackFilter(
