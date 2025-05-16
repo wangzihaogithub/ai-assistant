@@ -120,6 +120,11 @@ public class EmbeddingReRankModel implements ReRankModel {
         return new BlackFilter<>(filterKeys, blacklist);
     }
 
+    @Override
+    public String toString() {
+        return "EmbeddingReRankModel(" + model + ")";
+    }
+
     public EmbeddingModelClient getModel() {
         return model;
     }

@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import com.github.aiassistant.platform.JsonUtil;
 import com.github.aiassistant.util.FutureUtil;
+import com.github.aiassistant.util.Lists;
 import okhttp3.*;
 import okio.BufferedSink;
 
@@ -15,6 +16,8 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.function.ToDoubleFunction;
+import java.util.stream.Collectors;
 
 /**
  * 使用阿里云Rerank模型进行rerank
@@ -33,6 +36,7 @@ public class AliyunReRankModel implements ReRankModel {
     private static final MediaType mediaType = MediaType.parse("application/json");
     private Duration callTimeout = Duration.ofSeconds(60);
     private Duration connectTimeout = Duration.ofSeconds(3);
+    private int maxRequestDocuments = 500;
     private volatile OkHttpClient client;
     private String apiKey;
     private String url = "https://dashscope.aliyuncs.com/api/v1/services/rerank/text-rerank/text-rerank";
@@ -49,10 +53,46 @@ public class AliyunReRankModel implements ReRankModel {
     }
 
     @Override
+    public String toString() {
+        return model;
+    }
+
+    public int getMaxRequestDocuments() {
+        return maxRequestDocuments;
+    }
+
+    public void setMaxRequestDocuments(int maxRequestDocuments) {
+        this.maxRequestDocuments = maxRequestDocuments;
+    }
+
+    @Override
     public <E, M extends ReRankModel, K extends SortKey<E>> CompletableFuture<List<K>> sortKey(String query, Collection<E> documents, Function<E, String> reRankKey, int topN, BiFunction<M, List<K>, CompletableFuture<List<K>>> filter) {
         OkHttpClient client = getClient();
         LinkedHashMap<String, List<E>> groupByKeyMap = groupByKey(documents, reRankKey);
         ArrayList<String> documentsCopy = new ArrayList<>(groupByKeyMap.keySet());
+        if (documentsCopy.size() < maxRequestDocuments) {
+            return request(query, client, groupByKeyMap, documentsCopy, topN, filter);
+        } else {
+            List<List<String>> partitionList = Lists.partition(documentsCopy, maxRequestDocuments);
+            List<CompletableFuture<List<K>>> futures = new ArrayList<>();
+            for (List<String> partition : partitionList) {
+                CompletableFuture<List<K>> request = request(query, client, groupByKeyMap, partition, topN, filter);
+                futures.add(request);
+            }
+            return FutureUtil.allOf(futures)
+                    .thenApply(lists -> lists.stream()
+                            .flatMap(Collection::stream)
+                            .sorted(Comparator.comparingDouble((ToDoubleFunction<K>) SortKey::getSimilarity).reversed())
+                            .limit(topN)
+                            .collect(Collectors.toList()));
+        }
+    }
+
+    private <E, M extends ReRankModel, K extends SortKey<E>> CompletableFuture<List<K>> request(
+            String query, OkHttpClient client,
+            LinkedHashMap<String, List<E>> groupByKeyMap,
+            List<String> documents, int topN,
+            BiFunction<M, List<K>, CompletableFuture<List<K>>> filter) {
         Request request = new Request.Builder()
                 .url(url)
                 .post(new RequestBody() {
@@ -67,7 +107,7 @@ public class AliyunReRankModel implements ReRankModel {
                         rerankRequest.setModel(model);
                         RerankRequest.Input input = new RerankRequest.Input();
                         input.setQuery(query);
-                        input.setDocuments(documentsCopy);
+                        input.setDocuments(documents);
                         rerankRequest.setInput(input);
                         RerankRequest.Parameters parameters = new RerankRequest.Parameters();
                         parameters.setTopN(topN);
@@ -109,7 +149,7 @@ public class AliyunReRankModel implements ReRankModel {
                         RerankResponse rerankResponse = objectReader.readValue(body.byteStream(), RerankResponse.class);
                         List<K> list = new ArrayList<>(groupByKeyMap.size());
                         for (RerankResponse.Result result : rerankResponse.output.results) {
-                            String key = documentsCopy.get(result.index);
+                            String key = documents.get(result.index);
                             List<E> valueList = groupByKeyMap.get(key);
                             list.add((K) new SortKeyImpl<>(valueList, key, result.relevanceScore));
                         }

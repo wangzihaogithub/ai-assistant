@@ -45,6 +45,11 @@ public class AliyunOpenNluModel implements NluModel {
     }
 
     @Override
+    public String toString() {
+        return model;
+    }
+
+    @Override
     public CompletableFuture<List<String>> classification(String document, Collection<String> labels) {
         return request(document, labels, "classification");
     }
