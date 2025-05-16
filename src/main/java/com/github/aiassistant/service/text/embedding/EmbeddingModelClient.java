@@ -5,6 +5,7 @@ import com.github.aiassistant.entity.AiEmbedding;
 import com.github.aiassistant.platform.JsonUtil;
 import com.github.aiassistant.util.DigestUtils;
 import com.github.aiassistant.util.Lists;
+import com.github.aiassistant.util.StringUtils;
 import com.github.aiassistant.util.ThrowableUtil;
 import dev.langchain4j.data.embedding.Embedding;
 import dev.langchain4j.data.segment.TextSegment;
@@ -23,6 +24,7 @@ public class EmbeddingModelClient {
     // 弱引用根据值触发GC，不能用String触发GC
     private static final Map<String, Map<float[], String>> GLOABL_CACHE_VECTOR_MAP = new ConcurrentHashMap<>();
     private static final Charset UTF_8 = Charset.forName("UTF-8");
+    private static final Map<Integer, float[]> NULL_VECTOR_MAP = new ConcurrentHashMap<>();
     private final EmbeddingModel model;
     private final LinkedBlockingQueue<EmbeddingCompletableFuture> futureList = new LinkedBlockingQueue<>();
     private final int maxRequestSize;
@@ -32,6 +34,7 @@ public class EmbeddingModelClient {
     private final int dimensions;
     private final JsonUtil.ObjectWriter objectWriter = JsonUtil.objectWriter();
     private final JsonUtil.ObjectReader objectReader = JsonUtil.objectReader();
+    private final float[] nullVector;
     private long cost;
     private int insertPartitionSize = 100;
 
@@ -45,6 +48,7 @@ public class EmbeddingModelClient {
         this.aiEmbeddingMapper = aiEmbeddingMapper;
         this.maxRequestSize = maxRequestSize == null ? 10 : Math.max(1, maxRequestSize);
         this.executor = executor == null ? Runnable::run : executor;
+        this.nullVector = NULL_VECTOR_MAP.computeIfAbsent(dimensions, float[]::new);
     }
 
     private static String md5(String keyword) {
@@ -207,12 +211,15 @@ public class EmbeddingModelClient {
 
     private void execute(List<String> keywordList, CompletableFuture<Map<String, float[]>> future) {
         try {
-            Response<List<Embedding>> listResponse = model.embedAll(keywordList.stream().map(TextSegment::from).collect(Collectors.toList()));
-            List<float[]> vectorList = listResponse.content().stream().map(Embedding::vector).collect(Collectors.toList());
-
-            Map<String, float[]> map = new HashMap<>();
-            for (int i = 0, size = keywordList.size(); i < size; i++) {
-                map.put(keywordList.get(i), vectorList.get(i));
+            List<TextSegment> segmentList = keywordList.stream().filter(StringUtils::hasText).map(TextSegment::from).collect(Collectors.toList());
+            Map<String, float[]> map = new HashMap<>(segmentList.size());
+            if (!segmentList.isEmpty()) {
+                Response<List<Embedding>> listResponse = model.embedAll(segmentList);
+                List<float[]> vectorList = listResponse.content().stream().map(Embedding::vector).collect(Collectors.toList());
+                for (int i = 0, size = keywordList.size(); i < size; i++) {
+                    float[] vector = vectorList.get(i);
+                    map.put(keywordList.get(i), vector == null ? nullVector : vector);
+                }
             }
             future.complete(map);
         } catch (Exception e) {
@@ -223,11 +230,16 @@ public class EmbeddingModelClient {
     public float[] embed(String keyword) {
         long start = System.currentTimeMillis();
         try {
-            Map<String, float[]> cacheMap = getCacheMap(Collections.singletonList(keyword));
-            float[] vector = cacheMap.get(keyword);
-            if (vector == null) {
-                vector = model.embed(keyword).content().vector();
-                putCache(Collections.singletonMap(keyword, vector));
+            float[] vector;
+            if (StringUtils.hasText(keyword)) {
+                Map<String, float[]> cacheMap = getCacheMap(Collections.singletonList(keyword));
+                vector = cacheMap.get(keyword);
+                if (vector == null) {
+                    vector = model.embed(keyword).content().vector();
+                    putCache(Collections.singletonMap(keyword, vector));
+                }
+            } else {
+                vector = nullVector;
             }
             return vector;
         } finally {

@@ -63,7 +63,9 @@ public class AiQuestionClassifyService {
             map.remove("groupCode");
             map.remove("enableFlag");
             map.remove("actionEnums");
-            String xmlString = AiUtil.toAiXmlString(classify.getClassifyName(), AiUtil.toAiXmlString(map));
+            map.remove("aiAssistantId");
+            map.remove("aiQuestionClassifyAssistantId");
+            String xmlString = AiUtil.toAiXmlString(classify.getClassifyName(), AiUtil.toAiXmlString(map), 100);
             joiner.add(xmlString);
         }
         return joiner.toString();

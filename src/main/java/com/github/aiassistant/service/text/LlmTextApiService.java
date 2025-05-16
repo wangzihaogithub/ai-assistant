@@ -21,11 +21,11 @@ import com.github.aiassistant.service.text.acting.ActingService;
 import com.github.aiassistant.service.text.embedding.EmbeddingModelClient;
 import com.github.aiassistant.service.text.embedding.KnSettingWebsearchBlacklistServiceImpl;
 import com.github.aiassistant.service.text.embedding.KnnApiService;
-import com.github.aiassistant.service.text.embedding.ReRankModelClient;
 import com.github.aiassistant.service.text.reasoning.ReasoningService;
 import com.github.aiassistant.service.text.repository.ConsumerTokenWindowChatMemory;
 import com.github.aiassistant.service.text.repository.JsonSchemaTokenWindowChatMemory;
 import com.github.aiassistant.service.text.repository.SessionMessageRepository;
+import com.github.aiassistant.service.text.rerank.EmbeddingReRankModel;
 import com.github.aiassistant.service.text.sseemitter.AiMessageString;
 import com.github.aiassistant.service.text.sseemitter.SseHttpResponse;
 import com.github.aiassistant.service.text.tools.AiToolServiceImpl;
@@ -390,7 +390,7 @@ public class LlmTextApiService {
                 });
                 // 联网后放入全局提示词变量
                 webSearchResult = FutureUtil.allOf(webSearchFuture).thenApply(resultVO -> {
-                    String xmlString = AiUtil.toAiXmlString(lastQuestion, WebSearchResultVO.toSimpleAiString(resultVO));
+                    String xmlString = AiUtil.toAiXmlString(lastQuestion, WebSearchResultVO.toSimpleAiString(resultVO), 64);
                     variables.getKn().setWebSearchResult(xmlString);
                     return xmlString;
                 });
@@ -763,10 +763,10 @@ public class LlmTextApiService {
     /**
      * 黑名单关键词过滤
      */
-    private BiFunction<EmbeddingModelClient, List<ReRankModelClient.SortKey<WebSearchResultVO.Row>>, CompletableFuture<List<ReRankModelClient.SortKey<WebSearchResultVO.Row>>>>
+    private BiFunction<EmbeddingReRankModel, List<EmbeddingReRankModel.SortKeyGroup<WebSearchResultVO.Row>>, CompletableFuture<List<EmbeddingReRankModel.SortKeyGroup<WebSearchResultVO.Row>>>>
     createWebSearchFilter() {
-        List<ReRankModelClient.QuestionVO> questionList = knSettingWebsearchBlacklistService.selectBlackList();
-        return ReRankModelClient.blackFilter(
+        List<EmbeddingReRankModel.QuestionVO> questionList = knSettingWebsearchBlacklistService.selectBlackList();
+        return EmbeddingReRankModel.blackFilter(
                 Collections.singletonList(WebSearchResultVO.Row::getContent),
                 questionList);
     }
@@ -790,7 +790,7 @@ public class LlmTextApiService {
             } else {
                 // rerank TopN
                 EmbeddingModelClient embeddingModelClient = knnApiService.getModel(assistantKn);
-                ReRankModelClient reRankModelClient = new ReRankModelClient(embeddingModelClient);
+                EmbeddingReRankModel reRankModelClient = new EmbeddingReRankModel(embeddingModelClient);
                 CompletableFuture<List<WebSearchResultVO.Row>> future = reRankModelClient.topN(question, merge.getList(), WebSearchResultVO.Row::reRankKey, topN, createWebSearchFilter());
                 return future.thenApply(rows -> {
                     merge.setList(rows);

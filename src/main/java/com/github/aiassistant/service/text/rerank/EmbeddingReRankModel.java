@@ -1,5 +1,6 @@
-package com.github.aiassistant.service.text.embedding;
+package com.github.aiassistant.service.text.rerank;
 
+import com.github.aiassistant.service.text.embedding.EmbeddingModelClient;
 import com.github.aiassistant.util.FutureUtil;
 
 import java.util.*;
@@ -10,46 +11,46 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-public class ReRankModelClient {
+public class EmbeddingReRankModel implements ReRankModel {
     private static final Map<float[], Float> MAGNITUDE_VECTOR_CACHE = Collections.synchronizedMap(new WeakHashMap<>());
     private final EmbeddingModelClient model;
     private final boolean autoEmbedAllFuture;
 
-    public ReRankModelClient(EmbeddingModelClient embeddingModelClient) {
+    public EmbeddingReRankModel(EmbeddingModelClient embeddingModelClient) {
         this.model = embeddingModelClient;
         this.autoEmbedAllFuture = true;
     }
 
-    public ReRankModelClient(EmbeddingModelClient embeddingModelClient, boolean autoEmbedAllFuture) {
+    public EmbeddingReRankModel(EmbeddingModelClient embeddingModelClient, boolean autoEmbedAllFuture) {
         this.model = embeddingModelClient;
         this.autoEmbedAllFuture = autoEmbedAllFuture;
     }
 
-    private static <E> CompletableFuture<List<SortKey<E>>> sort(EmbeddingModelClient model,
-                                                                Map<float[], String> vectorMap,
-                                                                float[] queryVector, Map<String, List<E>> groupByMap,
-                                                                int topN,
-                                                                BiFunction<EmbeddingModelClient, List<SortKey<E>>, CompletableFuture<List<SortKey<E>>>> filter) {
-        LinkedList<SortKey<E>> sortList = new LinkedList<>();
+    private static <E> CompletableFuture<List<SortKeyGroup<E>>> sort(EmbeddingReRankModel model,
+                                                                     Map<float[], String> vectorMap,
+                                                                     float[] queryVector, Map<String, List<E>> groupByMap,
+                                                                     int topN,
+                                                                     BiFunction<EmbeddingReRankModel, List<SortKeyGroup<E>>, CompletableFuture<List<SortKeyGroup<E>>>> filter) {
+        LinkedList<SortKeyGroup<E>> sortList = new LinkedList<>();
         float magnitudeQueryVector = calculateMagnitude(queryVector);// 向量2的模
-        vectorMap.forEach((k, v) -> sortList.add(new SortKey<>(v, k, similarity(k, queryVector, magnitudeQueryVector), groupByMap.get(v))));
+        vectorMap.forEach((k, v) -> sortList.add(new SortKeyGroup<>(v, k, similarity(k, queryVector, magnitudeQueryVector), groupByMap.get(v))));
         sortList.sort(Comparator.comparing(e -> e.similarity));
 
-        CompletableFuture<List<SortKey<E>>> future = new CompletableFuture<>();
-        Iterator<SortKey<E>> iterator = sortList.descendingIterator();
-        class SortFunction implements Consumer<List<SortKey<E>>> {
+        CompletableFuture<List<SortKeyGroup<E>>> future = new CompletableFuture<>();
+        Iterator<SortKeyGroup<E>> iterator = sortList.descendingIterator();
+        class SortFunction implements Consumer<List<SortKeyGroup<E>>> {
 
             @Override
-            public void accept(List<SortKey<E>> sortKeyList) {
+            public void accept(List<SortKeyGroup<E>> sortKeyList) {
                 int sum = sortKeyList.stream().mapToInt(e -> e.valueList.size()).sum();
                 if (!iterator.hasNext() || sum >= topN) {
                     future.complete(sortKeyList);
                     return;
                 }
-                List<SortKey<E>> topNList = new ArrayList<>(sortKeyList);
+                List<SortKeyGroup<E>> topNList = new ArrayList<>(sortKeyList);
                 int count = sum;
                 while (iterator.hasNext()) {
-                    SortKey<E> next = iterator.next();
+                    SortKeyGroup<E> next = iterator.next();
                     topNList.add(next);
                     count += next.valueList.size();
                     if (count >= topN) {
@@ -98,36 +99,34 @@ public class ReRankModelClient {
         return dotProduct / (magnitudeVector * magnitudeQueryVector);
     }
 
-    public static <E> BiFunction<EmbeddingModelClient, List<SortKey<E>>, CompletableFuture<List<SortKey<E>>>>
+    public static <E> BiFunction<EmbeddingReRankModel, List<SortKeyGroup<E>>, CompletableFuture<List<SortKeyGroup<E>>>>
     blackFilter(List<Function<E, String>> filterKeys, List<QuestionVO> blacklist) {
         return new BlackFilter<>(filterKeys, blacklist);
+    }
+
+    public EmbeddingModelClient getModel() {
+        return model;
     }
 
     public boolean isAutoEmbedAllFuture() {
         return autoEmbedAllFuture;
     }
 
-    public <E> CompletableFuture<List<E>> topN(String query, Collection<E> datasourceList,
-                                               Function<E, String> reRankKey, int topN) {
-        if (datasourceList.size() <= topN) {
-            return CompletableFuture.completedFuture(new ArrayList<>(datasourceList));
+    @Override
+    public <E, M extends ReRankModel, K extends SortKey<E>> CompletableFuture<List<E>> topN(String query, Collection<E> documents, Function<E, String> reRankKey, int topN, BiFunction<M, List<K>, CompletableFuture<List<K>>> filter) {
+        if (documents.size() <= topN) {
+            return CompletableFuture.completedFuture(new ArrayList<>(documents));
         }
-        return topN(query, datasourceList, reRankKey, topN, (o1, o2) -> CompletableFuture.completedFuture(o2));
-    }
-
-    public <E> CompletableFuture<List<E>> topN(String query, Collection<E> datasourceList,
-                                               Function<E, String> reRankKey, int topN,
-                                               BiFunction<EmbeddingModelClient, List<SortKey<E>>, CompletableFuture<List<SortKey<E>>>> filter) {
-        if (datasourceList.size() <= topN) {
-            return CompletableFuture.completedFuture(new ArrayList<>(datasourceList));
-        }
-        return sort(query, datasourceList, reRankKey, topN, filter)
+        BiFunction<EmbeddingReRankModel, List<SortKeyGroup<E>>, CompletableFuture<List<SortKeyGroup<E>>>> filterCast
+                = (m, k) -> filter != null ? (CompletableFuture) filter.apply((M) m, (List<K>) k) : CompletableFuture.completedFuture(k);
+        return sort(query, documents, reRankKey, topN, filterCast)
                 .thenApply(sortKeyList -> sortKeyList.stream().flatMap(e -> e.valueList.stream()).limit(topN).collect(Collectors.toList()));
     }
 
-    public <E> CompletableFuture<List<SortKey<E>>> sort(String query, Collection<E> datasourceList,
-                                                        Function<E, String> reRankKey, int topN,
-                                                        BiFunction<EmbeddingModelClient, List<SortKey<E>>, CompletableFuture<List<SortKey<E>>>> filter) {
+
+    public <E> CompletableFuture<List<SortKeyGroup<E>>> sort(String query, Collection<E> datasourceList,
+                                                             Function<E, String> reRankKey, int topN,
+                                                             BiFunction<EmbeddingReRankModel, List<SortKeyGroup<E>>, CompletableFuture<List<SortKeyGroup<E>>>> filter) {
         Map<String, List<E>> groupByMap = datasourceList.stream().collect(Collectors.groupingBy(reRankKey));
         ArrayList<String> keys = new ArrayList<>();
         keys.add(query);
@@ -136,13 +135,13 @@ public class ReRankModelClient {
         if (isAutoEmbedAllFuture()) {
             embedAllFuture();
         }
-        CompletableFuture<CompletableFuture<List<SortKey<E>>>> f = embedList.thenApply(list -> {
+        CompletableFuture<CompletableFuture<List<SortKeyGroup<E>>>> f = embedList.thenApply(list -> {
             Map<float[], String> vectorMap = new HashMap<>();
             for (int i = 1; i < list.size(); i++) {
                 vectorMap.put(list.get(i), keys.get(i));
             }
             float[] queryVector = list.get(0);
-            return sort(model, vectorMap, queryVector, groupByMap, topN, filter);
+            return sort(this, vectorMap, queryVector, groupByMap, topN, filter);
         });
         return FutureUtil.allOf(f);
     }
@@ -151,13 +150,13 @@ public class ReRankModelClient {
         return model.embedAllFuture();
     }
 
-    public static class SortKey<E> {
+    public static class SortKeyGroup<E> implements SortKey<E> {
         private final String key;
         private final float[] KeyVector;
         private final float similarity;
         private final List<E> valueList;
 
-        public SortKey(String key, float[] keyVector, float similarity, List<E> valueList) {
+        private SortKeyGroup(String key, float[] keyVector, float similarity, List<E> valueList) {
             this.key = key;
             KeyVector = keyVector;
             this.similarity = similarity;
@@ -165,10 +164,6 @@ public class ReRankModelClient {
         }
 
         @Override
-        public String toString() {
-            return key;
-        }
-
         public String getKey() {
             return key;
         }
@@ -177,16 +172,23 @@ public class ReRankModelClient {
             return KeyVector;
         }
 
+        @Override
         public float getSimilarity() {
             return similarity;
         }
 
+        @Override
         public List<E> getValueList() {
             return valueList;
         }
 
-        public SortKey<E> fork(List<E> valueList) {
-            return new SortKey<>(key, KeyVector, similarity, valueList);
+        public SortKeyGroup<E> fork(List<E> valueList) {
+            return new SortKeyGroup<>(key, KeyVector, similarity, valueList);
+        }
+
+        @Override
+        public String toString() {
+            return "(" + Math.round(similarity * 100) * 0.01 + ")" + getKey();
         }
     }
 
@@ -209,7 +211,7 @@ public class ReRankModelClient {
         }
     }
 
-    private static class BlackFilter<E> implements BiFunction<EmbeddingModelClient, List<SortKey<E>>, CompletableFuture<List<SortKey<E>>>> {
+    private static class BlackFilter<E> implements BiFunction<EmbeddingReRankModel, List<SortKeyGroup<E>>, CompletableFuture<List<SortKeyGroup<E>>>> {
         private final List<Function<E, String>> filterKeys;
         private final List<QuestionVO> blacklist;
 
@@ -232,13 +234,13 @@ public class ReRankModelClient {
             return list;
         }
 
-        private static <E> CompletableFuture<List<SortKey<E>>> filterByColumnVector(
+        private static <E> CompletableFuture<List<SortKeyGroup<E>>> filterByColumnVector(
                 EmbeddingModelClient model,
-                List<SortKey<E>> sortKeys,
+                List<SortKeyGroup<E>> sortKeys,
                 Predicate<float[]> rerankPredicate,
                 Function<E, String> getter) {
             List<String> stringMap = sortKeys.stream().map(e -> e.valueList).flatMap(Collection::stream).map(getter).collect(Collectors.toList());
-            CompletableFuture<List<SortKey<E>>> future = model.addEmbedList(stringMap).thenApply(list -> {
+            CompletableFuture<List<SortKeyGroup<E>>> future = model.addEmbedList(stringMap).thenApply(list -> {
                 Map<String, float[]> vectorMap = new HashMap<>();
                 for (int i = 0; i < list.size(); i++) {
                     vectorMap.put(stringMap.get(i), list.get(i));
@@ -254,8 +256,8 @@ public class ReRankModelClient {
             return future;
         }
 
-        private static CompletableFuture<Predicate<float[]>> createPredicate(EmbeddingModelClient model, List<QuestionVO> blacklist) {
-            CompletableFuture<Predicate<float[]>> future = model.addEmbedList(blacklist.stream().map(e -> e.question).collect(Collectors.toList())).thenApply(list -> {
+        private static CompletableFuture<Predicate<float[]>> createPredicate(EmbeddingReRankModel model, List<QuestionVO> blacklist) {
+            CompletableFuture<Predicate<float[]>> future = model.model.addEmbedList(blacklist.stream().map(e -> e.question).collect(Collectors.toList())).thenApply(list -> {
                         List<BlackPredicate> result = new ArrayList<>();
                         for (int i = 0; i < list.size(); i++) {
                             result.add(new BlackPredicate(list.get(i), blacklist.get(i)));
@@ -279,22 +281,22 @@ public class ReRankModelClient {
         }
 
         @Override
-        public CompletableFuture<List<SortKey<E>>> apply(EmbeddingModelClient model, List<SortKey<E>> sortKeys) {
-            CompletableFuture<CompletableFuture<List<SortKey<E>>>> f = createPredicate(model, blacklist)
+        public CompletableFuture<List<SortKeyGroup<E>>> apply(EmbeddingReRankModel model, List<SortKeyGroup<E>> sortKeys) {
+            CompletableFuture<CompletableFuture<List<SortKeyGroup<E>>>> f = createPredicate(model, blacklist)
                     .thenApply(rerankPredicate -> {
-                        List<SortKey<E>> resultList = sortKeys.stream().filter(e -> rerankPredicate.test(e.KeyVector)).collect(Collectors.toList());
+                        List<SortKeyGroup<E>> resultList = sortKeys.stream().filter(e -> rerankPredicate.test(e.KeyVector)).collect(Collectors.toList());
                         if (filterKeys == null || filterKeys.isEmpty()) {
                             return CompletableFuture.completedFuture(resultList);
                         }
-                        CompletableFuture<List<SortKey<E>>> future = new CompletableFuture<>();
+                        CompletableFuture<List<SortKeyGroup<E>>> future = new CompletableFuture<>();
                         Iterator<Function<E, String>> iterator = filterKeys.iterator();
-                        class IteratorFutureFunction implements Consumer<List<SortKey<E>>> {
+                        class IteratorFutureFunction implements Consumer<List<SortKeyGroup<E>>> {
 
                             @Override
-                            public void accept(List<SortKey<E>> sortKeyList) {
+                            public void accept(List<SortKeyGroup<E>> sortKeyList) {
                                 if (iterator.hasNext()) {
                                     Function<E, String> filterKey = iterator.next();
-                                    filterByColumnVector(model, sortKeyList, rerankPredicate, filterKey)
+                                    filterByColumnVector(model.model, sortKeyList, rerankPredicate, filterKey)
                                             .thenAccept(new IteratorFutureFunction())
                                             .exceptionally(throwable -> {
                                                 future.completeExceptionally(throwable);
@@ -324,7 +326,7 @@ public class ReRankModelClient {
 
             @Override
             public boolean test(float[] s) {
-                return ReRankModelClient.similarity(s, questionVector, questionMagnitude) < vo.similarity;
+                return EmbeddingReRankModel.similarity(s, questionVector, questionMagnitude) < vo.similarity;
             }
 
             @Override

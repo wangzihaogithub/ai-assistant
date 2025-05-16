@@ -6,8 +6,9 @@ import com.github.aiassistant.entity.model.langchain4j.WebSearchToolExecutionRes
 import com.github.aiassistant.enums.AiAssistantKnTypeEnum;
 import com.github.aiassistant.enums.AiWebSearchSourceEnum;
 import com.github.aiassistant.service.text.ChatStreamingResponseHandler;
+import com.github.aiassistant.service.text.rerank.EmbeddingReRankModel;
 import com.github.aiassistant.service.text.embedding.KnnApiService;
-import com.github.aiassistant.service.text.embedding.ReRankModelClient;
+import com.github.aiassistant.service.text.rerank.ReRankModel;
 import com.github.aiassistant.service.text.tools.Tools;
 import com.github.aiassistant.service.text.tools.WebSearchService;
 import com.github.aiassistant.util.FutureUtil;
@@ -26,7 +27,7 @@ public class WebSearchTools extends Tools {
     private static final WebSearchService webSearchService =
             new WebSearchService(Arrays.asList(UrlReadTools.PROXY1, UrlReadTools.PROXY2));
     // @Autowired
-    private final Function<MemoryIdVO, ReRankModelClient> reRankModelGetter;
+    private final Function<MemoryIdVO, ReRankModel> reRankModelGetter;
 
     public WebSearchTools() {
         this.reRankModelGetter = null;
@@ -42,12 +43,12 @@ public class WebSearchTools extends Tools {
                         KnnApiService knnApiService = knnApiServiceSupplier.get();
                         return knnApiService == null ? null : knnApiService.getModel(e);
                     })
-                    .map(ReRankModelClient::new)
+                    .map(EmbeddingReRankModel::new)
                     .orElse(null);
         }
     }
 
-    public WebSearchTools(Function<MemoryIdVO, ReRankModelClient> reRankModelGetter) {
+    public WebSearchTools(Function<MemoryIdVO, ReRankModel> reRankModelGetter) {
         this.reRankModelGetter = reRankModelGetter;
     }
 
@@ -73,7 +74,7 @@ public class WebSearchTools extends Tools {
         ChatStreamingResponseHandler handler = getStreamingResponseHandler();
         CompletableFuture<WebSearchResultVO> read = webSearchService.webSearchRead(q, 1, 10000, false, handler.adapterWebSearch(sourceEnum));
         CompletableFuture<CompletableFuture<WebSearchToolExecutionResultMessage>> f = read.thenApply(ws -> {
-            ReRankModelClient reRankModelClient = newReRankModel(memoryIdVO);
+            ReRankModel reRankModelClient = newReRankModel(memoryIdVO);
             CompletableFuture<WebSearchResultVO> wsf;
             if (reRankModelClient != null) {
                 List<CompletableFuture<List<WebSearchResultVO.Row>>> topNList = new ArrayList<>();
@@ -93,7 +94,7 @@ public class WebSearchTools extends Tools {
         return FutureUtil.allOf(f);
     }
 
-    private ReRankModelClient newReRankModel(MemoryIdVO memoryIdVO) {
+    private ReRankModel newReRankModel(MemoryIdVO memoryIdVO) {
         return reRankModelGetter != null ? reRankModelGetter.apply(memoryIdVO) : null;
     }
 }

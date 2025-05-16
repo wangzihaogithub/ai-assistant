@@ -194,7 +194,13 @@ public class WebSearchResultVO {
 
         @Override
         public String toString() {
-            return title;
+            String key;
+            if (title != null && !title.isEmpty()) {
+                key = title;
+            } else {
+                key = content;
+            }
+            return key;
         }
 
         public String getUrl() {
