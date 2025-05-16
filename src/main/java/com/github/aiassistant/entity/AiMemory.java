@@ -6,6 +6,15 @@ import java.util.Date;
 // @ApiModel(description = "记忆")
 // @TableName("ai_memory")
 public class AiMemory {
+    // @TableId(value = "id", type = IdType.AUTO)
+    private Integer id;
+    private Date createTime;
+    private Date updateTime;
+    private Integer userTokenCount;
+    private Integer aiTokenCount;
+    private Integer userCharLength;
+    private Integer aiCharLength;
+
     public Integer getId() {
         return id;
     }
@@ -46,28 +55,12 @@ public class AiMemory {
         this.aiTokenCount = aiTokenCount;
     }
 
-    public Integer getKnowledgeTokenCount() {
-        return knowledgeTokenCount;
-    }
-
-    public void setKnowledgeTokenCount(Integer knowledgeTokenCount) {
-        this.knowledgeTokenCount = knowledgeTokenCount;
-    }
-
     public Integer getUserCharLength() {
         return userCharLength;
     }
 
     public void setUserCharLength(Integer userCharLength) {
         this.userCharLength = userCharLength;
-    }
-
-    public Integer getKnowledgeCharLength() {
-        return knowledgeCharLength;
-    }
-
-    public void setKnowledgeCharLength(Integer knowledgeCharLength) {
-        this.knowledgeCharLength = knowledgeCharLength;
     }
 
     public Integer getAiCharLength() {
@@ -77,21 +70,6 @@ public class AiMemory {
     public void setAiCharLength(Integer aiCharLength) {
         this.aiCharLength = aiCharLength;
     }
-
-    // @TableId(value = "id", type = IdType.AUTO)
-    private Integer id;
-
-    private Date createTime;
-
-    private Date updateTime;
-
-    private Integer userTokenCount;
-    private Integer aiTokenCount;
-    private Integer knowledgeTokenCount;
-
-    private Integer userCharLength;
-    private Integer knowledgeCharLength;
-    private Integer aiCharLength;
 
     @Override
     public String toString() {

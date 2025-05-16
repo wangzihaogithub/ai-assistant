@@ -3,23 +3,21 @@
 <mapper namespace="com.github.aiassistant.dao.AiMemoryMapper">
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO `ai_memory`
-        (`ai_char_length`,`ai_token_count`, `create_time`,`id`,`knowledge_char_length`,`knowledge_token_count`,`update_time`,`user_char_length`,`user_token_count`)
+        (`ai_char_length`,`ai_token_count`, `create_time`,`id`,`update_time`,`user_char_length`,`user_token_count`)
         VALUES
             (
-            #{aiCharLength},  #{aiTokenCount},  #{createTime},  #{id},  #{knowledgeCharLength},  #{knowledgeTokenCount},  #{updateTime},  #{userCharLength},  #{userTokenCount}
+            #{aiCharLength},  #{aiTokenCount},  #{createTime},  #{id},   #{updateTime},  #{userCharLength},  #{userTokenCount}
         )
     </insert>
     <update id="updateTokens">
         update `ai_memory`
         set `user_token_count` = `user_token_count` + #{arg1},
         `ai_token_count` = `ai_token_count` + #{arg2},
-        `knowledge_token_count` = `knowledge_token_count` + #{arg3},
 
-        `user_char_length` = `user_char_length` + #{arg4},
-        `ai_char_length` = `ai_char_length` + #{arg5},
-        `knowledge_char_length` = `knowledge_char_length` + #{arg6},
+        `user_char_length` = `user_char_length` + #{arg3},
+        `ai_char_length` = `ai_char_length` + #{arg4},
 
-        `update_time` = #{arg7}
+        `update_time` = #{arg5}
         where id = #{arg0}
     </update>
 </mapper>

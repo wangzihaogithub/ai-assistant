@@ -44,6 +44,7 @@ public class AliyunReRankModel implements ReRankModel {
      * 指明需要调用的模型，仅可选择gte-rerank-v2
      */
     private String model = "gte-rerank-v2";
+    private boolean destroy;
 
     public AliyunReRankModel() {
     }
@@ -55,6 +56,28 @@ public class AliyunReRankModel implements ReRankModel {
     @Override
     public String toString() {
         return model;
+    }
+
+    @Override
+    public void destroy() {
+        destroy = true;
+        OkHttpClient client = this.client;
+        this.client = null;
+        if (client != null) {
+            try {
+                client.connectionPool().evictAll();
+            } catch (Exception e) {
+                // ignore
+            }
+            Cache cache = client.cache();
+            if (cache != null) {
+                try {
+                    cache.close();
+                } catch (Exception e) {
+                    // ignore
+                }
+            }
+        }
     }
 
     public int getMaxRequestDocuments() {
@@ -204,6 +227,9 @@ public class AliyunReRankModel implements ReRankModel {
     }
 
     private OkHttpClient getClient() {
+        if (destroy) {
+            throw new IllegalStateException("AliyunReRankModel(" + model + ") is destroy!");
+        }
         if (client == null) {
             synchronized (this) {
                 if (client == null) {

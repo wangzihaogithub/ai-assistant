@@ -28,6 +28,13 @@ public interface ReRankModel {
     float NULL_SIMILARITY = -1;
 
     /**
+     * 对象实例销毁
+     */
+    default void destroy() {
+
+    }
+
+    /**
      * 根据字段进行元素分组
      *
      * @param documents 元素集合
@@ -141,6 +148,7 @@ public interface ReRankModel {
             Function<E, String> reRankKey, int topN,
             BiFunction<M, List<K>, CompletableFuture<List<K>>> filter
     );
+
 
     interface SortKey<E> {
         String getKey();

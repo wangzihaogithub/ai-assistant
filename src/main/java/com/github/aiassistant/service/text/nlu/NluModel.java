@@ -12,6 +12,13 @@ import java.util.concurrent.CompletableFuture;
 public interface NluModel {
 
     /**
+     * 对象实例销毁
+     */
+    default void destroy() {
+
+    }
+
+    /**
      * 文本分类
      * 主题分类：体育新闻，娱乐新闻
      * 情感分类：积极，消极

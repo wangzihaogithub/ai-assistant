@@ -20,7 +20,6 @@ public class AiMemoryMessage {
     private Date startTime;
     private Date commitTime;
     private Date firstTokenTime;
-    private Boolean useKnowledgeFlag; // bit(1) 类型在 Java 中通常映射为 boolean
     private Boolean useToolFlag; // bit(1) 类型在 Java 中通常映射为 boolean
     private String replyToolRequestId;
     private String replyToolName;
@@ -28,9 +27,7 @@ public class AiMemoryMessage {
     private Integer charLength;
     private Integer userTokenCount;
     private Integer aiTokenCount;
-    private Integer knowledgeTokenCount;
     private Integer userCharLength;
-    private Integer knowledgeCharLength;
     private Integer aiCharLength;
     // @ApiModelProperty(value = "用户问题聊天追踪号", example = "101")
     private String userQueryTraceNumber;
@@ -126,14 +123,6 @@ public class AiMemoryMessage {
         this.firstTokenTime = firstTokenTime;
     }
 
-    public Boolean getUseKnowledgeFlag() {
-        return useKnowledgeFlag;
-    }
-
-    public void setUseKnowledgeFlag(Boolean useKnowledgeFlag) {
-        this.useKnowledgeFlag = useKnowledgeFlag;
-    }
-
     public Boolean getUseToolFlag() {
         return useToolFlag;
     }
@@ -190,28 +179,12 @@ public class AiMemoryMessage {
         this.aiTokenCount = aiTokenCount;
     }
 
-    public Integer getKnowledgeTokenCount() {
-        return knowledgeTokenCount;
-    }
-
-    public void setKnowledgeTokenCount(Integer knowledgeTokenCount) {
-        this.knowledgeTokenCount = knowledgeTokenCount;
-    }
-
     public Integer getUserCharLength() {
         return userCharLength;
     }
 
     public void setUserCharLength(Integer userCharLength) {
         this.userCharLength = userCharLength;
-    }
-
-    public Integer getKnowledgeCharLength() {
-        return knowledgeCharLength;
-    }
-
-    public void setKnowledgeCharLength(Integer knowledgeCharLength) {
-        this.knowledgeCharLength = knowledgeCharLength;
     }
 
     public Integer getAiCharLength() {

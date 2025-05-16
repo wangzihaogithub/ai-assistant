@@ -27,9 +27,7 @@ public class AiMemoryServiceImpl {
         aiMemory.setUpdateTime(now);
         aiMemory.setUserTokenCount(0);
         aiMemory.setAiTokenCount(0);
-        aiMemory.setKnowledgeTokenCount(0);
         aiMemory.setUserCharLength(0);
-        aiMemory.setKnowledgeCharLength(0);
         aiMemory.setAiCharLength(0);
         aiMemoryMapper.insert(aiMemory);
         return aiMemory;

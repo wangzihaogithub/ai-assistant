@@ -209,8 +209,8 @@ public class AiMemoryMessageServiceImpl {
             }
             for (AiMemoryVO aiMemoryVO : list) {
                 aiMemoryMapper.updateTokens(aiMemoryVO.getId(),
-                        aiMemoryVO.getUserTokenCount(), aiMemoryVO.getAiTokenCount(), aiMemoryVO.getKnowledgeTokenCount(),
-                        aiMemoryVO.getUserCharLength(), aiMemoryVO.getAiCharLength(), aiMemoryVO.getKnowledgeCharLength(),
+                        aiMemoryVO.getUserTokenCount(), aiMemoryVO.getAiTokenCount(),
+                        aiMemoryVO.getUserCharLength(), aiMemoryVO.getAiCharLength(),
                         aiMemoryVO.getUpdateTime());
 
                 aiMemoryVO.future.complete(aiMemoryVO);
@@ -277,15 +277,12 @@ public class AiMemoryMessageServiceImpl {
             vo.setStartTime(message.getStartTime());
             vo.setFirstTokenTime(message.getFirstTokenTime());
             vo.setCommitTime(now);
-            vo.setUseKnowledgeFlag(!knowledgeList.isEmpty());
             vo.setReplyToolRequestId(toolResponse != null ? toolResponse.getRequestId() : "");
             vo.setReplyToolName(toolResponse != null ? toolResponse.getToolName() : "");
             vo.setUseToolFlag(toolRequests != null && !toolRequests.isEmpty());
-            vo.setKnowledgeTokenCount(0);
             vo.setTokenCount(tokenCount);
             vo.setUserTokenCount(inputTokenCount);
             vo.setAiTokenCount(outputTokenCount);
-            vo.setKnowledgeCharLength(AiUtil.sumKnowledgeLength(sourceMessages));
             vo.setUserCharLength(AiUtil.sumUserLength(sourceMessages));
             vo.setAiCharLength(AiUtil.sumAiLength(sourceMessages));
             vo.setCharLength(AiUtil.sumLength(sourceMessages));

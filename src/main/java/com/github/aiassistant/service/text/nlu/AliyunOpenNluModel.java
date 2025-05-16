@@ -36,6 +36,7 @@ public class AliyunOpenNluModel implements NluModel {
      * 指明需要调用的模型，opennlu-v1(开箱即用的文本理解大模型，适用于中文、英文零样本条件下进行文本理解任务，如信息抽取、文本分类等。)
      */
     private String model = "opennlu-v1";
+    private boolean destroy;
 
     public AliyunOpenNluModel() {
     }
@@ -47,6 +48,28 @@ public class AliyunOpenNluModel implements NluModel {
     @Override
     public String toString() {
         return model;
+    }
+
+    @Override
+    public void destroy() {
+        this.destroy = true;
+        OkHttpClient client = this.client;
+        this.client = null;
+        if (client != null) {
+            try {
+                client.connectionPool().evictAll();
+            } catch (Exception e) {
+                // ignore
+            }
+            Cache cache = client.cache();
+            if (cache != null) {
+                try {
+                    cache.close();
+                } catch (Exception e) {
+                    // ignore
+                }
+            }
+        }
     }
 
     @Override
@@ -171,6 +194,9 @@ public class AliyunOpenNluModel implements NluModel {
     }
 
     private OkHttpClient getClient() {
+        if (destroy) {
+            throw new IllegalStateException("AliyunReRankModel(" + model + ") is destroy!");
+        }
         if (client == null) {
             synchronized (this) {
                 if (client == null) {

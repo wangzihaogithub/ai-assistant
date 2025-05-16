@@ -10,10 +10,8 @@ public interface AiMemoryMapper {
     int updateTokens(Integer id,
                      Integer userTokenCount,
                      Integer aiTokenCount,
-                     Integer knowledgeTokenCount,
 
                      Integer userCharLength,
                      Integer aiCharLength,
-                     Integer knowledgeCharLength,
                      Date updateTime);
 }

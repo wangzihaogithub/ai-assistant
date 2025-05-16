@@ -3,11 +3,11 @@
 <mapper namespace="com.github.aiassistant.dao.AiMemoryMessageMapper">
     <insert id="insertBatchSomeColumn" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO `ai_memory_message`
-        (`again_user_query_trace_number`,`ai_char_length`,`ai_memory_id`,`ai_token_count`,`char_length`,`commit_time`,`create_time`,`delete_time`,`first_token_time`,`id`,`knowledge_char_length`,`knowledge_token_count`,`message_index`,`message_text`,`message_type_enum`,`open_ai_request_id`,`reply_tool_name`,`reply_tool_request_id`,`root_user_query_trace_number`,`stage_enum`,`start_time`,`token_count`,`use_knowledge_flag`,`use_tool_flag`,`user_char_length`,`user_query_flag`,`user_query_trace_number`,`user_token_count`,`websearch_flag`)
+        (`again_user_query_trace_number`,`ai_char_length`,`ai_memory_id`,`ai_token_count`,`char_length`,`commit_time`,`create_time`,`delete_time`,`first_token_time`,`id`,`message_index`,`message_text`,`message_type_enum`,`open_ai_request_id`,`reply_tool_name`,`reply_tool_request_id`,`root_user_query_trace_number`,`stage_enum`,`start_time`,`token_count`,`use_tool_flag`,`user_char_length`,`user_query_flag`,`user_query_trace_number`,`user_token_count`,`websearch_flag`)
         VALUES
         <foreach collection="arg0" item="item" open="" separator="," close="">
             (
-            #{item.againUserQueryTraceNumber},  #{item.aiCharLength},  #{item.aiMemoryId},  #{item.aiTokenCount},  #{item.charLength},  #{item.commitTime},  #{item.createTime},  #{item.deleteTime},  #{item.firstTokenTime},  #{item.id},  #{item.knowledgeCharLength},  #{item.knowledgeTokenCount},  #{item.messageIndex},  #{item.messageText},  #{item.messageTypeEnum},  #{item.openAiRequestId},  #{item.replyToolName},  #{item.replyToolRequestId},  #{item.rootUserQueryTraceNumber},  #{item.stageEnum},  #{item.startTime},  #{item.tokenCount},  #{item.useKnowledgeFlag},  #{item.useToolFlag},  #{item.userCharLength},  #{item.userQueryFlag},  #{item.userQueryTraceNumber},  #{item.userTokenCount},  #{item.websearchFlag}
+            #{item.againUserQueryTraceNumber},  #{item.aiCharLength},  #{item.aiMemoryId},  #{item.aiTokenCount},  #{item.charLength},  #{item.commitTime},  #{item.createTime},  #{item.deleteTime},  #{item.firstTokenTime},  #{item.id},  #{item.messageIndex},  #{item.messageText},  #{item.messageTypeEnum},  #{item.openAiRequestId},  #{item.replyToolName},  #{item.replyToolRequestId},  #{item.rootUserQueryTraceNumber},  #{item.stageEnum},  #{item.startTime},  #{item.tokenCount},  #{item.useToolFlag},  #{item.userCharLength},  #{item.userQueryFlag},  #{item.userQueryTraceNumber},  #{item.userTokenCount},  #{item.websearchFlag}
             )
         </foreach>
     </insert>
