@@ -3,6 +3,7 @@ package com.github.aiassistant.platform;
 import com.github.aiassistant.DAOProvider;
 import com.github.aiassistant.util.ReflectUtil;
 import org.apache.ibatis.builder.BuilderException;
+import org.apache.ibatis.builder.xml.XMLConfigBuilder;
 import org.apache.ibatis.builder.xml.XMLMapperBuilder;
 import org.apache.ibatis.io.Resources;
 import org.apache.ibatis.mapping.Environment;
@@ -62,6 +63,12 @@ public class Mybatis3DAOProvider extends DAOProvider {
 
     public Mybatis3DAOProvider(SqlSessionFactory sqlSessionFactory) {
         this.sqlSessionFactory = sqlSessionFactory;
+    }
+
+    public static Configuration createConfiguration(DataSource dataSource, String mybatisConfigXmlResource, Class<?> namespace) {
+        Configuration configuration = new XMLConfigBuilder(namespace.getResourceAsStream(mybatisConfigXmlResource)).parse();
+        configuration.setEnvironment(new Environment(namespace.getSimpleName(), new JdbcTransactionFactory(), dataSource));
+        return configuration;
     }
 
     public static Configuration createConfiguration(DataSource dataSource, Collection<String> mapperXmlResource) {
