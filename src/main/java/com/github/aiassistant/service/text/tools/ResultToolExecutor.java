@@ -22,6 +22,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -161,6 +162,22 @@ public class ResultToolExecutor extends CompletableFuture<ToolExecutionResultMes
 
     static boolean hasNoFractionalPart(Double doubleValue) {
         return doubleValue.equals(Math.floor(doubleValue));
+    }
+
+    private static <T> void await(Object invokeResult, CompletableFuture<T> future, Function<Object, T> map) {
+        // ToolExecutionResultMessage 功能扩展 wangzihao
+        if (invokeResult instanceof CompletableFuture) {
+            CompletableFuture<ToolExecutionResultMessage> f = (CompletableFuture) invokeResult;
+            f.whenComplete((rst, throwable) -> {
+                if (throwable != null) {
+                    future.completeExceptionally(throwable);
+                } else {
+                    await(rst, future, map);
+                }
+            });
+        } else {
+            future.complete(map.apply(invokeResult));
+        }
     }
 
     private static ToolExecutionResultMessage convertResultMessage(ToolExecutionRequest toolExecutionRequest, Object invokeResult) {
@@ -369,24 +386,20 @@ public class ResultToolExecutor extends CompletableFuture<ToolExecutionResultMes
 
     public CompletableFuture<ToolExecutionResultMessage> execute() {
         ToolExecutionRequest toolExecutionRequest = this.request;
-        log.debug("About to execute {} for memoryId {}", toolExecutionRequest, memoryId);
-
-        CompletableFuture<ToolExecutionResultMessage> result;
+        if (log.isDebugEnabled()) {
+            log.debug("About to execute {} for memoryId {}", toolExecutionRequest, memoryId);
+        }
+        CompletableFuture<ToolExecutionResultMessage> result = new CompletableFuture<>();
         try {
             Object invokeResult = invoke(methodArguments);
-            // ToolExecutionResultMessage 功能扩展 wangzihao
-            if (invokeResult instanceof CompletableFuture) {
-                CompletableFuture<Object> f = (CompletableFuture) invokeResult;
-                result = f.thenApply(rst -> convertResultMessage(toolExecutionRequest, rst));
-            } else {
-                result = CompletableFuture.completedFuture(convertResultMessage(toolExecutionRequest, invokeResult));
+            await(invokeResult, result, e -> convertResultMessage(toolExecutionRequest, e));
+            if (log.isDebugEnabled()) {
+                log.debug("Tool execution result: {}", invokeResult);
             }
-            log.debug("Tool execution result: {}", result);
-        } catch (IllegalAccessException e) {
-            throw new RuntimeException("execute fail, cause:" + e, e);
-        } catch (InvocationTargetException e) {
-            log.error("Error while executing tool {} {}", method, e.toString(), e);
-            result = new CompletableFuture<>();
+        } catch (Exception e) {
+            if (log.isErrorEnabled()) {
+                log.error("Error while executing tool {} {}", method, e.toString(), e);
+            }
             result.completeExceptionally(e);
         }
         result.whenComplete((toolExecutionResultMessage, throwable) -> {
@@ -403,18 +416,14 @@ public class ResultToolExecutor extends CompletableFuture<ToolExecutionResultMes
         if (paramValidArguments == null) {
             return CompletableFuture.completedFuture(null);
         }
+        CompletableFuture<Object> result = new CompletableFuture<>();
         try {
             Object invokeResult = invoke(paramValidArguments);
-            if (invokeResult instanceof CompletableFuture) {
-                return (CompletableFuture<Object>) invokeResult;
-            } else {
-                return CompletableFuture.completedFuture(invokeResult);
-            }
+            await(invokeResult, result, Function.identity());
         } catch (Exception e) {
-            CompletableFuture<Object> future = new CompletableFuture<>();
-            future.completeExceptionally(e);
-            return future;
+            result.completeExceptionally(e);
         }
+        return result;
     }
 
     private Object invoke(Object[] arguments) throws InvocationTargetException, IllegalAccessException {
