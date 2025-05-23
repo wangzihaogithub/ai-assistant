@@ -7,6 +7,7 @@ import com.github.aiassistant.entity.model.chat.AiVariablesVO;
 import com.github.aiassistant.entity.model.chat.MemoryIdVO;
 import com.github.aiassistant.entity.model.chat.QuestionClassifyListVO;
 import com.github.aiassistant.entity.model.user.AiAccessUserVO;
+import com.github.aiassistant.exception.JsonSchemaCreateException;
 import com.github.aiassistant.service.text.ChatStreamingResponseHandler;
 import com.github.aiassistant.service.text.repository.JsonSchemaTokenWindowChatMemory;
 import com.github.aiassistant.service.text.tools.AiToolServiceImpl;
@@ -22,6 +23,7 @@ import dev.langchain4j.service.FunctionalInterfaceAiServices;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
@@ -108,8 +110,10 @@ public class LlmJsonSchemaApiService {
 
     public void addSessionJsonSchema(MemoryIdVO memoryIdVO,
                                      String aiJsonschemaIds,
-                                     AiAssistantJsonschemaMapper aiAssistantJsonschemaMapper) {
+                                     AiAssistantJsonschemaMapper aiAssistantJsonschemaMapper,
+                                     Executor threadPoolTaskExecutor) {
         Session session = getSession(memoryIdVO, true);
+        session.threadPoolTaskExecutor = threadPoolTaskExecutor;
         Collection<AiJsonschema> jsonschemaList = Optional.ofNullable(aiJsonschemaIds)
                 .filter(StringUtils::hasText)
                 .map(e -> Arrays.asList(e.split(",")))
@@ -177,16 +181,17 @@ public class LlmJsonSchemaApiService {
      * @param memory     memory
      * @param <T>        类型
      * @return JsonSchema类型的模型
+     * @throws JsonSchemaCreateException JsonSchema创建失败
      */
-    public <T> T getSchema(MemoryIdVO memoryIdVO, Class<T> type, boolean memory) {
+    public <T> T getSchema(MemoryIdVO memoryIdVO, Class<T> type, boolean memory) throws JsonSchemaCreateException {
         return getSchema(memoryIdVO, toJsonSchemaEnum(type), type, memory);
     }
 
-    public <T> T getSchema(MemoryIdVO memoryIdVO, Class<T> type) {
+    public <T> T getSchema(MemoryIdVO memoryIdVO, Class<T> type) throws JsonSchemaCreateException {
         return getSchema(memoryIdVO, type, false);
     }
 
-    public <T> T getSchema(MemoryIdVO memoryIdVO, String jsonSchemaEnum, Class<T> type, boolean memory) {
+    public <T> T getSchema(MemoryIdVO memoryIdVO, String jsonSchemaEnum, Class<T> type, boolean memory) throws JsonSchemaCreateException {
         AiJsonschema jsonschema = getJsonschema(memoryIdVO, jsonSchemaEnum);
         if (jsonschema == null) {
             return null;
@@ -216,69 +221,72 @@ public class LlmJsonSchemaApiService {
 
     private <T> T newInstance(AiModelVO aiModel, Class<T> type, boolean memory,
                               MemoryIdVO memoryIdVO, AiJsonschema jsonschema,
-                              String jsonSchemaEnum) {
-        Session session = getSession(memoryIdVO, false);
-        ChatStreamingResponseHandler responseHandler = null;
-        AiAccessUserVO user = null;
-        AiVariablesVO variables = null;
-        Map<String, Object> variablesMap = new HashMap<>();
-        Boolean websearch = null;
-        Boolean reasoning = null;
-        QuestionClassifyListVO classifyListVO = null;
-        if (session != null) {
-            user = session.user;
-            variables = session.variables;
-            responseHandler = session.responseHandler;
-            websearch = session.websearch;
-            reasoning = session.reasoning;
-            classifyListVO = session.classifyListVO;
-            variablesMap = BeanUtil.toMap(variables);
-        }
+                              String jsonSchemaEnum) throws JsonSchemaCreateException {
+        try {
+            Session session = getSession(memoryIdVO, false);
+            ChatStreamingResponseHandler responseHandler = null;
+            AiAccessUserVO user = null;
+            AiVariablesVO variables = null;
+            Map<String, Object> variablesMap = new HashMap<>();
+            Boolean websearch = null;
+            Boolean reasoning = null;
+            QuestionClassifyListVO classifyListVO = null;
+            Executor executor = null;
+            if (session != null) {
+                user = session.user;
+                variables = session.variables;
+                responseHandler = session.responseHandler;
+                websearch = session.websearch;
+                reasoning = session.reasoning;
+                classifyListVO = session.classifyListVO;
+                executor = session.threadPoolTaskExecutor;
+                variablesMap = BeanUtil.toMap(variables);
+            }
 
-        List<Tools.ToolMethod> toolMethodList = new ArrayList<>();
-        String systemPromptText = null;
-        String userPromptText = null;
-        if (jsonschema != null) {
-            systemPromptText = jsonschema.getSystemPromptText();
-            userPromptText = jsonschema.getUserPromptText();
-            toolMethodList = AiUtil.initTool(aiToolService.selectToolMethodList(StringUtils.split(jsonschema.getAiToolIds(), ",")), variables, user);
+            String systemPromptText = jsonschema.getSystemPromptText();
+            String userPromptText = jsonschema.getUserPromptText();
+            List<Tools.ToolMethod> toolMethodList = AiUtil.initTool(aiToolService.selectToolMethodList(StringUtils.split(jsonschema.getAiToolIds(), ",")), variables, user);
+            AiServices<T> aiServices = new FunctionalInterfaceAiServices<>(new AiServiceContext(type), systemPromptText, userPromptText,
+                    variablesMap, responseHandler, toolMethodList, aiModel.isSupportChineseToolName(),
+                    classifyListVO, websearch, reasoning, aiModel.modelName, memoryIdVO, executor);
+            aiServices.chatLanguageModel(aiModel.model);
+            aiServices.streamingChatLanguageModel(aiModel.streaming);
+            if (memory) {
+                aiServices.chatMemoryProvider(this::getChatMemory);
+            }
+            return aiServices.build();
+        } catch (Exception e) {
+            throw new JsonSchemaCreateException(String.format("JsonSchema create error! id = %s,name =%s, cause = %s",
+                    jsonschema.getId(), jsonschema.getJsonSchemaEnum(), e),
+                    e, jsonschema);
         }
-        AiServices<T> aiServices = new FunctionalInterfaceAiServices<>(new AiServiceContext(type), systemPromptText, userPromptText,
-                variablesMap, responseHandler, toolMethodList, aiModel.isSupportChineseToolName(),
-                classifyListVO, websearch, reasoning, aiModel.modelName, memoryIdVO);
-        aiServices.chatLanguageModel(aiModel.model);
-        aiServices.streamingChatLanguageModel(aiModel.streaming);
-        if (memory) {
-            aiServices.chatMemoryProvider(this::getChatMemory);
-        }
-        return aiServices.build();
     }
 
-    public MStateUnknownJsonSchema getMStateUnknownJsonSchema(MemoryIdVO memoryIdVO) {
+    public MStateUnknownJsonSchema getMStateUnknownJsonSchema(MemoryIdVO memoryIdVO) throws JsonSchemaCreateException {
         return getSchema(memoryIdVO, MStateUnknownJsonSchema.class, false);
     }
 
-    public ReasoningJsonSchema getReasoningJsonSchema(MemoryIdVO memoryIdVO) {
+    public ReasoningJsonSchema getReasoningJsonSchema(MemoryIdVO memoryIdVO) throws JsonSchemaCreateException {
         return getSchema(memoryIdVO, ReasoningJsonSchema.class, false);
     }
 
-    public ActingJsonSchema getActingJsonSchema(MemoryIdVO memoryIdVO) {
+    public ActingJsonSchema getActingJsonSchema(MemoryIdVO memoryIdVO) throws JsonSchemaCreateException {
         return getSchema(memoryIdVO, ActingJsonSchema.class, false);
     }
 
-    public WebsearchReduceJsonSchema getWebsearchReduceJsonSchema(MemoryIdVO memoryIdVO) {
+    public WebsearchReduceJsonSchema getWebsearchReduceJsonSchema(MemoryIdVO memoryIdVO) throws JsonSchemaCreateException {
         return getSchema(memoryIdVO, WebsearchReduceJsonSchema.class, false);
     }
 
-    public MStateKnownJsonSchema getMStateknownJsonSchema(MemoryIdVO memoryIdVO) {
+    public MStateKnownJsonSchema getMStateknownJsonSchema(MemoryIdVO memoryIdVO) throws JsonSchemaCreateException {
         return getSchema(memoryIdVO, MStateKnownJsonSchema.class, false);
     }
 
-    public WhetherWaitingForAiJsonSchema getWhetherWaitingForAiJsonSchema(MemoryIdVO memoryIdVO) {
+    public WhetherWaitingForAiJsonSchema getWhetherWaitingForAiJsonSchema(MemoryIdVO memoryIdVO) throws JsonSchemaCreateException {
         return getSchema(memoryIdVO, WhetherWaitingForAiJsonSchema.class, false);
     }
 
-    public QuestionClassifySchema getQuestionClassifySchema(MemoryIdVO memoryIdVO) {
+    public QuestionClassifySchema getQuestionClassifySchema(MemoryIdVO memoryIdVO) throws JsonSchemaCreateException {
         return getSchema(memoryIdVO, QuestionClassifySchema.class, false);
     }
 
@@ -376,6 +384,7 @@ public class LlmJsonSchemaApiService {
 
     public static class Session {
         final Map<String, AiJsonschema> jsonschemaMap = new ConcurrentHashMap<>();
+        Executor threadPoolTaskExecutor;
         AiAccessUserVO user;
         AiVariablesVO variables;
         Boolean websearch;

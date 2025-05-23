@@ -2,6 +2,7 @@ package com.github.aiassistant.service.text.tools;
 
 
 import com.github.aiassistant.entity.model.chat.WebSearchResultVO;
+import com.github.aiassistant.exception.AiAssistantException;
 import com.github.aiassistant.service.text.tools.functioncall.BaiduWebSearchTools;
 import com.github.aiassistant.service.text.tools.functioncall.BingWebSearchTools;
 import com.github.aiassistant.service.text.tools.functioncall.SogouWebSearchTools;
@@ -115,35 +116,44 @@ public class WebSearchService {
         if (maxCharLength <= 0) {
             return CompletableFuture.completedFuture(WebSearchResultVO.empty());
         }
-        List<CompletableFuture<Void>> futures = new ArrayList<>();
+        List<CompletableFuture<String>> futures = new ArrayList<>();
         String providerName = webSearch.getProviderName();
         long start = System.currentTimeMillis();
-        eventListener.beforeWebSearch(providerName, q);
+        try {
+            eventListener.beforeWebSearch(providerName, q);
+        } catch (AiAssistantException e) {
+            return FutureUtil.completeExceptionally(e);
+        }
         CompletableFuture<CompletableFuture<WebSearchResultVO>> f = webSearch.webSearch(q, topN)
                 .thenApply(resultVO -> {
-                    eventListener.afterWebSearch(providerName, q, resultVO, System.currentTimeMillis() - start);
-                    if (readContent) {
-                        int itemLimit = Math.max(maxCharLength / topN, 100);
-                        for (WebSearchResultVO.Row row : resultVO.getList()) {
-                            String url = row.getUrl();
-                            if (url != null && !url.isEmpty()) {
-                                UrlReadTools u = urlReadTools.get(urlReadToolsIndex++ % urlReadTools.size());
-                                UrlReadTools.ProxyVO proxy = u.getProxyVO();
-                                long startUrl = System.currentTimeMillis();
-                                eventListener.beforeUrlRead(providerName, q, u, row);
-                                futures.add(u.readString(url).thenAccept(text -> {
-                                    row.setProxy(proxy);
-                                    String merge = StringUtils.left(mergeContent(row.getContent(), text), itemLimit, true);
-                                    long urlReadCost = System.currentTimeMillis() - startUrl;
-                                    row.setUrlReadTimeCost(urlReadCost);
-                                    eventListener.afterUrlRead(providerName, q, u, row, text, merge, urlReadCost);
-                                    row.setContent(merge);
-                                }).exceptionally(throwable -> null));
+                    try {
+                        eventListener.afterWebSearch(providerName, q, resultVO, System.currentTimeMillis() - start);
+                        if (readContent) {
+                            int itemLimit = Math.max(maxCharLength / topN, 100);
+                            for (WebSearchResultVO.Row row : resultVO.getList()) {
+                                String url = row.getUrl();
+                                if (url != null && !url.isEmpty()) {
+                                    UrlReadTools u = urlReadTools.get(urlReadToolsIndex++ % urlReadTools.size());
+                                    UrlReadTools.ProxyVO proxy = u.getProxyVO();
+                                    long startUrl = System.currentTimeMillis();
+                                    eventListener.beforeUrlRead(providerName, q, u, row);
+
+                                    futures.add(FutureUtil.accept(u.readString(url), text -> {
+                                        row.setProxy(proxy);
+                                        String merge = StringUtils.left(mergeContent(row.getContent(), text), itemLimit, true);
+                                        long urlReadCost = System.currentTimeMillis() - startUrl;
+                                        row.setUrlReadTimeCost(urlReadCost);
+                                        eventListener.afterUrlRead(providerName, q, u, row, text, merge, urlReadCost);
+                                        row.setContent(merge);
+                                    }));
+                                }
                             }
+                            return FutureUtil.allOf(futures).thenApply(unused -> resultVO);
+                        } else {
+                            return CompletableFuture.completedFuture(resultVO);
                         }
-                        return FutureUtil.allOf(futures).thenApply(unused -> resultVO);
-                    } else {
-                        return CompletableFuture.completedFuture(resultVO);
+                    } catch (AiAssistantException e) {
+                        return FutureUtil.completeExceptionally(e);
                     }
                 });
         return FutureUtil.allOf(f);
@@ -153,19 +163,19 @@ public class WebSearchService {
         EventListener EMPTY = new EventListener() {
         };
 
-        default void beforeWebSearch(String providerName, String question) {
+        default void beforeWebSearch(String providerName, String question) throws AiAssistantException {
 
         }
 
-        default void afterWebSearch(String providerName, String question, WebSearchResultVO resultVO, long cost) {
+        default void afterWebSearch(String providerName, String question, WebSearchResultVO resultVO, long cost) throws AiAssistantException {
 
         }
 
-        default void beforeUrlRead(String providerName, String question, UrlReadTools urlReadTools, WebSearchResultVO.Row row) {
+        default void beforeUrlRead(String providerName, String question, UrlReadTools urlReadTools, WebSearchResultVO.Row row) throws AiAssistantException {
 
         }
 
-        default void afterUrlRead(String providerName, String question, UrlReadTools urlReadTools, WebSearchResultVO.Row row, String content, String merge, long cost) {
+        default void afterUrlRead(String providerName, String question, UrlReadTools urlReadTools, WebSearchResultVO.Row row, String content, String merge, long cost) throws AiAssistantException {
 
         }
     }

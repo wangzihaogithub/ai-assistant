@@ -51,7 +51,13 @@ public class FutureUtil {
         return result;
     }
 
-    public static <T> CompletableFuture<T> accept(CompletableFuture<T> future, Consumer<? super T> consumer) {
+    public static <T> CompletableFuture<T> completeExceptionally(Throwable error) {
+        CompletableFuture<T> future = new CompletableFuture<>();
+        future.completeExceptionally(error);
+        return future;
+    }
+
+    public static <T> CompletableFuture<T> accept(CompletableFuture<T> future, Consumer0<? super T> consumer) {
         CompletableFuture<T> result = new CompletableFuture<>();
         future.whenComplete((t, throwable) -> {
             if (throwable != null) {
@@ -183,7 +189,6 @@ public class FutureUtil {
         }
         return future;
     }
-
 
     /**
      * 将需要等待N次的有异步转为需要等待一次的扁平格式（依次等待结果聚合为等待全部结束）
@@ -375,5 +380,16 @@ public class FutureUtil {
             });
         }
         return future;
+    }
+
+    @FunctionalInterface
+    public interface Consumer0<T> {
+
+        /**
+         * Performs this operation on the given argument.
+         *
+         * @param t the input argument
+         */
+        void accept(T t) throws Throwable;
     }
 }

@@ -4,6 +4,7 @@ import com.github.aiassistant.dao.AiToolMapper;
 import com.github.aiassistant.dao.AiToolParameterMapper;
 import com.github.aiassistant.entity.AiTool;
 import com.github.aiassistant.entity.AiToolParameter;
+import com.github.aiassistant.exception.ToolCreateException;
 import com.github.aiassistant.util.ParameterNamesUtil;
 import com.github.aiassistant.util.StringUtils;
 import dev.langchain4j.agent.tool.*;
@@ -52,7 +53,7 @@ public class AiToolServiceImpl {
         return toolsMap.apply(toolName);
     }
 
-    public List<Tools.ToolMethod> selectToolMethodList(Collection<? extends Serializable> ids) {
+    public List<Tools.ToolMethod> selectToolMethodList(Collection<? extends Serializable> ids) throws ToolCreateException {
         if (ids == null || ids.isEmpty()) {
             return Collections.emptyList();
         }
@@ -61,7 +62,12 @@ public class AiToolServiceImpl {
         List<AiTool> toolList = selectToolList(ids, parameters);
         for (AiTool aiTool : toolList) {
             String toolEnum = aiTool.getToolEnum();
-            Tools tool = getTools(toolEnum);
+            Tools tool;
+            try {
+                tool = getTools(toolEnum);
+            } catch (Exception e) {
+                throw new ToolCreateException(String.format("getTools error! id = %s, toolEnum = %s  ", aiTool.getId(), aiTool.getToolEnum()), e, aiTool);
+            }
             if (tool == null) {
                 continue;
             }

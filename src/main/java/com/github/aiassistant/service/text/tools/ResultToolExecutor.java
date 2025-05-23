@@ -34,7 +34,7 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
 public class ResultToolExecutor extends CompletableFuture<ToolExecutionResultMessage> {
     private static final Logger log = LoggerFactory.getLogger(ResultToolExecutor.class);
     private static final Pattern TRAILING_COMMA_PATTERN = Pattern.compile(",(\\s*[}\\]])");
-    private final Object object;
+    private final Object instance;
     private final Method method;
     private final ToolExecutionRequest request;
     private final ParamValid paramValid;
@@ -43,8 +43,8 @@ public class ResultToolExecutor extends CompletableFuture<ToolExecutionResultMes
     private final Object memoryId;
     private final SseHttpResponse emitter;
 
-    public ResultToolExecutor(Object object, Method method, String[] paramNames, Map<String, String> parameterDefaultValueMap, ToolExecutionRequest toolExecutionRequest, SseHttpResponse emitter, Object memoryId) {
-        this.object = object;
+    public ResultToolExecutor(Object instance, Method method, String[] paramNames, Map<String, String> parameterDefaultValueMap, ToolExecutionRequest toolExecutionRequest, SseHttpResponse emitter, Object memoryId) {
+        this.instance = instance;
         Objects.requireNonNull(toolExecutionRequest, "toolExecutionRequest");
         this.method = method;
         this.request = toolExecutionRequest;
@@ -231,7 +231,10 @@ public class ResultToolExecutor extends CompletableFuture<ToolExecutionResultMes
 
     @Override
     public String toString() {
-        return request.toString();
+        if (instance == null || method == null) {
+            return request.toString();
+        }
+        return String.format("%s.%s(%s)", instance.getClass().getSimpleName(), method.getName(), request.arguments());
     }
 
     public ToolExecutionRequest getRequest() {
@@ -418,7 +421,15 @@ public class ResultToolExecutor extends CompletableFuture<ToolExecutionResultMes
         if (method == null) {
             return "Success";
         }
-        return method.invoke(object, arguments);
+        return method.invoke(instance, arguments);
+    }
+
+    public Method method() {
+        return method;
+    }
+
+    public Object instance() {
+        return instance;
     }
 
     public boolean isEmitter() {

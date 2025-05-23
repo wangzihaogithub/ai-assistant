@@ -4,9 +4,7 @@ import com.github.aiassistant.entity.model.chat.MemoryIdVO;
 import com.github.aiassistant.entity.model.chat.QuestionClassifyListVO;
 import com.github.aiassistant.entity.model.langchain4j.LangChainUserMessage;
 import com.github.aiassistant.entity.model.langchain4j.MetadataAiMessage;
-import com.github.aiassistant.exception.AiAssistantException;
-import com.github.aiassistant.exception.ModelApiGenerateException;
-import com.github.aiassistant.exception.TokenReadTimeoutException;
+import com.github.aiassistant.exception.*;
 import com.github.aiassistant.service.jsonschema.LlmJsonSchemaApiService;
 import com.github.aiassistant.service.jsonschema.WhetherWaitingForAiJsonSchema;
 import com.github.aiassistant.service.text.sseemitter.AiMessageString;
@@ -423,14 +421,15 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
     private CompletableFuture<Response<AiMessage>> executeToolsValidationAndCall(List<ResultToolExecutor> toolExecutors, Response<AiMessage> response) {
         CompletableFuture<Response<AiMessage>> future = new CompletableFuture<>();
         // 在开始工具执行前，先校验模型给过来的工具入参
-        CompletableFuture<Tools.ParamValidationResult> validationResultFuture = executeToolsValidation(toolExecutors);
         // 校验工具入参后，再进行工具调用
-        validationResultFuture.whenComplete((validationResult, throwable) -> {
+        executeToolsValidation(toolExecutors).whenComplete((validationResult, throwable) -> {
             this.validationResult = validationResult;
             try {
                 if (throwable != null) {
                     // 校验工具入参的代码报错了
-                    future.completeExceptionally(throwable);
+                    List<ResultToolExecutor> exceptionallyList = toolExecutors.stream().filter(CompletableFuture::isCompletedExceptionally).collect(Collectors.toList());
+                    String exceptionallyMethods = exceptionallyList.stream().map(ResultToolExecutor::toString).collect(Collectors.joining(", "));
+                    future.completeExceptionally(new ToolExecuteException(String.format("executeToolsValidation error! exceptionallyMethods = [%s], %s", exceptionallyMethods, throwable), throwable, exceptionallyList, response));
                 } else if (validationResult != null && validationResult.isStopExecute()) {
                     // 参数验证不通过，不能调用工具，给用户返回不能调用的原因。
                     Response<AiMessage> validationResponse = new Response<>(validationResult.getAiMessage(),
@@ -448,7 +447,21 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
                     // 执行工具调用
                     executor.execute(() -> {
                         try {
-                            executeToolsCall(toolExecutors, future);
+                            executeToolsCall(toolExecutors);
+                            // 全部执行完成后，
+                            FutureUtil.allOf(toolExecutors).whenComplete((unused, throwable1) -> {
+                                if (throwable1 == null) {
+                                    try {
+                                        future.complete(null);
+                                    } catch (Throwable e) {
+                                        future.completeExceptionally(e);
+                                    }
+                                } else {
+                                    List<ResultToolExecutor> exceptionallyList = toolExecutors.stream().filter(CompletableFuture::isCompletedExceptionally).collect(Collectors.toList());
+                                    String exceptionallyMethods = exceptionallyList.stream().map(ResultToolExecutor::toString).collect(Collectors.joining(", "));
+                                    future.completeExceptionally(new ToolExecuteException(String.format("executeToolsCall error! exceptionallyMethods = [%s], %s", exceptionallyMethods, throwable1), throwable1, exceptionallyList, response));
+                                }
+                            });
                         } catch (Throwable e) {
                             future.completeExceptionally(e);
                         }
@@ -461,7 +474,7 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
         return future;
     }
 
-    private void executeToolsCall(List<ResultToolExecutor> toolExecutors, CompletableFuture<Response<AiMessage>> future) {
+    private void executeToolsCall(List<ResultToolExecutor> toolExecutors) {
         // 执行
         for (ResultToolExecutor executor : toolExecutors) {
             executor.execute().whenComplete(new BiConsumer<ToolExecutionResultMessage, Throwable>() {
@@ -471,18 +484,6 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
                 }
             });
         }
-        // 全部执行完成后，
-        FutureUtil.allOf(toolExecutors).whenComplete((unused, throwable1) -> {
-            if (throwable1 != null) {
-                future.completeExceptionally(throwable1);
-            } else {
-                try {
-                    future.complete(null);
-                } catch (Throwable e) {
-                    future.completeExceptionally(e);
-                }
-            }
-        });
     }
 
     /**
@@ -508,7 +509,12 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
 //            return CompletableFuture.completedFuture(true);
 //        }
         if (memoryId instanceof MemoryIdVO && llmJsonSchemaApiService != null) {
-            WhetherWaitingForAiJsonSchema schema = llmJsonSchemaApiService.getWhetherWaitingForAiJsonSchema((MemoryIdVO) memoryId);
+            WhetherWaitingForAiJsonSchema schema = null;
+            try {
+                schema = llmJsonSchemaApiService.getWhetherWaitingForAiJsonSchema((MemoryIdVO) memoryId);
+            } catch (JsonSchemaCreateException e) {
+                return FutureUtil.completeExceptionally(e);
+            }
             if (schema == null) {
                 return CompletableFuture.completedFuture(false);
             }

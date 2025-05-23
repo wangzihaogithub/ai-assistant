@@ -35,10 +35,7 @@ import org.slf4j.LoggerFactory;
 import java.io.InputStream;
 import java.lang.reflect.*;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.SynchronousQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
@@ -66,6 +63,7 @@ public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
     private final QuestionClassifyListVO classifyListVO;
     private final Boolean websearch;
     private final Boolean reasoning;
+    private final Executor executor;
 
     public FunctionalInterfaceAiServices(AiServiceContext context, String systemMessage,
                                          String userMessage,
@@ -77,8 +75,10 @@ public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
                                          Boolean websearch,
                                          Boolean reasoning,
                                          String modelName,
-                                         Object memoryId) {
+                                         Object memoryId,
+                                         Executor executor) {
         super(context);
+        this.executor = executor;
         this.classifyListVO = classifyListVO;
         this.websearch = websearch;
         this.reasoning = reasoning;
@@ -407,6 +407,7 @@ public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
         private final Boolean reasoning;
         private final Object proxy;
         private final Logger log;
+        private final Executor executor;
         private Consumer<AiMessageString> tokenHandler;
         private Consumer<List<Content>> contentsHandler;
         private Consumer<Throwable> errorHandler;
@@ -430,7 +431,9 @@ public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
                                     Boolean reasoning,
                                     ChatStreamingResponseHandler responseHandler,
                                     Object proxy,
-                                    Logger log) {
+                                    Logger log,
+                                    Executor executor) {
+            this.executor = executor;
             this.classifyListVO = classifyListVO;
             this.websearch = websearch;
             this.reasoning = reasoning;
@@ -566,7 +569,6 @@ public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
                     }
                 }
             };
-            ThreadPoolExecutor executor = getExecutor(context.aiServiceClass);
             ChatMemory chatMemory = MessageWindowChatMemory.builder().id(memoryId).maxMessages(Integer.MAX_VALUE).build();
             messages.forEach(chatMemory::add);
             JsonschemaFunctionCallStreamingResponseHandler handler = new JsonschemaFunctionCallStreamingResponseHandler(
@@ -671,7 +673,8 @@ public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
                     websearch, reasoning,
                     responseHandler,
                     proxy,
-                    log
+                    log,
+                    executor
             );
             Type returnType = method.getReturnType();
             if (returnType == TokenStream.class) {

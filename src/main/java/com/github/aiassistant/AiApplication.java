@@ -29,6 +29,7 @@ import org.elasticsearch.client.RestClient;
 import javax.sql.DataSource;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.concurrent.Executor;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -93,10 +94,19 @@ public class AiApplication {
                          RestClient embeddingStore,
                          Function<String, Tools> toolsMap,
                          Function<Class<? extends ServiceIntercept>, Collection<ServiceIntercept>> interceptMap) {
-        this(new Mybatis3DAOProvider(dataSource), embeddingStore, toolsMap, interceptMap);
+        this(null, new Mybatis3DAOProvider(dataSource), embeddingStore, toolsMap, interceptMap);
     }
 
-    public AiApplication(DAOProvider daoProvider,
+    public AiApplication(Executor threadPoolTaskExecutor,
+                         DataSource dataSource,
+                         RestClient embeddingStore,
+                         Function<String, Tools> toolsMap,
+                         Function<Class<? extends ServiceIntercept>, Collection<ServiceIntercept>> interceptMap) {
+        this(threadPoolTaskExecutor, new Mybatis3DAOProvider(dataSource), embeddingStore, toolsMap, interceptMap);
+    }
+
+    public AiApplication(Executor threadPoolTaskExecutor,
+                         DAOProvider daoProvider,
                          RestClient embeddingStore,
                          Function<String, Tools> toolsMap,
                          Function<Class<? extends ServiceIntercept>, Collection<ServiceIntercept>> interceptMap) {
@@ -155,7 +165,7 @@ public class AiApplication {
 
         this.aiVariablesService = new AiVariablesService(aiMemoryMstateService, aiVariablesMapper, getServiceInterceptSupplier(AiVariablesServiceIntercept.class, interceptMap));
         this.llmTextApiService = new LlmTextApiService(llmJsonSchemaApiService, aiQuestionClassifyService, aiAssistantJsonschemaMapper, aiAssistantFewshotMapper, aiToolService, aiVariablesService, knnApiService, actingService, reasoningService, knSettingWebsearchBlacklistServiceImpl,
-                Math.max(Runtime.getRuntime().availableProcessors() * 2, 6), getServiceInterceptSupplier(LlmTextApiServiceIntercept.class, interceptMap));
+                threadPoolTaskExecutor, getServiceInterceptSupplier(LlmTextApiServiceIntercept.class, interceptMap));
     }
 
     private static <T extends ServiceIntercept> Supplier<Collection<T>> getServiceInterceptSupplier(Class<T> clazz, Function<Class<? extends ServiceIntercept>, Collection<ServiceIntercept>> interceptMap) {

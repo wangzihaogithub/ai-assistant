@@ -3,6 +3,7 @@ package com.github.aiassistant.service.text.acting;
 import com.github.aiassistant.entity.model.chat.MemoryIdVO;
 import com.github.aiassistant.entity.model.chat.WebSearchResultVO;
 import com.github.aiassistant.enums.AiWebSearchSourceEnum;
+import com.github.aiassistant.exception.JsonSchemaCreateException;
 import com.github.aiassistant.service.jsonschema.ActingJsonSchema;
 import com.github.aiassistant.service.jsonschema.LlmJsonSchemaApiService;
 import com.github.aiassistant.service.jsonschema.ReasoningJsonSchema;
@@ -89,7 +90,12 @@ public class ActingService {
         if (root == null) {
             return CompletableFuture.completedFuture(null);
         }
-        ActingJsonSchema schema = llmJsonSchemaApiService.getActingJsonSchema(memoryIdVO);
+        ActingJsonSchema schema;
+        try {
+            schema = llmJsonSchemaApiService.getActingJsonSchema(memoryIdVO);
+        } catch (JsonSchemaCreateException e) {
+            return FutureUtil.completeExceptionally(e);
+        }
         if (schema == null) {
             return CompletableFuture.completedFuture(null);
         }

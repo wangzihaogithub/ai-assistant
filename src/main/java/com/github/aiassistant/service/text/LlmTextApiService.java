@@ -10,10 +10,7 @@ import com.github.aiassistant.entity.model.langchain4j.MstateAiMessage;
 import com.github.aiassistant.entity.model.user.AiAccessUserVO;
 import com.github.aiassistant.enums.AiAssistantKnTypeEnum;
 import com.github.aiassistant.enums.AiWebSearchSourceEnum;
-import com.github.aiassistant.exception.AssistantConfigException;
-import com.github.aiassistant.exception.DataInspectionFailedException;
-import com.github.aiassistant.exception.FewshotConfigException;
-import com.github.aiassistant.exception.QuestionEmptyException;
+import com.github.aiassistant.exception.*;
 import com.github.aiassistant.service.jsonschema.LlmJsonSchemaApiService;
 import com.github.aiassistant.service.jsonschema.ReasoningJsonSchema;
 import com.github.aiassistant.service.jsonschema.WebsearchReduceJsonSchema;
@@ -57,12 +54,12 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /**
- * Text类型的聊天模型服务
+ * 文本类型聊天模型服务
  */
 public class LlmTextApiService {
     private static final Logger log = LoggerFactory.getLogger(LlmTextApiService.class);
     /**
-     * 估计各种文本类型（如文本、提示、文本段等）中的标记计数的接口
+     * 预测各种文本类型（如文本、提示、文本段等）中的标记计数的接口
      */
     private final Tokenizer tokenizer = new OpenAiTokenizer();
     /**
@@ -72,8 +69,7 @@ public class LlmTextApiService {
     /**
      * 每个智能体的聊天模型并发数量
      */
-    private final int concurrentChatModelCount = 10;
-    private final WebSearchService webSearchService = new WebSearchService();
+    private final int clientModelInstanceCount = 10;
     /**
      * JsonSchema类型的模型
      */
@@ -85,12 +81,14 @@ public class LlmTextApiService {
     private final AiVariablesService aiVariablesService;
     private final AiToolServiceImpl aiToolService;
     private final AiAssistantJsonschemaMapper aiAssistantJsonschemaMapper;
-    // @Resource
     private final AiAssistantFewshotMapper aiAssistantFewshotMapper;
     /**
      * 向量模型服务
      */
     private final KnnApiService knnApiService;
+    /**
+     * 线程池：如果java21可以传过来虚拟线程
+     */
     private final Executor threadPoolTaskExecutor;
     private final ActingService actingService;
     private final ReasoningService reasoningService;
@@ -109,6 +107,14 @@ public class LlmTextApiService {
      */
     public boolean reasoningAndActingParallel = true;
     /**
+     * 联网搜索服务
+     */
+    private WebSearchService webSearchService = new WebSearchService();
+    /**
+     * 用户提的问题大于等于多少才开启联网，默认3
+     */
+    private int minEnableWebSearchStringLength = 3;
+    /**
      * 大模型请求超时时间
      */
     private Duration timeout = Duration.ofSeconds(120);
@@ -125,17 +131,20 @@ public class LlmTextApiService {
                              AiVariablesService aiVariablesService,
                              KnnApiService knnApiService,
                              ActingService actingService, ReasoningService reasoningService,
-                             KnSettingWebsearchBlacklistServiceImpl knSettingWebsearchBlacklistService, int threads,
+                             KnSettingWebsearchBlacklistServiceImpl knSettingWebsearchBlacklistService, Executor threadPoolTaskExecutor,
                              Supplier<Collection<LlmTextApiServiceIntercept>> interceptList) {
-        ThreadPoolExecutor poolExecutor = new ThreadPoolExecutor(
-                threads, threads,
-                60, TimeUnit.SECONDS,
-                new SynchronousQueue<>(), target -> {
-            Thread thread = new Thread(target);
-            thread.setName("Ai-Question-" + thread.getId());
-            thread.setDaemon(true);
-            return thread;
-        }, new ThreadPoolExecutor.CallerRunsPolicy());
+        if (threadPoolTaskExecutor == null) {
+            int threads = Math.max(Runtime.getRuntime().availableProcessors() * 2, 6);
+            threadPoolTaskExecutor = new ThreadPoolExecutor(
+                    threads, threads,
+                    60, TimeUnit.SECONDS,
+                    new SynchronousQueue<>(), target -> {
+                Thread thread = new Thread(target);
+                thread.setName("Ai-Question-" + thread.getId());
+                thread.setDaemon(true);
+                return thread;
+            }, new ThreadPoolExecutor.CallerRunsPolicy());
+        }
         this.aiAssistantFewshotMapper = aiAssistantFewshotMapper;
         this.aiToolService = aiToolService;
         this.aiAssistantJsonschemaMapper = aiAssistantJsonschemaMapper;
@@ -143,7 +152,7 @@ public class LlmTextApiService {
         this.aiQuestionClassifyService = aiQuestionClassifyService;
         this.aiVariablesService = aiVariablesService;
         this.knnApiService = knnApiService;
-        this.threadPoolTaskExecutor = poolExecutor;
+        this.threadPoolTaskExecutor = threadPoolTaskExecutor;
         this.actingService = actingService;
         this.reasoningService = reasoningService;
         this.knSettingWebsearchBlacklistService = knSettingWebsearchBlacklistService;
@@ -179,22 +188,6 @@ public class LlmTextApiService {
     }
 
     /**
-     * 结合整体判断是否开启联网
-     *
-     * @param websearch        是否需要联网
-     * @param assistantConfig  智能体配置
-     * @param knPromptText     in context learning的知识库提示词
-     * @param mstatePromptText in context learning的记忆提示词
-     * @param lastQuery        用户最后一次的提问内容
-     * @return true=结合整体判断是否开启联网
-     */
-    private static boolean isEnableWebSearch(Boolean websearch, AssistantConfig assistantConfig, String knPromptText, String mstatePromptText, String lastQuery) {
-        return Boolean.TRUE.equals(websearch)
-                && AiVariablesService.isEnableWebSearch(assistantConfig, knPromptText, mstatePromptText)
-                && Objects.toString(lastQuery, "").length() > 2;
-    }
-
-    /**
      * 提问报错了
      *
      * @param error           异常
@@ -208,6 +201,30 @@ public class LlmTextApiService {
         responseHandler.onError(error, 0, 0, 0);
         log.error("llm questionError chatId {}, error {}", memoryId.getChatId(), error.toString(), error);
         return handlerFuture;
+    }
+
+    public WebSearchService getWebSearchService() {
+        return webSearchService;
+    }
+
+    public void setWebSearchService(WebSearchService webSearchService) {
+        this.webSearchService = webSearchService;
+    }
+
+    /**
+     * 结合整体判断是否开启联网
+     *
+     * @param websearch        是否需要联网
+     * @param assistantConfig  智能体配置
+     * @param knPromptText     in context learning的知识库提示词
+     * @param mstatePromptText in context learning的记忆提示词
+     * @param lastQuery        用户最后一次的提问内容
+     * @return true=结合整体判断是否开启联网
+     */
+    private boolean isEnableWebSearch(Boolean websearch, AssistantConfig assistantConfig, String knPromptText, String mstatePromptText, String lastQuery) {
+        return Boolean.TRUE.equals(websearch)
+                && AiVariablesService.isEnableWebSearch(assistantConfig, knPromptText, mstatePromptText)
+                && Objects.toString(lastQuery, "").length() >= minEnableWebSearchStringLength;
     }
 
     public int getMaxActingWebSearch() {
@@ -255,7 +272,7 @@ public class LlmTextApiService {
                                                                             ChatStreamingResponseHandler responseHandler) {
         try {
             // jsonschema模型
-            llmJsonSchemaApiService.addSessionJsonSchema(memoryId, memoryId.getAiAssistant().getAiJsonschemaIds(), aiAssistantJsonschemaMapper);
+            llmJsonSchemaApiService.addSessionJsonSchema(memoryId, memoryId.getAiAssistant().getAiJsonschemaIds(), aiAssistantJsonschemaMapper, threadPoolTaskExecutor);
             // 持久化
             ChatStreamingResponseHandler mergeResponseHandler = new MergeChatStreamingResponseHandler(
                     Arrays.asList(responseHandler, new RepositoryChatStreamingResponseHandler(repository)),
@@ -443,8 +460,8 @@ public class LlmTextApiService {
                                     websearch,
                                     reasoning
                             );
-                        } catch (AssistantConfigException | FewshotConfigException e) {
-                            // 智能体配置异常 ｜ 少样本提示异常
+                        } catch (AssistantConfigException | FewshotConfigException | ToolCreateException e) {
+                            // 智能体配置异常 ｜ 少样本提示异常 | AI工具创建异常
                             handlerFuture.completeExceptionally(e);
                             responseHandler.onError(e, baseMessageIndex, addMessageCount, 0);
                             return;
@@ -582,6 +599,7 @@ public class LlmTextApiService {
      * @return 回调函数(对接底层模型)
      * @throws AssistantConfigException 智能体配置出现错误
      * @throws FewshotConfigException   少样本提示异常
+     * @throws ToolCreateException      工具创建异常
      */
     private FunctionCallStreamingResponseHandler newFunctionCallStreamingResponseHandler(
             QuestionClassifyListVO classifyListVO,
@@ -601,9 +619,9 @@ public class LlmTextApiService {
             int baseMessageIndex,
             Boolean websearch,
             Boolean reasoning
-    ) throws AssistantConfigException, FewshotConfigException {
+    ) throws AssistantConfigException, FewshotConfigException, ToolCreateException {
         // jsonschema模型
-        llmJsonSchemaApiService.addSessionJsonSchema(memoryId, assistantConfig.getAiJsonschemaIds(), aiAssistantJsonschemaMapper);
+        llmJsonSchemaApiService.addSessionJsonSchema(memoryId, assistantConfig.getAiJsonschemaIds(), aiAssistantJsonschemaMapper, threadPoolTaskExecutor);
 
         // 系统消息
         SystemMessage systemMessage = buildSystemMessage(assistantConfig.getSystemPromptText(), responseHandler, variables, assistantConfig);
@@ -778,7 +796,12 @@ public class LlmTextApiService {
         if (flattedWebSearchResult == null || flattedWebSearchResult.isEmpty()) {
             return CompletableFuture.completedFuture(WebSearchResultVO.empty());
         }
-        WebsearchReduceJsonSchema websearchReduceJsonSchema = llmJsonSchemaApiService.getWebsearchReduceJsonSchema(memoryIdVO);
+        WebsearchReduceJsonSchema websearchReduceJsonSchema;
+        try {
+            websearchReduceJsonSchema = llmJsonSchemaApiService.getWebsearchReduceJsonSchema(memoryIdVO);
+        } catch (JsonSchemaCreateException e) {
+            return FutureUtil.completeExceptionally(e);
+        }
         if (websearchReduceJsonSchema != null) {
             return websearchReduceJsonSchema.reduce(flattedWebSearchResult, question);
         } else {
@@ -851,7 +874,7 @@ public class LlmTextApiService {
         Double temperature = assistant.getTemperature();
         Integer maxCompletionTokens = assistant.getMaxCompletionTokens();
         return modelMap.computeIfAbsent(uniqueKey(apiKey, baseUrl, modelName, temperature, maxCompletionTokens), k -> {
-            AiModelVO[] arrays = new AiModelVO[concurrentChatModelCount];
+            AiModelVO[] arrays = new AiModelVO[clientModelInstanceCount];
             for (int i = 0; i < arrays.length; i++) {
                 OpenAiStreamingChatModel streamingChatModel = createTextModel(apiKey, baseUrl, modelName, temperature, maxCompletionTokens);
                 arrays[i] = new AiModelVO(baseUrl, modelName, null, streamingChatModel);
@@ -975,6 +998,14 @@ public class LlmTextApiService {
                     }
                     return lists;
                 });
+    }
+
+    public int getMinEnableWebSearchStringLength() {
+        return minEnableWebSearchStringLength;
+    }
+
+    public void setMinEnableWebSearchStringLength(int minEnableWebSearchStringLength) {
+        this.minEnableWebSearchStringLength = minEnableWebSearchStringLength;
     }
 
     private static class RepositoryChatStreamingResponseHandler implements ChatStreamingResponseHandler {
