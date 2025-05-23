@@ -165,18 +165,22 @@ public class ResultToolExecutor extends CompletableFuture<ToolExecutionResultMes
     }
 
     private static <T> void await(Object invokeResult, CompletableFuture<T> future, Function<Object, T> map) {
-        // ToolExecutionResultMessage 功能扩展 wangzihao
-        if (invokeResult instanceof CompletableFuture) {
-            CompletableFuture<ToolExecutionResultMessage> f = (CompletableFuture) invokeResult;
-            f.whenComplete((rst, throwable) -> {
-                if (throwable != null) {
-                    future.completeExceptionally(throwable);
-                } else {
-                    await(rst, future, map);
-                }
-            });
-        } else {
-            future.complete(map.apply(invokeResult));
+        try {
+            // ToolExecutionResultMessage 功能扩展 wangzihao
+            if (invokeResult instanceof CompletableFuture) {
+                CompletableFuture<ToolExecutionResultMessage> f = (CompletableFuture) invokeResult;
+                f.whenComplete((rst, throwable) -> {
+                    if (throwable != null) {
+                        future.completeExceptionally(throwable);
+                    } else {
+                        await(rst, future, map);
+                    }
+                });
+            } else {
+                future.complete(map.apply(invokeResult));
+            }
+        } catch (Exception e) {
+            future.completeExceptionally(e);
         }
     }
 
