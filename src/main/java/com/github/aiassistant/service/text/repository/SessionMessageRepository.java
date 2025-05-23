@@ -4,6 +4,7 @@ import com.github.aiassistant.entity.model.chat.QaKnVO;
 import com.github.aiassistant.entity.model.chat.QuestionClassifyListVO;
 import com.github.aiassistant.entity.model.chat.WebSearchResultVO;
 import com.github.aiassistant.enums.AiWebSearchSourceEnum;
+import com.github.aiassistant.exception.JsonSchemaCreateException;
 import com.github.aiassistant.service.jsonschema.ReasoningJsonSchema;
 import com.github.aiassistant.service.text.acting.ActingService;
 import com.github.aiassistant.service.text.sseemitter.AiMessageString;
@@ -19,7 +20,7 @@ public interface SessionMessageRepository {
     /**
      * 当jsonSchema都生成好了，会触发这个方法
      */
-    default void afterJsonSchemaBuild() {
+    default void afterJsonSchemaBuild() throws JsonSchemaCreateException {
 
     }
 

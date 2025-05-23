@@ -3,7 +3,7 @@ package com.github.aiassistant.exception;
 import com.github.aiassistant.entity.AiTool;
 
 /**
- * AI工具创建出现错误
+ * 创建AI工具出现错误
  */
 public class ToolCreateException extends AiAssistantException {
     private final AiTool aiTool;

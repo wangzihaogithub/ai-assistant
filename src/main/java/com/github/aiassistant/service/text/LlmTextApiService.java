@@ -460,8 +460,9 @@ public class LlmTextApiService {
                                     websearch,
                                     reasoning
                             );
-                        } catch (AssistantConfigException | FewshotConfigException | ToolCreateException e) {
-                            // 智能体配置异常 ｜ 少样本提示异常 | AI工具创建异常
+                        } catch (AssistantConfigException | FewshotConfigException | ToolCreateException |
+                                 JsonSchemaCreateException e) {
+                            // 智能体配置异常 ｜ 少样本提示异常 | AI工具创建异常 | JsonSchema创建异常
                             handlerFuture.completeExceptionally(e);
                             responseHandler.onError(e, baseMessageIndex, addMessageCount, 0);
                             return;
@@ -597,9 +598,10 @@ public class LlmTextApiService {
      * @param websearch           是否需要联网
      * @param reasoning           是否需要思考
      * @return 回调函数(对接底层模型)
-     * @throws AssistantConfigException 智能体配置出现错误
-     * @throws FewshotConfigException   少样本提示异常
-     * @throws ToolCreateException      工具创建异常
+     * @throws AssistantConfigException  智能体配置出现错误
+     * @throws FewshotConfigException    少样本提示异常
+     * @throws ToolCreateException       工具创建异常
+     * @throws JsonSchemaCreateException JsonSchema创建出现错误
      */
     private FunctionCallStreamingResponseHandler newFunctionCallStreamingResponseHandler(
             QuestionClassifyListVO classifyListVO,
@@ -619,7 +621,7 @@ public class LlmTextApiService {
             int baseMessageIndex,
             Boolean websearch,
             Boolean reasoning
-    ) throws AssistantConfigException, FewshotConfigException, ToolCreateException {
+    ) throws AssistantConfigException, FewshotConfigException, ToolCreateException, JsonSchemaCreateException {
         // jsonschema模型
         llmJsonSchemaApiService.addSessionJsonSchema(memoryId, assistantConfig.getAiJsonschemaIds(), aiAssistantJsonschemaMapper, threadPoolTaskExecutor);
 

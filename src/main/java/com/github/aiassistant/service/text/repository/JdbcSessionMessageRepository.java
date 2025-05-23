@@ -5,6 +5,7 @@ import com.github.aiassistant.entity.AiAssistantMstate;
 import com.github.aiassistant.entity.model.chat.*;
 import com.github.aiassistant.entity.model.user.AiAccessUserVO;
 import com.github.aiassistant.enums.AiWebSearchSourceEnum;
+import com.github.aiassistant.exception.JsonSchemaCreateException;
 import com.github.aiassistant.service.jsonschema.LlmJsonSchemaApiService;
 import com.github.aiassistant.service.jsonschema.MStateKnownJsonSchema;
 import com.github.aiassistant.service.jsonschema.MStateUnknownJsonSchema;
@@ -97,7 +98,7 @@ public class JdbcSessionMessageRepository extends AbstractSessionMessageReposito
      * 当jsonSchema都生成好了，会触发这个方法
      */
     @Override
-    public void afterJsonSchemaBuild() {
+    public void afterJsonSchemaBuild() throws JsonSchemaCreateException {
         String query = chatQueryRequest.getQuestion();
         if (!StringUtils.hasText(query)) {
             return;
@@ -258,7 +259,7 @@ public class JdbcSessionMessageRepository extends AbstractSessionMessageReposito
         if (mock) {
             return;
         }
-        aiMemoryErrorService.insertByInner(throwable, baseMessageIndex, addMessageCount, generateCount, requestTrace,chatQueryRequest);
+        aiMemoryErrorService.insertByInner(throwable, baseMessageIndex, addMessageCount, generateCount, requestTrace, chatQueryRequest);
     }
 
 }

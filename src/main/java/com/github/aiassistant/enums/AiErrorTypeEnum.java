@@ -19,16 +19,16 @@ public class AiErrorTypeEnum {
     public static final AiErrorTypeEnum assistant_config_error = create("assistant_config_error", "智能体配置错误", "智能体配置出现错误，请联系相关该智能体相关的产品负责人。", e -> {
         return e instanceof AssistantConfigException;
     });
-    public static final AiErrorTypeEnum jsonschema_config_error = create("jsonschema_config_error", "json智能体配置错误", "json智能体配置出现错误，请联系相关该智能体相关的产品负责人。", e -> {
+    public static final AiErrorTypeEnum jsonschema_config_error = create("jsonschema_config_error", "Jsonschema配置错误", "Jsonschema配置出现错误，请联系相关该智能体相关的产品负责人。", e -> {
         return e instanceof JsonschemaConfigException;
     });
-    public static final AiErrorTypeEnum jsonschema_parse_error = create("jsonschema_parse_error", "json智能体结果解析失败", "json智能体结果解析失败，请联系相关该智能体相关的产品负责人。", e -> {
+    public static final AiErrorTypeEnum jsonschema_parse_error = create("jsonschema_parse_error", "Jsonschema结果解析失败", "Jsonschema结果解析失败，请联系相关该智能体相关的产品负责人。", e -> {
         return e instanceof JsonschemaResultParseException;
     });
     public static final AiErrorTypeEnum knn_api_error = create("knn_api_error", "RAG查询错误", "RAG查询错误，请联系相关该智能体相关的产品负责人。", e -> {
         return e instanceof KnnApiException;
     });
-    public static final AiErrorTypeEnum fewshot_config_error = create("fewshot_config_error", "fewshot配置错误", "fewshot配置出现错误，请联系相关该智能体相关的产品负责人。", e -> {
+    public static final AiErrorTypeEnum fewshot_config_error = create("fewshot_config_error", "fewshot配置错误", "小样本配置出现错误，请联系相关该智能体相关的产品负责人。", e -> {
         return e instanceof FewshotConfigException;
     });
     public static final AiErrorTypeEnum limit_requests = create("limit_requests", "限流", "当前使用人数较多，建议等待片刻后重新提问。", e -> {
@@ -39,7 +39,19 @@ public class AiErrorTypeEnum {
         // 供应商接口返回的错误信息
         return e instanceof DataInspectionFailedException || Objects.toString(e.getMessage(), "").contains("data_inspection_failed");
     });
-    public static final AiErrorTypeEnum api_generate_exception = create("api_generate_exception", "供应商接口异常", "供应商接口异常", e -> {
+    public static final AiErrorTypeEnum tool_execute_exception = create("tool_execute_exception", "AI工具执行过程中出现错误", "AI工具执行过程中出现错误，请联系相关该智能体相关的产品负责人。", e -> {
+        // AI工具执行过程中出现错误
+        return e instanceof ToolExecuteException;
+    });
+    public static final AiErrorTypeEnum tool_create_exception = create("tool_create_exception", "创建AI工具出现错误", "创建AI工具出现错误，请联系相关该智能体相关的产品负责人。", e -> {
+        // 创建AI工具出现错误
+        return e instanceof ToolCreateException;
+    });
+    public static final AiErrorTypeEnum jsonschema_create_exception = create("jsonschema_create_exception", "创建Jsonschema出现错误", "创建Jsonschema出现错误，请联系相关该智能体相关的产品负责人。", e -> {
+        // 创建Jsonschema出现错误
+        return e instanceof JsonSchemaCreateException;
+    });
+    public static final AiErrorTypeEnum api_generate_exception = create("api_generate_exception", "下游模型供应商接口异常", "下游模型供应商接口异常，请联系相关该智能体相关的产品负责人", e -> {
         // 供应商接口异常
         return e instanceof ModelApiGenerateException;
     });

@@ -7,10 +7,12 @@ import com.github.aiassistant.entity.AiQuestionClassifyAssistant;
 import com.github.aiassistant.entity.model.chat.MemoryIdVO;
 import com.github.aiassistant.entity.model.chat.QuestionClassifyListVO;
 import com.github.aiassistant.enums.AiQuestionClassifyActionEnum;
+import com.github.aiassistant.exception.JsonSchemaCreateException;
 import com.github.aiassistant.service.jsonschema.LlmJsonSchemaApiService;
 import com.github.aiassistant.service.jsonschema.QuestionClassifySchema;
 import com.github.aiassistant.util.AiUtil;
 import com.github.aiassistant.util.BeanUtil;
+import com.github.aiassistant.util.FutureUtil;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -85,7 +87,12 @@ public class AiQuestionClassifyService {
         if (classifyList.isEmpty()) {
             return CompletableFuture.completedFuture(result);
         }
-        QuestionClassifySchema schema = llmJsonSchemaApiService.getQuestionClassifySchema(memoryIdVO);
+        QuestionClassifySchema schema;
+        try {
+            schema = llmJsonSchemaApiService.getQuestionClassifySchema(memoryIdVO);
+        } catch (JsonSchemaCreateException e) {
+            return FutureUtil.completeExceptionally(e);
+        }
         if (schema == null) {
             return CompletableFuture.completedFuture(result);
         } else {

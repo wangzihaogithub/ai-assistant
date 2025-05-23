@@ -3,7 +3,7 @@ package com.github.aiassistant.exception;
 import com.github.aiassistant.entity.AiJsonschema;
 
 /**
- * JsonSchema创建出现错误
+ * 创建Jsonschema出现错误
  */
 public class JsonSchemaCreateException extends AiAssistantException {
     private final AiJsonschema aiJsonschema;
