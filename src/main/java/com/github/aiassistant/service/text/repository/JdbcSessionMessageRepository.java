@@ -27,6 +27,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 
 /**
  * 数据库持久化
@@ -126,6 +127,10 @@ public class JdbcSessionMessageRepository extends AbstractSessionMessageReposito
 
         // 插入记忆
         CompletableFuture<AiMemoryMessageServiceImpl.AiMemoryVO> memory = userMemory = aiMemoryMessageService.insert(now, requestTrace, againUserQueryTraceNumber, websearch);
+        memory.exceptionally(throwable -> {
+            log.error("aiMemoryMessageService.insert error! cause = {}", throwable.toString(), throwable);
+            return null;
+        });
         // 插入聊天
         CompletableFuture<AiChatHistoryServiceImpl.AiChatRequest> chat = aiChatHistoryService.insert(now, requestTrace, againUserQueryTraceNumber, websearch, null);
         chat.thenAccept(userChat::complete)
@@ -217,7 +222,12 @@ public class JdbcSessionMessageRepository extends AbstractSessionMessageReposito
         CompletableFuture<?> chat = aiChatHistoryService.insert(now, requestTrace, againUserQueryTraceNumber, websearch, userChat);
         // 如果该智能体开启了记忆状态，就插入状态
         if (mStateAiParseVO != null && userMemory != null) {
-            userMemory.thenAccept(e -> aiMemoryMstateService.insert(e, mStateAiParseVO));
+            userMemory.thenAccept(e -> {
+                aiMemoryMstateService.insert(e, mStateAiParseVO).exceptionally(throwable -> {
+                    log.error("aiMemoryMstateService insert error! cause = {}", throwable.toString(), throwable);
+                    return null;
+                });
+            });
         }
         // 持久化完成后就可以恢复前端的提问按钮了
         return FutureUtil.allOf(memory, chat);

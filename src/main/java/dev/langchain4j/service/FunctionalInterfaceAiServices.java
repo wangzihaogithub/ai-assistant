@@ -586,6 +586,8 @@ public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
                 contentsHandler.accept(retrievedContents);
             }
             handler.generate((handler1, request) -> {
+                // JsonSchema默认不开启思考
+                request.setEnableThinking(false);
                 if (proxy instanceof JsonSchemaApi) {
                     JsonSchemaApi api = (JsonSchemaApi) proxy;
                     request.setJsonSchema(api.getJsonSchema());
