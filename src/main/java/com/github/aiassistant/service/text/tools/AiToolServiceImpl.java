@@ -66,7 +66,7 @@ public class AiToolServiceImpl {
             try {
                 tool = getTools(toolEnum);
             } catch (Exception e) {
-                throw new ToolCreateException(String.format("getTools error! id = %s, toolEnum = %s  ", aiTool.getId(), aiTool.getToolEnum()), e, aiTool);
+                throw new ToolCreateException(String.format("getTools error! id = %s, toolEnum = %s. cause = %s", aiTool.getId(), aiTool.getToolEnum(), e), e, aiTool);
             }
             if (tool == null) {
                 continue;
