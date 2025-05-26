@@ -191,6 +191,10 @@ public class AiApplication {
         return daoProvider;
     }
 
+    public AiMemoryMessageMetadataMapper getAiMemoryMessageMetadataMapper() {
+        return aiMemoryMessageMetadataMapper;
+    }
+
     public AiToolMapper getAiToolMapper() {
         return aiToolMapper;
     }
