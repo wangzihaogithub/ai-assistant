@@ -15,6 +15,18 @@ public class MStateAiParseVO {
         this.unknownState = unknownState;
     }
 
+    public boolean isDone() {
+        return (knownState == null || knownState.isDone()) && (unknownState == null || unknownState.isDone());
+    }
+
+    public CompletableFuture<Void> future() {
+        CompletableFuture[] futures = new CompletableFuture[]{
+                knownState == null ? CompletableFuture.completedFuture(null) : knownState,
+                unknownState == null ? CompletableFuture.completedFuture(null) : unknownState
+        };
+        return CompletableFuture.allOf(futures);
+    }
+
     public CompletableFuture<Map<String, Object>> getKnownState() {
         return knownState;
     }

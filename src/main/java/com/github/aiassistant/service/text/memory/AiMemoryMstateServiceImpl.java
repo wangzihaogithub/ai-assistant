@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.stream.Collectors;
 
 public class AiMemoryMstateServiceImpl {
     /**
@@ -88,8 +89,22 @@ public class AiMemoryMstateServiceImpl {
     }
 
     private void insert(List<MstateVO> list) {
+        Map<Boolean, List<MstateVO>> booleanListMap = list.stream()
+                .collect(Collectors.groupingBy(e -> e.state.isDone()));
+        List<MstateVO> doneList = booleanListMap.getOrDefault(Boolean.TRUE, Collections.emptyList());
+        List<MstateVO> undoneList = booleanListMap.get(Boolean.FALSE);
+        if (undoneList != null) {
+            for (MstateVO undone : undoneList) {
+                undone.state.future().whenComplete((unused, throwable) -> {
+                    if (!insertRequestQueue.offer(undone)) {
+                        insert(Collections.singletonList(undone));
+                    }
+                });
+            }
+        }
+
         List<AiMemoryMstate> insertList = new ArrayList<>();
-        for (MstateVO vo : list) {
+        for (MstateVO vo : doneList) {
             AiMemoryMessageServiceImpl.AiMemoryMessageVO userMsg = vo.memoryVO.getMessageList().stream().filter(e -> Boolean.TRUE.equals(e.getUserQueryFlag())).findFirst().orElse(null);
             if (userMsg == null) {
                 // 重新回答没有用户消息
@@ -108,7 +123,7 @@ public class AiMemoryMstateServiceImpl {
             }
         }
         Lists.partition(insertList, insertPartitionSize).forEach(aiMemoryMstateMapper::insertIgnoreBatchSomeColumn);
-        for (MstateVO vo : list) {
+        for (MstateVO vo : doneList) {
             if (!vo.future.isDone()) {
                 vo.future.complete(vo);
             }

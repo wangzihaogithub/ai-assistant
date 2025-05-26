@@ -102,7 +102,20 @@ public class AiChatWebsearchServiceImpl {
             for (Map.Entry<CompletableFuture<AiChatHistoryServiceImpl.AiChatRequest>, List<AiChatWebsearchRequest>> entry : userGroupMap.entrySet()) {
                 // 相同的future，保持组内一起
                 ArrayList<AiChatWebsearchRequest> values = new ArrayList<>(entry.getValue());
-                entry.getKey().whenComplete((unused, throwable) -> insert(values));
+                entry.getKey().whenComplete((unused, throwable) -> {
+                    List<AiChatWebsearchRequest> noOffer = null;
+                    for (AiChatWebsearchRequest value : values) {
+                        if (!insertRequestQueue.offer(value)) {
+                            if (noOffer == null) {
+                                noOffer = new ArrayList<>(values.size());
+                            }
+                            noOffer.add(value);
+                        }
+                    }
+                    if (noOffer != null) {
+                        insert(noOffer);
+                    }
+                });
             }
         }
 

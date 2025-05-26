@@ -100,7 +100,22 @@ public class AiChatReasoningServiceImpl {
             for (Map.Entry<CompletableFuture<AiChatHistoryServiceImpl.AiChatRequest>, List<AiChatReasoningRequest>> entry : userGroupMap.entrySet()) {
                 // 相同的future，保持组内一起
                 ArrayList<AiChatReasoningRequest> values = new ArrayList<>(entry.getValue());
-                entry.getKey().whenComplete((unused, throwable) -> insert(values));
+                entry.getKey().whenComplete((unused, throwable) -> {
+                    List<AiChatReasoningRequest> noOffer = null;
+                    for (AiChatReasoningRequest value : values) {
+                        // 优先回队列消费
+                        if (!insertRequestQueue.offer(value)) {
+                            if (noOffer == null) {
+                                noOffer = new ArrayList<>(values.size());
+                            }
+                            noOffer.add(value);
+                        }
+                    }
+                    // 如果队列满了在其他线程插入
+                    if (noOffer != null) {
+                        insert(noOffer);
+                    }
+                });
             }
         }
 
