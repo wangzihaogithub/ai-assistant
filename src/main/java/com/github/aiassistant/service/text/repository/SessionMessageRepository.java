@@ -19,6 +19,8 @@ import java.util.concurrent.CompletableFuture;
 public interface SessionMessageRepository {
     /**
      * 当jsonSchema都生成好了，会触发这个方法
+     *
+     * @throws JsonSchemaCreateException 创建Jsonschema出现错误
      */
     default void afterJsonSchemaBuild() throws JsonSchemaCreateException {
 

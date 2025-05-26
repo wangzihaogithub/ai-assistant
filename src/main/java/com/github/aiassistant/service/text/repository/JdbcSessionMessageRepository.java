@@ -27,7 +27,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Function;
 
 /**
  * 数据库持久化
@@ -97,6 +96,8 @@ public class JdbcSessionMessageRepository extends AbstractSessionMessageReposito
 
     /**
      * 当jsonSchema都生成好了，会触发这个方法
+     *
+     * @throws JsonSchemaCreateException 创建Jsonschema出现错误
      */
     @Override
     public void afterJsonSchemaBuild() throws JsonSchemaCreateException {
