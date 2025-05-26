@@ -168,7 +168,7 @@ public class ResultToolExecutor extends CompletableFuture<ToolExecutionResultMes
         try {
             // ToolExecutionResultMessage 功能扩展 wangzihao
             if (invokeResult instanceof CompletableFuture) {
-                CompletableFuture<ToolExecutionResultMessage> f = (CompletableFuture) invokeResult;
+                CompletableFuture<Object> f = (CompletableFuture) invokeResult;
                 f.whenComplete((rst, throwable) -> {
                     if (throwable != null) {
                         future.completeExceptionally(throwable);
@@ -179,7 +179,7 @@ public class ResultToolExecutor extends CompletableFuture<ToolExecutionResultMes
             } else {
                 future.complete(map.apply(invokeResult));
             }
-        } catch (Exception e) {
+        } catch (Throwable e) {
             future.completeExceptionally(e);
         }
     }
@@ -400,7 +400,7 @@ public class ResultToolExecutor extends CompletableFuture<ToolExecutionResultMes
             if (log.isDebugEnabled()) {
                 log.debug("Tool execution result: {}", invokeResult);
             }
-        } catch (Exception e) {
+        } catch (Throwable e) {
             if (log.isErrorEnabled()) {
                 log.error("Error while executing tool {} {}", method, e.toString(), e);
             }
