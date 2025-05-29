@@ -11,7 +11,11 @@ public interface SseHttpResponse {
      */
     boolean isEmpty();
 
+    /**
+     * 立刻发送所有写入的内容
+     */
     void flush();
+
     /**
      * 给前端推送内容
      *
@@ -27,6 +31,26 @@ public interface SseHttpResponse {
      * @param messageString 推送内容
      */
     void write(AiMessageString messageString);
+
+    /**
+     * 给前端推送内容（立刻发送）
+     *
+     * @param messageString 推送内容
+     */
+    default void writeAndFlush(String messageString) {
+        write(new AiMessageString(messageString));
+        flush();
+    }
+
+    /**
+     * 给前端推送内容（立刻发送）
+     *
+     * @param messageString 推送内容
+     */
+    default void writeAndFlush(AiMessageString messageString) {
+        write(messageString);
+        flush();
+    }
 
     boolean isClose();
 
