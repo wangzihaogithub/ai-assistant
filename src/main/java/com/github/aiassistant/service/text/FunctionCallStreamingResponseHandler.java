@@ -745,13 +745,7 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
          */
         private void ready() {
             toolMessageReady = true;
-            while (!pendingEventList.isEmpty()) {
-                ArrayList<Runnable> events = new ArrayList<>(pendingEventList.size());
-                pendingEventList.drainTo(events);
-                for (Runnable runnable : events) {
-                    runnable.run();
-                }
-            }
+            flush();
         }
 
         /**
@@ -764,6 +758,17 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
             return empty;
         }
 
+        @Override
+        public void flush() {
+            while (!pendingEventList.isEmpty()) {
+                ArrayList<Runnable> events = new ArrayList<>(pendingEventList.size());
+                pendingEventList.drainTo(events);
+                for (Runnable runnable : events) {
+                    runnable.run();
+                }
+            }
+        }
+
         /**
          * 给前端推送内容
          *
@@ -773,9 +778,13 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
         public void write(AiMessageString messageString) {
             empty = false;
             if (!toolMessageReady) {
-                pendingEventList.add(() -> write(messageString));
+                pendingEventList.add(() -> write0(messageString));
                 return;
             }
+            write0(messageString);
+        }
+
+        private void write0(AiMessageString messageString) {
             if (messageString == null || messageString.isEmpty()) {
                 return;
             }
@@ -805,12 +814,17 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
             close = true;
             empty = false;
             if (!toolMessageReady) {
-                pendingEventList.add(this::close);
+                pendingEventList.add(this::close0);
                 return;
             }
+            close0();
+        }
+
+        private void close0() {
             if (!closeFlag.compareAndSet(false, true)) {
                 throw new IllegalStateException("close() has already been called");
             }
+            flush();
             if (tokenEnd == null && chatStringBuilder.length() > 0) {
                 AiMessage aiMessage = new AiMessage(chatStringBuilder.toString());
                 TokenUsage tokenUsage;
@@ -842,12 +856,17 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
             close = true;
             empty = false;
             if (!toolMessageReady) {
-                pendingEventList.add(() -> close(error));
+                pendingEventList.add(() -> close0(error));
                 return;
             }
+            close0(error);
+        }
+
+        private void close0(Throwable error) {
             if (!closeFlag.compareAndSet(false, true)) {
                 throw new IllegalStateException("close() has already been called");
             }
+            flush();
             handler.onError(error);
         }
     }

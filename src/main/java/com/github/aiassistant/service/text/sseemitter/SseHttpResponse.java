@@ -11,6 +11,7 @@ public interface SseHttpResponse {
      */
     boolean isEmpty();
 
+    void flush();
     /**
      * 给前端推送内容
      *
