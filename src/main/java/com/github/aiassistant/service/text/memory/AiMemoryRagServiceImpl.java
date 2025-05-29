@@ -62,8 +62,10 @@ public class AiMemoryRagServiceImpl {
                                                         Integer aiChatId,
                                                         String userQueryTraceNumber) {
         AiMemoryRagRequest request = new AiMemoryRagRequest();
+        Date ragStartTime = new Date();
         try {
             knnFuture.whenComplete((knVOS, throwable) -> {
+                Date ragEndTime = new Date();
                 request.setAiMemoryId(aiMemoryId);
                 request.setIndexName(knnFuture.getIndexName());
                 request.setAiChatId(aiChatId);
@@ -72,7 +74,9 @@ public class AiMemoryRagServiceImpl {
                 request.setResponseDocCount(knVOS == null ? 0 : knVOS.size());
                 request.setErrorMessage(throwable == null ? "" : StringUtils.left(ThrowableUtil.stackTraceToString(throwable), 3995, true));
                 request.setUserQueryTraceNumber(StringUtils.left(userQueryTraceNumber, 32, true));
-                request.setCreateTime(new Date());
+                request.setRagStartTime(ragStartTime);
+                request.setRagEndTime(ragEndTime);
+                request.setRagCostMs((int) (ragEndTime.getTime() - ragStartTime.getTime()));
                 if (knVOS != null) {
                     for (KnVO knVO : knVOS) {
                         AiMemoryRagDoc doc = new AiMemoryRagDoc();
@@ -111,6 +115,8 @@ public class AiMemoryRagServiceImpl {
      */
     private void insert(List<AiMemoryRagRequest> list) {
         try {
+            Date now = new Date();
+            list.forEach(e -> e.setCreateTime(now));
             Lists.partition(list, insertPartitionSize).forEach(aiMemoryRagMapper::insertBatchSomeColumn);
 
             list.forEach(e -> e.docList.forEach(e1 -> e1.setAiMemoryRagId(e.getId())));

@@ -38,6 +38,20 @@ public class AiMemoryRag {
     private String userQueryTraceNumber;
 
     /**
+     * 开始时间
+     */
+    private Date ragStartTime;
+
+    /**
+     * 花费毫秒
+     */
+    private Integer ragCostMs;
+    /**
+     * 结束时间
+     */
+    private Date ragEndTime;
+
+    /**
      * 创建时间
      */
     private Date createTime;
@@ -112,6 +126,30 @@ public class AiMemoryRag {
 
     public void setCreateTime(Date createTime) {
         this.createTime = createTime;
+    }
+
+    public Date getRagStartTime() {
+        return ragStartTime;
+    }
+
+    public void setRagStartTime(Date ragStartTime) {
+        this.ragStartTime = ragStartTime;
+    }
+
+    public Date getRagEndTime() {
+        return ragEndTime;
+    }
+
+    public void setRagEndTime(Date ragEndTime) {
+        this.ragEndTime = ragEndTime;
+    }
+
+    public Integer getRagCostMs() {
+        return ragCostMs;
+    }
+
+    public void setRagCostMs(Integer ragCostMs) {
+        this.ragCostMs = ragCostMs;
     }
 
     @Override
