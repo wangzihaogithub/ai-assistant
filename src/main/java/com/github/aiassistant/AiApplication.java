@@ -14,10 +14,7 @@ import com.github.aiassistant.service.text.acting.ActingService;
 import com.github.aiassistant.service.text.chat.*;
 import com.github.aiassistant.service.text.embedding.KnSettingWebsearchBlacklistServiceImpl;
 import com.github.aiassistant.service.text.embedding.KnnApiService;
-import com.github.aiassistant.service.text.memory.AiMemoryErrorServiceImpl;
-import com.github.aiassistant.service.text.memory.AiMemoryMessageServiceImpl;
-import com.github.aiassistant.service.text.memory.AiMemoryMstateServiceImpl;
-import com.github.aiassistant.service.text.memory.AiMemoryServiceImpl;
+import com.github.aiassistant.service.text.memory.*;
 import com.github.aiassistant.service.text.reasoning.ReasoningService;
 import com.github.aiassistant.service.text.repository.JdbcSessionMessageRepository;
 import com.github.aiassistant.service.text.tools.AiToolServiceImpl;
@@ -51,6 +48,8 @@ public class AiApplication {
     private final AiMemoryMessageMapper aiMemoryMessageMapper;
     private final AiMemoryMessageToolMapper aiMemoryMessageToolMapper;
     private final AiMemoryMessageMetadataMapper aiMemoryMessageMetadataMapper;
+    private final AiMemoryRagMapper aiMemoryRagMapper;
+    private final AiMemoryRagDocMapper aiMemoryRagDocMapper;
     private final AiChatAbortMapper aiChatAbortMapper;
     private final AiAssistantFewshotMapper aiAssistantFewshotMapper;
     private final AiAssistantJsonschemaMapper aiAssistantJsonschemaMapper;
@@ -88,6 +87,7 @@ public class AiApplication {
     private final AiMemoryErrorServiceImpl aiMemoryErrorService;
     private final AiChatAbortServiceImpl aiChatAbortService;
     private final AiMemoryMstateServiceImpl aiMemoryMstateService;
+    private final AiMemoryRagServiceImpl aiMemoryRagService;
     private final AiVariablesService aiVariablesService;
 
     public AiApplication(DataSource dataSource,
@@ -141,6 +141,8 @@ public class AiApplication {
         this.aiChatWebsearchMapper = daoProvider.getMapper(AiChatWebsearchMapper.class);
         this.aiChatWebsearchResultMapper = daoProvider.getMapper(AiChatWebsearchResultMapper.class);
         this.aiMemoryMessageMetadataMapper = daoProvider.getMapper(AiMemoryMessageMetadataMapper.class);
+        this.aiMemoryRagDocMapper = daoProvider.getMapper(AiMemoryRagDocMapper.class);
+        this.aiMemoryRagMapper = daoProvider.getMapper(AiMemoryRagMapper.class);
 
         this.aiToolService = new AiToolServiceImpl(aiToolMapper, aiToolParameterMapper, toolsMap);
         this.llmJsonSchemaApiService = new LlmJsonSchemaApiService(aiToolService);
@@ -162,6 +164,7 @@ public class AiApplication {
         this.aiChatAbortService = new AiChatAbortServiceImpl(aiChatAbortMapper, aiChatHistoryService);
         this.aiMemoryMstateService = new AiMemoryMstateServiceImpl(aiMemoryMstateMapper);
         this.accessUserService = new AccessUserService(aiChatMapper, aiAssistantMapper, aiAssistantKnMapper, aiChatHistoryService, getServiceInterceptSupplier(AccessUserServiceIntercept.class, interceptMap));
+        this.aiMemoryRagService = new AiMemoryRagServiceImpl(aiMemoryRagMapper, aiMemoryRagDocMapper);
 
         this.aiVariablesService = new AiVariablesService(aiMemoryMstateService, aiVariablesMapper, getServiceInterceptSupplier(AiVariablesServiceIntercept.class, interceptMap));
         this.llmTextApiService = new LlmTextApiService(llmJsonSchemaApiService, aiQuestionClassifyService, aiAssistantJsonschemaMapper, aiAssistantFewshotMapper, aiToolService, aiVariablesService, knnApiService, actingService, reasoningService, knSettingWebsearchBlacklistServiceImpl,
@@ -189,6 +192,14 @@ public class AiApplication {
 
     public DAOProvider getDaoProvider() {
         return daoProvider;
+    }
+
+    public AiMemoryRagDocMapper getAiMemoryRagDocMapper() {
+        return aiMemoryRagDocMapper;
+    }
+
+    public AiMemoryRagMapper getAiMemoryRagMapper() {
+        return aiMemoryRagMapper;
     }
 
     public AiMemoryMessageMetadataMapper getAiMemoryMessageMetadataMapper() {
@@ -383,6 +394,10 @@ public class AiApplication {
         return aiVariablesService;
     }
 
+    public AiMemoryRagServiceImpl getAiMemoryRagService() {
+        return aiMemoryRagService;
+    }
+
     public JdbcSessionMessageRepository newJdbcSessionMessageRepository(ChatQueryReq chatQueryRequest,
                                                                         MemoryIdVO memoryId, AiAccessUserVO user) {
         return new JdbcSessionMessageRepository(chatQueryRequest, memoryId, user,
@@ -390,6 +405,6 @@ public class AiApplication {
                 aiMemoryMessageService, aiChatHistoryService,
                 llmJsonSchemaApiService, aiMemoryMstateService,
                 aiChatReasoningService, aiChatWebsearchService,
-                aiMemoryErrorService, aiChatClassifyService);
+                aiMemoryErrorService, aiChatClassifyService, aiMemoryRagService);
     }
 }

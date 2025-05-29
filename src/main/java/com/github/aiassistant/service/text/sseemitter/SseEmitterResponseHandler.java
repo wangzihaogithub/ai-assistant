@@ -1,16 +1,14 @@
 package com.github.aiassistant.service.text.sseemitter;
 
 
-import com.github.aiassistant.entity.model.chat.AiVariablesVO;
-import com.github.aiassistant.entity.model.chat.QaKnVO;
-import com.github.aiassistant.entity.model.chat.QuestionClassifyListVO;
-import com.github.aiassistant.entity.model.chat.WebSearchResultVO;
+import com.github.aiassistant.entity.model.chat.*;
 import com.github.aiassistant.enums.AiErrorTypeEnum;
 import com.github.aiassistant.enums.AiWebSearchSourceEnum;
 import com.github.aiassistant.enums.UserTriggerEventEnum;
 import com.github.aiassistant.service.jsonschema.ReasoningJsonSchema;
 import com.github.aiassistant.service.text.ChatStreamingResponseHandler;
 import com.github.aiassistant.service.text.acting.ActingService;
+import com.github.aiassistant.service.text.embedding.KnnResponseListenerFuture;
 import com.github.aiassistant.service.text.tools.functioncall.UrlReadTools;
 import com.github.aiassistant.util.AiUtil;
 import dev.langchain4j.agent.tool.ToolExecutionRequest;
@@ -152,6 +150,18 @@ public class SseEmitterResponseHandler implements ChatStreamingResponseHandler {
                 "addMessageCount", addMessageCount,
                 "messageIndex", baseMessageIndex + addMessageCount,
                 "thinkingContent", thinkingResponse.content().text());
+    }
+
+    @Override
+    public void onKnnSearch(KnnResponseListenerFuture<? extends KnVO> future) {
+        if (isDebug()) {
+            future.whenComplete((response, throwable) ->
+                    sendToClient(emitter, "knn-search",
+                            "indexName", future.getIndexName(),
+                            "requestBody", future.getRequestBody(),
+                            "response", response,
+                            "throwable", Objects.toString(throwable, null)));
+        }
     }
 
     @Override

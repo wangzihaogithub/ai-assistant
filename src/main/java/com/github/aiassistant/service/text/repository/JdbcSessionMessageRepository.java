@@ -15,9 +15,11 @@ import com.github.aiassistant.service.text.chat.AiChatClassifyServiceImpl;
 import com.github.aiassistant.service.text.chat.AiChatHistoryServiceImpl;
 import com.github.aiassistant.service.text.chat.AiChatReasoningServiceImpl;
 import com.github.aiassistant.service.text.chat.AiChatWebsearchServiceImpl;
+import com.github.aiassistant.service.text.embedding.KnnResponseListenerFuture;
 import com.github.aiassistant.service.text.memory.AiMemoryErrorServiceImpl;
 import com.github.aiassistant.service.text.memory.AiMemoryMessageServiceImpl;
 import com.github.aiassistant.service.text.memory.AiMemoryMstateServiceImpl;
+import com.github.aiassistant.service.text.memory.AiMemoryRagServiceImpl;
 import com.github.aiassistant.util.AiUtil;
 import com.github.aiassistant.util.FutureUtil;
 import com.github.aiassistant.util.StringUtils;
@@ -55,6 +57,7 @@ public class JdbcSessionMessageRepository extends AbstractSessionMessageReposito
     private final AiMemoryErrorServiceImpl aiMemoryErrorService;
     // @Resource
     private final AiChatClassifyServiceImpl aiChatClassifyService;
+    private final AiMemoryRagServiceImpl aiMemoryRagService;
     private MStateAiParseVO mStateAiParseVO;
     private boolean mock;
     private CompletableFuture<AiMemoryMessageServiceImpl.AiMemoryVO> userMemory;
@@ -69,9 +72,11 @@ public class JdbcSessionMessageRepository extends AbstractSessionMessageReposito
                                         AiChatReasoningServiceImpl aiChatReasoningService,
                                         AiChatWebsearchServiceImpl aiChatWebsearchService,
                                         AiMemoryErrorServiceImpl aiMemoryErrorService,
-                                        AiChatClassifyServiceImpl aiChatClassifyService) {
+                                        AiChatClassifyServiceImpl aiChatClassifyService,
+                                        AiMemoryRagServiceImpl aiMemoryRagService) {
         super(memoryId, user, chatQueryRequest.userQueryTraceNumber(), chatQueryRequest.timestamp());
         this.chatQueryRequest = chatQueryRequest;
+        this.aiMemoryRagService = aiMemoryRagService;
         this.aiAssistantMstateMapper = aiAssistantMstateMapper;
         this.aiMemoryMessageService = aiMemoryMessageService;
         this.aiChatHistoryService = aiChatHistoryService;
@@ -169,6 +174,20 @@ public class JdbcSessionMessageRepository extends AbstractSessionMessageReposito
             String userQueryTraceNumber = getUserQueryTraceNumber();
             Integer chatId = chatQueryRequest.getChatId();
             aiChatClassifyService.insert(questionClassify.getClassifyResultList(), chatId, question, userQueryTraceNumber);
+        }
+    }
+
+    /**
+     * 插入RAG记录
+     *
+     * @param future RAG future
+     */
+    @Override
+    public void addKnnSearch(KnnResponseListenerFuture<? extends KnVO> future) {
+        if (!mock) {
+            String userQueryTraceNumber = getUserQueryTraceNumber();
+            MemoryIdVO memoryId = requestTrace.getMemoryId();
+            aiMemoryRagService.insert(future, memoryId.getMemoryId(), memoryId.getChatId(), userQueryTraceNumber);
         }
     }
 

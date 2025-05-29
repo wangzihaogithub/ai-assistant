@@ -1,5 +1,6 @@
 package com.github.aiassistant.service.text.repository;
 
+import com.github.aiassistant.entity.model.chat.KnVO;
 import com.github.aiassistant.entity.model.chat.QaKnVO;
 import com.github.aiassistant.entity.model.chat.QuestionClassifyListVO;
 import com.github.aiassistant.entity.model.chat.WebSearchResultVO;
@@ -7,6 +8,7 @@ import com.github.aiassistant.enums.AiWebSearchSourceEnum;
 import com.github.aiassistant.exception.JsonSchemaCreateException;
 import com.github.aiassistant.service.jsonschema.ReasoningJsonSchema;
 import com.github.aiassistant.service.text.acting.ActingService;
+import com.github.aiassistant.service.text.embedding.KnnResponseListenerFuture;
 import com.github.aiassistant.service.text.sseemitter.AiMessageString;
 import dev.langchain4j.data.message.ChatMessage;
 
@@ -58,6 +60,15 @@ public interface SessionMessageRepository {
      * @param question         question
      */
     default void addQuestionClassify(QuestionClassifyListVO questionClassify, String question) {
+    }
+
+    /**
+     * 插入RAG记录
+     *
+     * @param future RAG future
+     */
+    default void addKnnSearch(KnnResponseListenerFuture<? extends KnVO> future) {
+
     }
 
     /**

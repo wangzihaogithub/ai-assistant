@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.github.aiassistant.dao.AiMemoryRagDocMapper">
+    <insert id="insertBatchSomeColumn" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO `ai_memory_rag_doc`
+        (`ai_memory_rag_id`,`doc_id_int`,`doc_id_string`,`doc_score`,`id`)
+        VALUES
+        <foreach collection="arg0" item="item" open="" separator="," close="">
+            (
+            #{item.aiMemoryRagId},  #{item.docIdInt},  #{item.docIdString},  #{item.docScore},  #{item.id}
+            )
+        </foreach>
+    </insert>
+</mapper>

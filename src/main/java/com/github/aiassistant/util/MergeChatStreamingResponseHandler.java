@@ -1,14 +1,12 @@
 package com.github.aiassistant.util;
 
-import com.github.aiassistant.entity.model.chat.AiVariablesVO;
-import com.github.aiassistant.entity.model.chat.QaKnVO;
-import com.github.aiassistant.entity.model.chat.QuestionClassifyListVO;
-import com.github.aiassistant.entity.model.chat.WebSearchResultVO;
+import com.github.aiassistant.entity.model.chat.*;
 import com.github.aiassistant.enums.AiWebSearchSourceEnum;
 import com.github.aiassistant.enums.UserTriggerEventEnum;
 import com.github.aiassistant.service.jsonschema.ReasoningJsonSchema;
 import com.github.aiassistant.service.text.ChatStreamingResponseHandler;
 import com.github.aiassistant.service.text.acting.ActingService;
+import com.github.aiassistant.service.text.embedding.KnnResponseListenerFuture;
 import com.github.aiassistant.service.text.sseemitter.AiMessageString;
 import com.github.aiassistant.service.text.sseemitter.SseHttpResponse;
 import com.github.aiassistant.service.text.tools.functioncall.UrlReadTools;
@@ -62,6 +60,13 @@ public class MergeChatStreamingResponseHandler implements ChatStreamingResponseH
     public void onAfterModelThinking(Response<AiMessage> thinkingResponse) {
         for (ChatStreamingResponseHandler h : list) {
             h.onAfterModelThinking(thinkingResponse);
+        }
+    }
+
+    @Override
+    public void onKnnSearch(KnnResponseListenerFuture<? extends KnVO> future) {
+        for (ChatStreamingResponseHandler h : list) {
+            h.onKnnSearch(future);
         }
     }
 

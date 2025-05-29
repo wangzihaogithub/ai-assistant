@@ -1033,6 +1033,11 @@ public class LlmTextApiService {
         }
 
         @Override
+        public void onKnnSearch(KnnResponseListenerFuture<? extends KnVO> future) {
+            repository.addKnnSearch(future);
+        }
+
+        @Override
         public void onQuestionClassify(QuestionClassifyListVO questionClassify, String question, AiVariablesVO variables) {
             repository.addQuestionClassify(questionClassify, question);
         }
