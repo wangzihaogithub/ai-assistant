@@ -1,13 +1,11 @@
 package com.github.aiassistant.service.text;
 
-import com.github.aiassistant.entity.model.chat.AiVariablesVO;
-import com.github.aiassistant.entity.model.chat.QaKnVO;
-import com.github.aiassistant.entity.model.chat.QuestionClassifyListVO;
-import com.github.aiassistant.entity.model.chat.WebSearchResultVO;
+import com.github.aiassistant.entity.model.chat.*;
 import com.github.aiassistant.enums.AiWebSearchSourceEnum;
 import com.github.aiassistant.enums.UserTriggerEventEnum;
 import com.github.aiassistant.service.jsonschema.ReasoningJsonSchema;
 import com.github.aiassistant.service.text.acting.ActingService;
+import com.github.aiassistant.service.text.embedding.KnnResponseListenerFuture;
 import com.github.aiassistant.service.text.sseemitter.AiMessageString;
 import com.github.aiassistant.service.text.sseemitter.SseHttpResponse;
 import com.github.aiassistant.service.text.tools.WebSearchService;
@@ -49,6 +47,9 @@ public interface ChatStreamingResponseHandler {
 
     default void onAfterModelThinking(Response<AiMessage> thinkingResponse) {
 
+    }
+
+    default void onKnnSearch(KnnResponseListenerFuture<? extends KnVO> future) {
     }
 
     default void onTokenBegin(int baseMessageIndex, int addMessageCount, int generateCount) {

@@ -18,6 +18,7 @@ import com.github.aiassistant.service.text.acting.ActingService;
 import com.github.aiassistant.service.text.embedding.EmbeddingModelClient;
 import com.github.aiassistant.service.text.embedding.KnSettingWebsearchBlacklistServiceImpl;
 import com.github.aiassistant.service.text.embedding.KnnApiService;
+import com.github.aiassistant.service.text.embedding.KnnResponseListenerFuture;
 import com.github.aiassistant.service.text.reasoning.ReasoningService;
 import com.github.aiassistant.service.text.repository.ConsumerTokenWindowChatMemory;
 import com.github.aiassistant.service.text.repository.JsonSchemaTokenWindowChatMemory;
@@ -415,7 +416,7 @@ public class LlmTextApiService {
                 webSearchResult = CompletableFuture.completedFuture(null);
             }
             // 2.查询知识库
-            CompletableFuture<List<List<QaKnVO>>> knnFuture = classifyListVO.isQa() ? selectKnList(assistantConfig, knPromptText, memoryId.getAssistantKnList(AiAssistantKnTypeEnum.qa), lastQuestion) : CompletableFuture.completedFuture(Collections.emptyList());
+            CompletableFuture<List<List<QaKnVO>>> knnFuture = classifyListVO.isQa() ? selectKnList(assistantConfig, knPromptText, memoryId.getAssistantKnList(AiAssistantKnTypeEnum.qa), lastQuestion, responseHandler) : CompletableFuture.completedFuture(Collections.emptyList());
             // 3.思考并行动
             CompletableFuture<ActingService.Plan> reasoningResultFuture;
             boolean reasoningAndActing = !interrupt && classifyListVO.isWtcj() && isEnableReasoning(reasoning, assistantConfig, knPromptText, mstatePromptText, lastQuestion);
@@ -964,9 +965,10 @@ public class LlmTextApiService {
      * @param knPromptText    knPromptText
      * @param assistantKnList assistantKnList
      * @param question        question
+     * @param responseHandler onKnnSearch
      * @return 知识库
      */
-    private CompletableFuture<List<List<QaKnVO>>> selectKnList(AssistantConfig assistant, String knPromptText, List<AiAssistantKn> assistantKnList, String question) {
+    private CompletableFuture<List<List<QaKnVO>>> selectKnList(AssistantConfig assistant, String knPromptText, List<AiAssistantKn> assistantKnList, String question, ChatStreamingResponseHandler responseHandler) {
         if (!StringUtils.hasText(question) || assistantKnList.isEmpty()) {
             return CompletableFuture.completedFuture(Collections.emptyList());
         }
@@ -989,13 +991,15 @@ public class LlmTextApiService {
                         AiUtil.scoreToDouble(assistantKn.getMinScore()),
                         QueryBuilderUtil.getFieldNameList(QaKnVO.class));
                 model.embedAllFuture();
-                f = knnApiService.knnSearchLib(assistantKn, QaKnVO.class, body);
+                KnnResponseListenerFuture<QaKnVO> future = knnApiService.knnSearchLib(assistantKn, QaKnVO.class, body);
+                responseHandler.onKnnSearch(future);
+                f = future;
             }
             futures.add(f);
         }
         return FutureUtil.allOf(futures)
                 .thenApply(lists -> {
-                    if (lists.size() == 1 && lists.get(0).isEmpty()) {
+                    if (lists.stream().allMatch(List::isEmpty)) {
                         return new ArrayList<>();
                     }
                     return lists;

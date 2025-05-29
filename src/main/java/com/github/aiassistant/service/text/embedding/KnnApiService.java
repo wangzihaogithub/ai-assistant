@@ -3,20 +3,16 @@ package com.github.aiassistant.service.text.embedding;
 import com.github.aiassistant.dao.AiEmbeddingMapper;
 import com.github.aiassistant.entity.AiAssistantKn;
 import com.github.aiassistant.entity.model.chat.KnVO;
-import com.github.aiassistant.exception.KnnApiException;
 import com.github.aiassistant.platform.JsonUtil;
 import com.github.aiassistant.util.AiUtil;
-import com.github.aiassistant.util.BeanUtil;
 import com.github.aiassistant.util.StringUtils;
 import dev.langchain4j.model.openai.OpenAiEmbeddingModel;
 import org.apache.http.client.entity.EntityBuilder;
 import org.apache.http.entity.ContentType;
 import org.elasticsearch.client.*;
 
-import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -131,9 +127,9 @@ public class KnnApiService {
      * @param <T>  知识库
      * @return 知识库
      */
-    public <T extends KnVO> CompletableFuture<List<T>> knnSearchLib(AiAssistantKn kn,
-                                                                    Class<T> type,
-                                                                    CompletableFuture<Map<String, Object>> body) {
+    public <T extends KnVO> KnnResponseListenerFuture<T> knnSearchLib(AiAssistantKn kn,
+                                                                      Class<T> type,
+                                                                      CompletableFuture<Map<String, Object>> body) {
         Double minScore = AiUtil.scoreToDouble(kn.getMinScore());
         Double knTop1Score = AiUtil.scoreToDouble(kn.getKnTop1Score());
         String indexName = kn.getKnIndexName();
@@ -202,7 +198,7 @@ public class KnnApiService {
      * @param <T>                知识库
      * @return 知识库
      */
-    public <T extends KnVO> CompletableFuture<List<T>> knnSearch(
+    public <T extends KnVO> KnnResponseListenerFuture<T> knnSearch(
             double minScore,
             Double knTop1Score,
             String indexName,
@@ -214,15 +210,24 @@ public class KnnApiService {
             } else {
                 try {
                     byte[] requestBody = objectWriter.writeValueAsBytes(queryBuilderMap);
-                    future.requestBody = requestBody;
                     // request
                     Request request = new Request("POST", "/" + indexName + "/_search");
                     request.setEntity(EntityBuilder.create()
                             .setContentType(ContentType.APPLICATION_JSON)
                             .setBinary(requestBody)
                             .build());
-                    future.request = request;
-                    future.cancellable = embeddingStore.performRequestAsync(request, future);
+                    Cancellable cancellable = embeddingStore.performRequestAsync(request, new ResponseListener() {
+                        @Override
+                        public void onSuccess(Response response) {
+                            future.onSuccess(response);
+                        }
+
+                        @Override
+                        public void onFailure(Exception exception) {
+                            future.completeExceptionally(exception);
+                        }
+                    });
+                    future.setRequest(cancellable, requestBody);
                 } catch (Throwable e) {
                     future.completeExceptionally(e);
                 }
@@ -230,95 +235,4 @@ public class KnnApiService {
         });
         return future;
     }
-
-    static class KnnResponseListenerFuture<T extends KnVO> extends CompletableFuture<List<T>> implements ResponseListener {
-        private final KnnQueryBuilderFuture<T> knnQuery;
-        private final double minScore;
-        private final Double knTop1Score;
-        private final String indexName;
-        private Cancellable cancellable;
-        private Request request;
-        private byte[] requestBody;
-
-        KnnResponseListenerFuture(double minScore,
-                                  Double knTop1Score, KnnQueryBuilderFuture<T> knnQuery, String indexName) {
-            this.minScore = minScore;
-            this.knTop1Score = knTop1Score;
-            this.knnQuery = knnQuery;
-            this.indexName = indexName;
-        }
-
-        @Override
-        public boolean cancel(boolean mayInterruptIfRunning) {
-            boolean b = super.cancel(mayInterruptIfRunning);
-            if (b && cancellable != null) {
-                cancellable.cancel();
-            }
-            return b;
-        }
-
-        @Override
-        public void onSuccess(Response response) {
-            try {
-                List<T> result = map(response);
-                complete(result);
-            } catch (Exception e) {
-                completeExceptionally(e);
-            }
-        }
-
-        private List<T> map(Response response) throws IOException {
-            // response
-            Map content = JsonUtil.objectReader().readValue(response.getEntity().getContent(), Map.class);
-            Map hits = (Map) content.get("hits");
-            List<Map> hitsList = (List<Map>) hits.get("hits");
-            List<T> list = new ArrayList<>();
-
-            Class<T> type = knnQuery.getType();
-            for (Map hit : hitsList) {
-                double score = ((Number) hit.get("_score")).doubleValue();
-                T source = BeanUtil.toBean((Map<String, Object>) hit.get("_source"), type);
-                source.setId(Objects.toString(hit.get("_id"), null));
-                source.setScore(score);
-                source.setIndexName(Objects.toString(hit.get("_index"), null));
-                list.add(source);
-            }
-
-            List<T> l = list;
-            List<BiFunction<List<T>, Map, List<T>>> afterList = knnQuery.getResponseAfterList();
-            if (afterList != null) {
-                for (BiFunction<List<T>, Map, List<T>> after : afterList) {
-                    l = after.apply(l, content);
-                }
-            }
-            return filter(l);
-        }
-
-        private List<T> filter(List<T> list) {
-            List<T> result = new ArrayList<>(list.size());
-            for (T hit : list) {
-                Double score = hit.getScore();
-                if (minScore == 0 || score >= minScore) {
-                    if (knTop1Score != null && score >= knTop1Score) {
-                        return new ArrayList<>(Collections.singletonList(hit));
-                    }
-                    result.add(hit);
-                }
-            }
-            return result;
-        }
-
-        @Override
-        public void onFailure(Exception exception) {
-            completeExceptionally(exception);
-        }
-
-        @Override
-        public boolean completeExceptionally(Throwable ex) {
-            String errorMessage = String.format("knn api error! indexName=%s, cause = %s", indexName, ex);
-            return super.completeExceptionally(
-                    new KnnApiException(errorMessage, ex, indexName, requestBody));
-        }
-    }
-
 }
