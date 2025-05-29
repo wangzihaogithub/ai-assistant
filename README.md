@@ -145,4 +145,21 @@ https://github.com/wangzihaogithub/ai-assistant
     <artifactId>ai-assistant</artifactId>
     <version>1.0.0</version>
 </dependency>
+
+<dependency>
+  <groupId>dev.langchain4j</groupId>
+  <artifactId>langchain4j</artifactId>
+  <version>0.35.0</version>
+</dependency>
+<dependency>
+  <groupId>dev.langchain4j</groupId>
+  <artifactId>langchain4j-open-ai</artifactId>
+  <version>0.35.0</version>
+</dependency>
+<dependency>
+  <groupId>com.squareup.okhttp3</groupId>
+  <artifactId>okhttp-sse</artifactId>
+  <version>3.14.9</version>
+</dependency>
+
 ```

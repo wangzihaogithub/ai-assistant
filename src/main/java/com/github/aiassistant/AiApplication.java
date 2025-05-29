@@ -172,6 +172,9 @@ public class AiApplication {
     }
 
     private static <T extends ServiceIntercept> Supplier<Collection<T>> getServiceInterceptSupplier(Class<T> clazz, Function<Class<? extends ServiceIntercept>, Collection<ServiceIntercept>> interceptMap) {
+        if (interceptMap == null) {
+            return Collections::emptyList;
+        }
         return () -> {
             Collection collection = interceptMap.apply(clazz);
             return collection == null ? Collections.emptyList() : collection;
