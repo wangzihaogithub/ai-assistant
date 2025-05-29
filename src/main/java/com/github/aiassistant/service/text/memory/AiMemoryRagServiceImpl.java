@@ -70,7 +70,7 @@ public class AiMemoryRagServiceImpl {
                 request.setIndexName(knnFuture.getIndexName());
                 request.setAiChatId(aiChatId);
                 byte[] requestBodyBytes = knnFuture.getRequestBodyBytes();
-                request.setRequestBody(requestBodyBytes == null ? "" : new String(requestBodyBytes));
+                request.setRequestBody(requestBodyBytes == null ? "" : new String(requestBodyBytes, 0, Math.min(65500, requestBodyBytes.length)));
                 request.setResponseDocCount(knVOS == null ? 0 : knVOS.size());
                 request.setErrorMessage(throwable == null ? "" : StringUtils.left(ThrowableUtil.stackTraceToString(throwable), 3995, true));
                 request.setUserQueryTraceNumber(StringUtils.left(userQueryTraceNumber, 32, true));
