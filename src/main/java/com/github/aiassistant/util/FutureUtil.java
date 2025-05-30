@@ -389,6 +389,7 @@ public class FutureUtil {
          * Performs this operation on the given argument.
          *
          * @param t the input argument
+         * @throws Throwable Throwable
          */
         void accept(T t) throws Throwable;
     }
