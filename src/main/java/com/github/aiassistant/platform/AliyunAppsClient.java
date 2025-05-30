@@ -2,6 +2,7 @@ package com.github.aiassistant.platform;
 
 import com.alibaba.dashscope.api.SynchronizeHalfDuplexApi;
 import com.alibaba.dashscope.app.ApplicationParam;
+import com.alibaba.dashscope.base.HalfDuplexParamBase;
 import com.alibaba.dashscope.common.DashScopeResult;
 import com.alibaba.dashscope.common.OutputMode;
 import com.alibaba.dashscope.common.ResultCallback;
@@ -19,6 +20,7 @@ import java.util.Objects;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 
 /**
  * 阿里云大模型客户端
@@ -28,10 +30,16 @@ import java.util.concurrent.atomic.AtomicInteger;
  * 应用详情：https://bailian.console.aliyun.com/?tab=app#/app-center/assistant/{appId}
  */
 public class AliyunAppsClient {
+    public static final Consumer<ExceptionRetry> DEFAULT_RETRY_CONSUMER = retry -> {
+        if (retry.isThrottling()) {
+            retry.retry();
+        } else {
+            retry.exit();
+        }
+    };
     private static final Map<String, ApiKeyStatus> API_KEY_STATUS_MAP = new ConcurrentHashMap<>();
-    private static final Logger log = LoggerFactory.getLogger(AliyunAppsClient.class);
 
-//    static {
+    //    static {
     // https://help.aliyun.com/zh/model-studio/developer-reference/connection-pool-configuration
     // 以下代码示例展示了如何配置连接池相关参数（如超时时间、最大连接数等），并调用大模型服务。您可以根据实际需求调整相关参数，以优化并发性能和资源利用率。
     // 连接池配置
@@ -46,17 +54,15 @@ public class AliyunAppsClient {
 //                        .maximumAsyncRequestsPerHost(256) // 单个主机的最大并发请求数, 默认 32
 //                        .build());
 //    }
-
-    private final SynchronizeHalfDuplexApi<ApplicationParam> client;
+    private static final Logger log = LoggerFactory.getLogger(AliyunAppsClient.class);
+    private final SynchronizeHalfDuplexApi<HalfDuplexParamBase> client;
     private final ScheduledExecutorService scheduled;
     private final String apiKey;
     private final String appId;
     private final ApiKeyStatus apiKeyStatus;
 
     public AliyunAppsClient(String apiKey, String appId) {
-        this.apiKey = apiKey;
-        this.appId = appId;
-        this.client = new SynchronizeHalfDuplexApi<>(ApiServiceOption.builder()
+        this(apiKey, appId, ApiServiceOption.builder()
                 .httpMethod(HttpMethod.POST)
                 .outputMode(OutputMode.ACCUMULATE)
                 .isSSE(false)
@@ -66,6 +72,12 @@ public class AliyunAppsClient {
                 .function("completion")
                 .streamingMode(StreamingMode.NONE)
                 .build());
+    }
+
+    public AliyunAppsClient(String apiKey, String appId, ApiServiceOption option) {
+        this.apiKey = apiKey;
+        this.appId = appId;
+        this.client = new SynchronizeHalfDuplexApi<>(option);
         this.scheduled = Executors.newScheduledThreadPool(1, r -> {
             Thread thread = new Thread(r);
             thread.setName(appId + ".retry" + thread.getId());
@@ -86,21 +98,24 @@ public class AliyunAppsClient {
     }
 
     public CompletableFuture<DashScopeResult> request(String userMessage, int maxRetryCount) {
-        ApplicationParam param = ApplicationParam.builder()
-                // 若没有配置环境变量，可用百炼API Key将下行替换为：.apiKey("sk-xxx")。但不建议在生产环境中直接将API Key硬编码到代码中，以减少API Key泄露风险。
-                .apiKey(apiKey)
-                .appId(appId)
-                .prompt(userMessage)
-                .build();
-        CompletableFuture<DashScopeResult> future = new TimeOutCancelCompletableFuture<>();
+        ApplicationParam param = ApplicationParam.builder().prompt(userMessage).build();
+        return request(param, DEFAULT_RETRY_CONSUMER, maxRetryCount);
+    }
+
+    public CompletableFuture<DashScopeResult> request(ApplicationParam param, Consumer<ExceptionRetry> consumer, int maxRetryCount) {
+        // 若没有配置环境变量，可用百炼API Key将下行替换为：.apiKey("sk-xxx")。但不建议在生产环境中直接将API Key硬编码到代码中，以减少API Key泄露风险。
+        param.setAppId(appId);
+        param.setApiKey(apiKey);
+
         long timestamp = System.currentTimeMillis();
         apiKeyStatus.beforeRequest();
-        requestIfRetry(param, future, maxRetryCount);
+        CompletableFuture<DashScopeResult> future = new TimeOutCancelCompletableFuture<>();
+        requestIfRetry(param, future, consumer == null ? DEFAULT_RETRY_CONSUMER : consumer, maxRetryCount);
         future.whenComplete((dashScopeResult, throwable) -> apiKeyStatus.afterRequest(System.currentTimeMillis() - timestamp));
         return future;
     }
 
-    private void requestIfRetry(ApplicationParam param, CompletableFuture<DashScopeResult> future, int maxRetryCount) {
+    private void requestIfRetry(HalfDuplexParamBase param, CompletableFuture<DashScopeResult> future, Consumer<ExceptionRetry> retryConsumer, int maxRetryCount) {
         if (future.isDone()) {
             // 外部调用方主动完成或取消任务
             return;
@@ -119,23 +134,27 @@ public class AliyunAppsClient {
 
                 @Override
                 public void onError(Exception exception) {
-                    String errorString = Objects.toString(exception.getMessage(), "");
-                    // 限流异常
-                    // 错误码文档：https://help.aliyun.com/zh/model-studio/error-code
-                    if (maxRetryCount > 0 && errorString.contains("Throttling")) {
-                        AtomicBoolean mutex = new AtomicBoolean();
-                        ScheduledFuture<?> scheduledFuture = scheduled.schedule(() -> {
-                            if (mutex.compareAndSet(false, true)) {
-                                requestIfRetry(param, future, maxRetryCount - 1);
-                            }
-                        }, apiKeyStatus.getNextRetrySeconds(), TimeUnit.SECONDS);
-                        // 追加到末尾
-                        apiKeyStatus.addListener(() -> {
-                            if (mutex.compareAndSet(false, true)) {
-                                scheduledFuture.cancel(false);
-                                requestIfRetry(param, future, maxRetryCount - 1);
-                            }
-                        });
+                    int remainRetryCount = maxRetryCount - 1;
+                    if (remainRetryCount > 0) {
+                        ExceptionRetry retry = new ExceptionRetry(exception, remainRetryCount,
+                                () -> {
+                                    AtomicBoolean mutex = new AtomicBoolean();
+                                    ScheduledFuture<?> scheduledFuture = scheduled.schedule(() -> {
+                                        if (mutex.compareAndSet(false, true)) {
+                                            requestIfRetry(param, future, retryConsumer, remainRetryCount);
+                                        }
+                                    }, apiKeyStatus.getNextRetrySeconds(), TimeUnit.SECONDS);
+                                    // 追加到末尾
+                                    apiKeyStatus.addListener(() -> {
+                                        if (mutex.compareAndSet(false, true)) {
+                                            scheduledFuture.cancel(false);
+                                            requestIfRetry(param, future, retryConsumer, remainRetryCount);
+                                        }
+                                    });
+                                },
+                                () -> future.completeExceptionally(exception)
+                        );
+                        retryConsumer.accept(retry);
                     } else {
                         future.completeExceptionally(exception);
                     }
@@ -146,11 +165,68 @@ public class AliyunAppsClient {
         }
     }
 
-    interface RequestListener {
+    private interface RequestListener {
         void complete();
     }
 
-    static class TimeOutCancelCompletableFuture<T> extends CompletableFuture<T> {
+    public static class ExceptionRetry {
+        final Exception exception;
+        final int remainRetryCount;
+        final Runnable retry;
+        final Runnable exit;
+
+        public ExceptionRetry(Exception exception, int remainRetryCount, Runnable retry, Runnable exit) {
+            this.exception = exception;
+            this.remainRetryCount = remainRetryCount;
+            this.retry = retry;
+            this.exit = exit;
+        }
+
+        public void run(boolean needRetry) {
+            if (needRetry) {
+                retry.run();
+            } else {
+                exit.run();
+            }
+        }
+
+        public Runnable getExit() {
+            return exit;
+        }
+
+        public Runnable getRetry() {
+            return retry;
+        }
+
+        public Exception getException() {
+            return exception;
+        }
+
+        public void retry() {
+            retry.run();
+        }
+
+        public void exit() {
+            exit.run();
+        }
+
+        public int getRemainRetryCount() {
+            return remainRetryCount;
+        }
+
+        public boolean isThrottling() {
+            if (exception != null) {
+                String errorString = Objects.toString(exception.getMessage(), "");
+                // 限流异常
+                // 错误码文档：https://help.aliyun.com/zh/model-studio/error-code
+                return errorString.contains("Throttling");
+            } else {
+                return false;
+            }
+        }
+    }
+
+    private static class TimeOutCancelCompletableFuture<T> extends CompletableFuture<T> {
         @Override
         public T get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
             try {
@@ -177,6 +253,7 @@ public class AliyunAppsClient {
             return "ApiKeyStatus{" +
                     "apiKey='" + apiKey + '\'' +
                     ", currentRequestCount=" + currentRequestCount +
+                    ", avgRequestSec=" + (avgRequestMs / 1000) +
                     '}';
         }
 
