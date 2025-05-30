@@ -1,15 +1,15 @@
 package com.github.aiassistant.entity;
 
-// @ApiModel(value = "AiMemoryRagDoc", description = "记忆的RAG记录文档")
+// @ApiModel(value = "AiMemorySearchDoc", description = "记忆的搜索记录文档")
 // @Data
-// @TableName("ai_memory_rag_doc")
-public class AiMemoryRagDoc {
+// @TableName("ai_memory_search_doc")
+public class AiMemorySearchDoc {
     // @TableId(value = "id", type = IdType.AUTO)
     private Integer id;
     /**
      * 记忆ID
      */
-    private Integer aiMemoryRagId;
+    private Integer aiMemorySearchId;
     /**
      * 查询索引对象
      */
@@ -31,12 +31,12 @@ public class AiMemoryRagDoc {
         this.id = id;
     }
 
-    public Integer getAiMemoryRagId() {
-        return aiMemoryRagId;
+    public Integer getAiMemorySearchId() {
+        return aiMemorySearchId;
     }
 
-    public void setAiMemoryRagId(Integer aiMemoryRagId) {
-        this.aiMemoryRagId = aiMemoryRagId;
+    public void setAiMemorySearchId(Integer aiMemorySearchId) {
+        this.aiMemorySearchId = aiMemorySearchId;
     }
 
     public String getDocIdString() {
@@ -65,6 +65,6 @@ public class AiMemoryRagDoc {
 
     @Override
     public String toString() {
-        return id + "#" + aiMemoryRagId + "(" + docIdString + ")";
+        return id + "#" + aiMemorySearchId + "(" + docIdString + ")";
     }
 }

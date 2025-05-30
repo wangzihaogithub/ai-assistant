@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.github.aiassistant.dao.AiMemoryRagMapper">
+<mapper namespace="com.github.aiassistant.dao.AiMemorySearchMapper">
     <insert id="insertBatchSomeColumn" useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO `ai_memory_rag`
+        INSERT INTO `ai_memory_search`
         (`ai_chat_id`,`ai_memory_id`,`create_time`,`error_message`,`id`,`index_name`,`rag_cost_ms`,`rag_end_time`,`rag_start_time`,`request_body`,`response_doc_count`,`user_query_trace_number`)
         VALUES
         <foreach collection="arg0" item="item" open="" separator="," close="">

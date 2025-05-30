@@ -1,9 +1,9 @@
 package com.github.aiassistant.service.text.memory;
 
-import com.github.aiassistant.dao.AiMemoryRagDocMapper;
-import com.github.aiassistant.dao.AiMemoryRagMapper;
-import com.github.aiassistant.entity.AiMemoryRag;
-import com.github.aiassistant.entity.AiMemoryRagDoc;
+import com.github.aiassistant.dao.AiMemorySearchDocMapper;
+import com.github.aiassistant.dao.AiMemorySearchMapper;
+import com.github.aiassistant.entity.AiMemorySearch;
+import com.github.aiassistant.entity.AiMemorySearchDoc;
 import com.github.aiassistant.entity.model.chat.KnVO;
 import com.github.aiassistant.service.text.embedding.KnnResponseListenerFuture;
 import com.github.aiassistant.util.AiUtil;
@@ -25,23 +25,23 @@ import java.util.stream.Collectors;
  * 增删改查-记忆RAG
  */
 //@Service
-public class AiMemoryRagServiceImpl {
+public class AiMemorySearchServiceImpl {
     /**
      * 最大每秒1W的并发量
      */
     private static final int CONCURRENT_QPS = 10000 / 3;
-    private static final Logger log = LoggerFactory.getLogger(AiMemoryRagServiceImpl.class);
-    private final LinkedBlockingQueue<AiMemoryRagRequest> insertRequestQueue = new LinkedBlockingQueue<>(CONCURRENT_QPS);
+    private static final Logger log = LoggerFactory.getLogger(AiMemorySearchServiceImpl.class);
+    private final LinkedBlockingQueue<AiMemorySearchRequest> insertRequestQueue = new LinkedBlockingQueue<>(CONCURRENT_QPS);
 
     // @Resource
-    private final AiMemoryRagMapper aiMemoryRagMapper;
-    private final AiMemoryRagDocMapper aiMemoryRagDocMapper;
+    private final AiMemorySearchMapper aiMemorySearchMapper;
+    private final AiMemorySearchDocMapper aiMemorySearchDocMapper;
     private int insertPartitionSize = 100;
 
-    public AiMemoryRagServiceImpl(AiMemoryRagMapper aiMemoryRagMapper,
-                                  AiMemoryRagDocMapper aiMemoryRagDocMapper) {
-        this.aiMemoryRagMapper = aiMemoryRagMapper;
-        this.aiMemoryRagDocMapper = aiMemoryRagDocMapper;
+    public AiMemorySearchServiceImpl(AiMemorySearchMapper aiMemorySearchMapper,
+                                     AiMemorySearchDocMapper aiMemorySearchDocMapper) {
+        this.aiMemorySearchMapper = aiMemorySearchMapper;
+        this.aiMemorySearchDocMapper = aiMemorySearchDocMapper;
         // 批量持久化（防止问答过猛）
         InsertBatchThread insertBatchThread = new InsertBatchThread();
         insertBatchThread.setName(getClass().getSimpleName() + "#insertBatch" + insertBatchThread.getId());
@@ -57,11 +57,11 @@ public class AiMemoryRagServiceImpl {
      * @param userQueryTraceNumber 提问
      * @return 提交RAG插入成功后
      */
-    public CompletableFuture<AiMemoryRagRequest> insert(KnnResponseListenerFuture<? extends KnVO> knnFuture,
-                                                        Integer aiMemoryId,
-                                                        Integer aiChatId,
-                                                        String userQueryTraceNumber) {
-        AiMemoryRagRequest request = new AiMemoryRagRequest();
+    public CompletableFuture<AiMemorySearchRequest> insert(KnnResponseListenerFuture<? extends KnVO> knnFuture,
+                                                           Integer aiMemoryId,
+                                                           Integer aiChatId,
+                                                           String userQueryTraceNumber) {
+        AiMemorySearchRequest request = new AiMemorySearchRequest();
         Date ragStartTime = new Date();
         try {
             knnFuture.whenComplete((knVOS, throwable) -> {
@@ -74,12 +74,12 @@ public class AiMemoryRagServiceImpl {
                 request.setResponseDocCount(knVOS == null ? 0 : knVOS.size());
                 request.setErrorMessage(throwable == null ? "" : StringUtils.left(ThrowableUtil.stackTraceToString(throwable), 3995, true));
                 request.setUserQueryTraceNumber(StringUtils.left(userQueryTraceNumber, 32, true));
-                request.setRagStartTime(ragStartTime);
-                request.setRagEndTime(ragEndTime);
-                request.setRagCostMs((int) (ragEndTime.getTime() - ragStartTime.getTime()));
+                request.setSearchStartTime(ragStartTime);
+                request.setSearchEndTime(ragEndTime);
+                request.setSearchCostMs((int) (ragEndTime.getTime() - ragStartTime.getTime()));
                 if (knVOS != null) {
                     for (KnVO knVO : knVOS) {
-                        AiMemoryRagDoc doc = new AiMemoryRagDoc();
+                        AiMemorySearchDoc doc = new AiMemorySearchDoc();
                         doc.setDocIdString(StringUtils.left(knVO.getId(), 36, true));
                         String id = knVO.getId();
                         if (StringUtils.isPositiveNumeric(id)) {
@@ -95,14 +95,14 @@ public class AiMemoryRagServiceImpl {
                 }
                 // 防止问答过猛
                 while (!insertRequestQueue.offer(request)) {
-                    List<AiMemoryRagRequest> list = new ArrayList<>(insertRequestQueue.size());
+                    List<AiMemorySearchRequest> list = new ArrayList<>(insertRequestQueue.size());
                     insertRequestQueue.drainTo(list);
                     insert(list);
                 }
             });
             return request.future;
         } catch (Exception e) {
-            CompletableFuture<AiMemoryRagRequest> future = new CompletableFuture<>();
+            CompletableFuture<AiMemorySearchRequest> future = new CompletableFuture<>();
             future.completeExceptionally(e);
             return future;
         }
@@ -113,21 +113,21 @@ public class AiMemoryRagServiceImpl {
      *
      * @param list list
      */
-    private void insert(List<AiMemoryRagRequest> list) {
+    private void insert(List<AiMemorySearchRequest> list) {
         try {
             Date now = new Date();
             list.forEach(e -> e.setCreateTime(now));
-            Lists.partition(list, insertPartitionSize).forEach(aiMemoryRagMapper::insertBatchSomeColumn);
+            Lists.partition(list, insertPartitionSize).forEach(aiMemorySearchMapper::insertBatchSomeColumn);
 
-            list.forEach(e -> e.docList.forEach(e1 -> e1.setAiMemoryRagId(e.getId())));
-            Collection<AiMemoryRagDoc> docList = list.stream().map(e -> e.docList).flatMap(Collection::stream).collect(Collectors.toList());
-            Lists.partition(docList, insertPartitionSize).forEach(aiMemoryRagDocMapper::insertBatchSomeColumn);
+            list.forEach(e -> e.docList.forEach(e1 -> e1.setAiMemorySearchId(e.getId())));
+            Collection<AiMemorySearchDoc> docList = list.stream().map(e -> e.docList).flatMap(Collection::stream).collect(Collectors.toList());
+            Lists.partition(docList, insertPartitionSize).forEach(aiMemorySearchDocMapper::insertBatchSomeColumn);
 
-            for (AiMemoryRagRequest request : list) {
+            for (AiMemorySearchRequest request : list) {
                 request.future.complete(request);
             }
         } catch (Exception e) {
-            for (AiMemoryRagRequest request : list) {
+            for (AiMemorySearchRequest request : list) {
                 request.future.completeExceptionally(e);
             }
             throw e;
@@ -146,9 +146,9 @@ public class AiMemoryRagServiceImpl {
      * RAG
      */
     // @Data
-    public static class AiMemoryRagRequest extends AiMemoryRag {
-        private final CompletableFuture<AiMemoryRagRequest> future = new CompletableFuture<>();
-        private final List<AiMemoryRagDoc> docList = new ArrayList<>();
+    public static class AiMemorySearchRequest extends AiMemorySearch {
+        private final CompletableFuture<AiMemorySearchRequest> future = new CompletableFuture<>();
+        private final List<AiMemorySearchDoc> docList = new ArrayList<>();
     }
 
     private class InsertBatchThread extends Thread {
@@ -156,12 +156,12 @@ public class AiMemoryRagServiceImpl {
         @Override
         public void run() {
             while (!isInterrupted()) {
-                List<AiMemoryRagRequest> list = new ArrayList<>(Math.max(1, insertRequestQueue.size()));
+                List<AiMemorySearchRequest> list = new ArrayList<>(Math.max(1, insertRequestQueue.size()));
                 if (insertRequestQueue.isEmpty()) {
                     try {
                         list.add(insertRequestQueue.take());
                     } catch (InterruptedException e) {
-                        log.info("AiMemoryRagServiceImpl InterruptedException {}", e.toString(), e);
+                        log.info("AiMemorySearchServiceImpl InterruptedException {}", e.toString(), e);
                         return;
                     }
                 }
@@ -169,10 +169,10 @@ public class AiMemoryRagServiceImpl {
                 try {
                     insert(list);
                     if (log.isDebugEnabled()) {
-                        log.debug("AiMemoryRagServiceImpl insert request queue  {}", list.size());
+                        log.debug("AiMemorySearchServiceImpl insert request queue  {}", list.size());
                     }
                 } catch (Exception e) {
-                    log.error("AiMemoryRagServiceImpl insert request queue error {}", e.toString(), e);
+                    log.error("AiMemorySearchServiceImpl insert request queue error {}", e.toString(), e);
                 }
             }
         }

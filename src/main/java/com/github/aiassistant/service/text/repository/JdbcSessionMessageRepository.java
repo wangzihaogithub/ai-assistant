@@ -19,7 +19,7 @@ import com.github.aiassistant.service.text.embedding.KnnResponseListenerFuture;
 import com.github.aiassistant.service.text.memory.AiMemoryErrorServiceImpl;
 import com.github.aiassistant.service.text.memory.AiMemoryMessageServiceImpl;
 import com.github.aiassistant.service.text.memory.AiMemoryMstateServiceImpl;
-import com.github.aiassistant.service.text.memory.AiMemoryRagServiceImpl;
+import com.github.aiassistant.service.text.memory.AiMemorySearchServiceImpl;
 import com.github.aiassistant.util.AiUtil;
 import com.github.aiassistant.util.FutureUtil;
 import com.github.aiassistant.util.StringUtils;
@@ -57,7 +57,7 @@ public class JdbcSessionMessageRepository extends AbstractSessionMessageReposito
     private final AiMemoryErrorServiceImpl aiMemoryErrorService;
     // @Resource
     private final AiChatClassifyServiceImpl aiChatClassifyService;
-    private final AiMemoryRagServiceImpl aiMemoryRagService;
+    private final AiMemorySearchServiceImpl aiMemorySearchService;
     private MStateAiParseVO mStateAiParseVO;
     private boolean mock;
     private CompletableFuture<AiMemoryMessageServiceImpl.AiMemoryVO> userMemory;
@@ -73,10 +73,10 @@ public class JdbcSessionMessageRepository extends AbstractSessionMessageReposito
                                         AiChatWebsearchServiceImpl aiChatWebsearchService,
                                         AiMemoryErrorServiceImpl aiMemoryErrorService,
                                         AiChatClassifyServiceImpl aiChatClassifyService,
-                                        AiMemoryRagServiceImpl aiMemoryRagService) {
+                                        AiMemorySearchServiceImpl aiMemorySearchService) {
         super(memoryId, user, chatQueryRequest.userQueryTraceNumber(), chatQueryRequest.timestamp());
         this.chatQueryRequest = chatQueryRequest;
-        this.aiMemoryRagService = aiMemoryRagService;
+        this.aiMemorySearchService = aiMemorySearchService;
         this.aiAssistantMstateMapper = aiAssistantMstateMapper;
         this.aiMemoryMessageService = aiMemoryMessageService;
         this.aiChatHistoryService = aiChatHistoryService;
@@ -187,7 +187,7 @@ public class JdbcSessionMessageRepository extends AbstractSessionMessageReposito
         if (!mock) {
             String userQueryTraceNumber = getUserQueryTraceNumber();
             MemoryIdVO memoryId = requestTrace.getMemoryId();
-            aiMemoryRagService.insert(future, memoryId.getMemoryId(), memoryId.getChatId(), userQueryTraceNumber);
+            aiMemorySearchService.insert(future, memoryId.getMemoryId(), memoryId.getChatId(), userQueryTraceNumber);
         }
     }
 

@@ -49,8 +49,8 @@ public class Mybatis3DAOProvider extends DAOProvider {
             "mybatis3/AiChatReasoningPlanMapper.xml",
             "mybatis3/AiChatClassifyMapper.xml",
             "mybatis3/KnSettingWebsearchBlacklistMapper.xml",
-            "mybatis3/AiMemoryRagDocMapper.xml",
-            "mybatis3/AiMemoryRagMapper.xml",
+            "mybatis3/AiMemorySearchDocMapper.xml",
+            "mybatis3/AiMemorySearchMapper.xml",
             "mybatis3/AiAssistantMapper.xml"));
     private final Map<Class<?>, Object> mapperMap = Collections.synchronizedMap(new WeakHashMap<>());
     private final SqlSessionFactory sqlSessionFactory;

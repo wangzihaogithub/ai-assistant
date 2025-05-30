@@ -2,10 +2,10 @@ package com.github.aiassistant.entity;
 
 import java.util.Date;
 
-// @ApiModel(value = "AiMemoryRag", description = "记忆的RAG记录")
+// @ApiModel(value = "AiMemorySearch", description = "记忆的RAG记录")
 // @Data
-// @TableName("ai_memory_rag")
-public class AiMemoryRag {
+// @TableName("ai_memory_search")
+public class AiMemorySearch {
     // @TableId(value = "id", type = IdType.AUTO)
     private Integer id;
     /**
@@ -40,16 +40,16 @@ public class AiMemoryRag {
     /**
      * 开始时间
      */
-    private Date ragStartTime;
+    private Date searchStartTime;
 
     /**
      * 花费毫秒
      */
-    private Integer ragCostMs;
+    private Integer searchCostMs;
     /**
      * 结束时间
      */
-    private Date ragEndTime;
+    private Date searchEndTime;
 
     /**
      * 创建时间
@@ -128,28 +128,28 @@ public class AiMemoryRag {
         this.createTime = createTime;
     }
 
-    public Date getRagStartTime() {
-        return ragStartTime;
+    public Date getSearchStartTime() {
+        return searchStartTime;
     }
 
-    public void setRagStartTime(Date ragStartTime) {
-        this.ragStartTime = ragStartTime;
+    public void setSearchStartTime(Date searchStartTime) {
+        this.searchStartTime = searchStartTime;
     }
 
-    public Date getRagEndTime() {
-        return ragEndTime;
+    public Date getSearchEndTime() {
+        return searchEndTime;
     }
 
-    public void setRagEndTime(Date ragEndTime) {
-        this.ragEndTime = ragEndTime;
+    public void setSearchEndTime(Date searchEndTime) {
+        this.searchEndTime = searchEndTime;
     }
 
-    public Integer getRagCostMs() {
-        return ragCostMs;
+    public Integer getSearchCostMs() {
+        return searchCostMs;
     }
 
-    public void setRagCostMs(Integer ragCostMs) {
-        this.ragCostMs = ragCostMs;
+    public void setSearchCostMs(Integer searchCostMs) {
+        this.searchCostMs = searchCostMs;
     }
 
     @Override

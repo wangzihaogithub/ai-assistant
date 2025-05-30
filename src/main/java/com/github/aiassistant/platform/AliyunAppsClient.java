@@ -92,10 +92,11 @@ public class AliyunAppsClient {
                 .appId(appId)
                 .prompt(userMessage)
                 .build();
-        CompletableFuture<DashScopeResult> future = new CompletableFuture<>();
+        CompletableFuture<DashScopeResult> future = new TimeOutCancelCompletableFuture<>();
+        long timestamp = System.currentTimeMillis();
         apiKeyStatus.beforeRequest();
         requestIfRetry(param, future, maxRetryCount);
-        future.whenComplete((dashScopeResult, throwable) -> apiKeyStatus.afterRequest());
+        future.whenComplete((dashScopeResult, throwable) -> apiKeyStatus.afterRequest(System.currentTimeMillis() - timestamp));
         return future;
     }
 
@@ -149,10 +150,23 @@ public class AliyunAppsClient {
         void complete();
     }
 
+    static class TimeOutCancelCompletableFuture<T> extends CompletableFuture<T> {
+        @Override
+        public T get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
+            try {
+                return super.get(timeout, unit);
+            } catch (TimeoutException t) {
+                cancel(false);
+                throw t;
+            }
+        }
+    }
+
     private static class ApiKeyStatus {
         final String apiKey;
         final AtomicInteger currentRequestCount = new AtomicInteger();
         final LinkedList<RequestListener> listeners = new LinkedList<>();
+        volatile long avgRequestMs = 0;
 
         private ApiKeyStatus(String apiKey) {
             this.apiKey = apiKey;
@@ -169,9 +183,10 @@ public class AliyunAppsClient {
         public int getNextRetrySeconds() {
             // 有其他请求还没回来
             if (currentRequestCount.intValue() > 1) {
-                return ThreadLocalRandom.current().nextInt(30, 60);
+                long avgS = avgRequestMs / 1000;
+                return ThreadLocalRandom.current().nextInt((int) Math.max(30, avgS * 0.8), (int) Math.max(60, avgS));
             } else {
-                return ThreadLocalRandom.current().nextInt(3, 6);
+                return ThreadLocalRandom.current().nextInt(1, 6);
             }
         }
 
@@ -186,9 +201,11 @@ public class AliyunAppsClient {
             currentRequestCount.incrementAndGet();
         }
 
-        public void afterRequest() {
+        public void afterRequest(long ms) {
             currentRequestCount.decrementAndGet();
             synchronized (listeners) {
+                long m = this.avgRequestMs;
+                this.avgRequestMs = m == 0 ? ms : (m + ms) / 2;
                 // 从前往后叫醒
                 RequestListener poll = listeners.poll();
                 if (poll != null) {
