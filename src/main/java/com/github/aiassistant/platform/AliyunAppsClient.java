@@ -270,7 +270,7 @@ public class AliyunAppsClient {
 
         /**
          * 是否被工作流拒绝服务
-         * {"statusCode":500,"message":"{\"nodeName\":\"大模型1\",\"errorInfo\":\"<400> InternalError.Algo: An error occurred in model serving, error message is: [!]\",\"nodeId\":\"LLM_Mqdp\"}","code":"ModelServiceFailed","isJson":true,"requestId":"5ea0d282-5513-9e7c-9b8f-729c9a448441"}; status body:{"statusCode":500,"message":"{\"nodeName\":\"大模型1\",\"errorInfo\":\"<400> InternalError.Algo: An error occurred in model serving, error message is: [Request rejected by inference engine!]\",\"nodeId\":\"LLM_Mqdp\"}",
+         * {"statusCode":500,"message":"{\"nodeName\":\"大模型1\",\"errorInfo\":\" 400  InternalError.Algo: An error occurred in model serving, error message is: [!]\",\"nodeId\":\"LLM_Mqdp\"}","code":"ModelServiceFailed","isJson":true,"requestId":"5ea0d282-5513-9e7c-9b8f-729c9a448441"}; status body:{"statusCode":500,"message":"{\"nodeName\":\"大模型1\",\"errorInfo\":\" 400  InternalError.Algo: An error occurred in model serving, error message is: [Request rejected by inference engine!]\",\"nodeId\":\"LLM_Mqdp\"}",
          * "code":"ModelServiceFailed","isJson":true,"requestId":"xxxx"}
          *
          * @return true=工作流拒绝服务，false=不是
