@@ -37,7 +37,7 @@ public class AliyunAppsClient {
      * 如果被拒绝，则永久重试
      */
     public static final Consumer<Response> IF_REJECT_FOREVER_RETRY = response -> {
-        if (response.isExceptionThrottling() || response.isExceptionModelServiceRejected()) {
+        if (response.isExceptionThrottling() || response.isExceptionModelServiceRejected() || response.isExceptionServiceRequestTimeOut()) {
             response.retry();
         } else if (response.hasRemainRetryCount() && response.isExceptionTimeout()) {
             response.retry();
@@ -278,6 +278,17 @@ public class AliyunAppsClient {
         public boolean isExceptionModelServiceRejected() {
             return exception instanceof ApiException
                     && Objects.toString(exception.getMessage(), "").contains("Request rejected by inference engine");
+        }
+
+        /**
+         * 是否工作流内部超时
+         * Caused by: com.alibaba.dashscope.exception.ApiException: {"statusCode":500,"message":"Request timed out, please try again later.","code":"RequestTimeOut","isJson":true,"requestId":"4cdd9eef-a0cd-90d3-8b7a-0c673144a93c"}; status body:{"statusCode":500,"message":"Request timed out, please try again later.","code":"RequestTimeOut","isJson":true,"requestId":"4cdd9eef-a0cd-90d3-8b7a-0c673144a93c"}
+         *
+         * @return true=工作流内部超时，false=不是
+         */
+        public boolean isExceptionServiceRequestTimeOut() {
+            return exception instanceof ApiException
+                    && Objects.toString(exception.getMessage(), "").contains("RequestTimeOut");
         }
 
         /**
