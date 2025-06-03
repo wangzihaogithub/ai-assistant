@@ -37,7 +37,19 @@ public class AiErrorTypeEnum {
     });
     public static final AiErrorTypeEnum data_inspection_failed = create("data_inspection_failed", "违规", "根据相关规定暂无法回答，我们可以聊聊其他话题吗？", e -> {
         // 供应商接口返回的错误信息
-        return e instanceof DataInspectionFailedException || Objects.toString(e.getMessage(), "").contains("data_inspection_failed");
+        if (e instanceof DataInspectionFailedException) {
+            return true;
+        }
+        String string = Objects.toString(e.getMessage(), "");
+        // open ai
+        if (string.contains("data_inspection_failed")) {
+            return true;
+        }
+        // com.alibaba.dashscope
+        if (string.contains("DataInspectionFailed")) {
+            return true;
+        }
+        return false;
     });
     public static final AiErrorTypeEnum tool_execute_exception = create("tool_execute_exception", "AI工具执行过程中出现错误", "AI工具执行过程中出现错误，请联系相关该智能体相关的产品负责人。", e -> {
         // AI工具执行过程中出现错误

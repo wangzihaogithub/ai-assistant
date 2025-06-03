@@ -6,6 +6,7 @@ import com.alibaba.dashscope.base.HalfDuplexParamBase;
 import com.alibaba.dashscope.common.DashScopeResult;
 import com.alibaba.dashscope.common.OutputMode;
 import com.alibaba.dashscope.common.ResultCallback;
+import com.alibaba.dashscope.exception.ApiException;
 import com.alibaba.dashscope.protocol.ApiServiceOption;
 import com.alibaba.dashscope.protocol.ConnectionConfigurations;
 import com.alibaba.dashscope.protocol.HttpMethod;
@@ -14,6 +15,8 @@ import com.alibaba.dashscope.utils.Constants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.SocketTimeoutException;
+import java.nio.channels.ClosedChannelException;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.Objects;
@@ -30,11 +33,16 @@ import java.util.function.Consumer;
  * 应用详情：https://bailian.console.aliyun.com/?tab=app#/app-center/assistant/{appId}
  */
 public class AliyunAppsClient {
-    public static final Consumer<Response> DEFAULT_RETRY_CONSUMER = retry -> {
-        if (retry.isThrottling()) {
-            retry.retry();
+    /**
+     * 如果被拒绝，则永久重试
+     */
+    public static final Consumer<Response> IF_REJECT_FOREVER_RETRY = response -> {
+        if (response.isExceptionThrottling() || response.isExceptionModelServiceRejected()) {
+            response.retry();
+        } else if (response.hasRemainRetryCount() && response.isExceptionTimeout()) {
+            response.retry();
         } else {
-            retry.complete();
+            response.complete();
         }
     };
     private static final Map<String, ApiKeyStatus> API_KEY_STATUS_MAP = new ConcurrentHashMap<>();
@@ -60,6 +68,7 @@ public class AliyunAppsClient {
     private final String apiKey;
     private final String appId;
     private final ApiKeyStatus apiKeyStatus;
+    private boolean close = false;
 
     public AliyunAppsClient(String apiKey, String appId) {
         this(apiKey, appId, ApiServiceOption.builder()
@@ -80,7 +89,7 @@ public class AliyunAppsClient {
         this.client = new SynchronizeHalfDuplexApi<>(option);
         this.scheduled = Executors.newScheduledThreadPool(1, r -> {
             Thread thread = new Thread(r);
-            thread.setName(appId + ".retry" + thread.getId());
+            thread.setName("AliyunAppsClientRetry-" + appId + "-" + thread.getId());
             return thread;
         });
         this.apiKeyStatus = API_KEY_STATUS_MAP.computeIfAbsent(apiKey, ApiKeyStatus::new);
@@ -99,7 +108,7 @@ public class AliyunAppsClient {
 
     public CompletableFuture<DashScopeResult> request(String userMessage, int maxRetryCount) {
         ApplicationParam.ApplicationParamBuilder<?, ?> paramBuilder = ApplicationParam.builder().prompt(userMessage);
-        return request(paramBuilder, DEFAULT_RETRY_CONSUMER, maxRetryCount);
+        return request(paramBuilder, null, maxRetryCount);
     }
 
     public CompletableFuture<DashScopeResult> request(String userMessage, Consumer<Response> consumer, int maxRetryCount) {
@@ -108,10 +117,15 @@ public class AliyunAppsClient {
     }
 
     public CompletableFuture<DashScopeResult> request(ApplicationParam.ApplicationParamBuilder<?, ?> paramBuilder, Consumer<Response> consumer, int maxRetryCount) {
+        if (close) {
+            CompletableFuture<DashScopeResult> future = new CompletableFuture<>();
+            future.completeExceptionally(new ClosedChannelException());
+            return future;
+        }
         long timestamp = System.currentTimeMillis();
         apiKeyStatus.beforeRequest();
         CompletableFuture<DashScopeResult> future = new TimeOutCancelCompletableFuture<>();
-        requestIfRetry(paramBuilder, future, consumer == null ? DEFAULT_RETRY_CONSUMER : consumer, maxRetryCount);
+        requestIfRetry(paramBuilder, future, consumer == null ? IF_REJECT_FOREVER_RETRY : consumer, maxRetryCount);
         future.whenComplete((dashScopeResult, throwable) -> apiKeyStatus.afterRequest(System.currentTimeMillis() - timestamp));
         return future;
     }
@@ -121,24 +135,26 @@ public class AliyunAppsClient {
             // 外部调用方主动完成或取消任务
             return;
         }
+        long startTimestamp = System.currentTimeMillis();
         int remainRetryCount = maxRetryCount - 1;
         try {
             // 若没有配置环境变量，可用百炼API Key将下行替换为：.apiKey("sk-xxx")。但不建议在生产环境中直接将API Key硬编码到代码中，以减少API Key泄露风险。
             client.call(paramBuilder.appId(appId).apiKey(apiKey).build(), new ResultCallback<DashScopeResult>() {
                 @Override
                 public void onEvent(DashScopeResult message) {
-                    if (remainRetryCount > 0) {
-                        Response responseContext = new Response(paramBuilder, message, null, false, remainRetryCount,
-                                p -> requestIfRetry(p, future, responseContextConsumer, remainRetryCount),
-                                () -> future.complete(message)
-                        );
-                        try {
-                            responseContextConsumer.accept(responseContext);
-                        } catch (Throwable e) {
-                            future.completeExceptionally(e);
-                        }
-                    } else {
+                    apiKeyStatus.addOnceRequest(System.currentTimeMillis() - startTimestamp);
+                    if (close) {
                         future.complete(message);
+                        return;
+                    }
+                    Response responseContext = new Response(paramBuilder, message, null, false, remainRetryCount, future,
+                            p -> requestIfRetry(p, future, responseContextConsumer, remainRetryCount),
+                            () -> future.complete(message)
+                    );
+                    try {
+                        responseContextConsumer.accept(responseContext);
+                    } catch (Throwable e) {
+                        future.completeExceptionally(e);
                     }
                 }
 
@@ -149,39 +165,43 @@ public class AliyunAppsClient {
 
                 @Override
                 public void onError(Exception exception) {
-                    if (remainRetryCount > 0) {
-                        boolean throttling = Response.isThrottling(exception);
-                        Response responseContext = new Response(paramBuilder, null, exception, throttling, remainRetryCount,
-                                p -> {
-                                    AtomicBoolean mutex = new AtomicBoolean();
-                                    ScheduledFuture<?> scheduledFuture = scheduled.schedule(() -> {
-                                        if (mutex.compareAndSet(false, true)) {
-                                            requestIfRetry(p, future, responseContextConsumer, remainRetryCount);
-                                        }
-                                    }, apiKeyStatus.getNextRetrySeconds(throttling), TimeUnit.SECONDS);
-                                    // 追加到末尾
-                                    apiKeyStatus.addListener(() -> {
-                                        if (mutex.compareAndSet(false, true)) {
-                                            scheduledFuture.cancel(false);
-                                            requestIfRetry(p, future, responseContextConsumer, remainRetryCount);
-                                        }
-                                    });
-                                },
-                                () -> future.completeExceptionally(exception)
-                        );
-                        try {
-                            responseContextConsumer.accept(responseContext);
-                        } catch (Throwable e) {
-                            future.completeExceptionally(e);
-                        }
-                    } else {
+                    if (close) {
                         future.completeExceptionally(exception);
+                        return;
+                    }
+                    boolean throttling = Response.isExceptionThrottling(exception);
+                    Response responseContext = new Response(paramBuilder, null, exception, throttling, remainRetryCount, future,
+                            p -> {
+                                AtomicBoolean mutex = new AtomicBoolean();
+                                ScheduledFuture<?> scheduledFuture = scheduled.schedule(() -> {
+                                    if (mutex.compareAndSet(false, true)) {
+                                        requestIfRetry(p, future, responseContextConsumer, remainRetryCount);
+                                    }
+                                }, apiKeyStatus.getNextRetrySeconds(throttling), TimeUnit.SECONDS);
+                                // 追加到末尾
+                                apiKeyStatus.addListener(() -> {
+                                    if (mutex.compareAndSet(false, true)) {
+                                        scheduledFuture.cancel(false);
+                                        requestIfRetry(p, future, responseContextConsumer, remainRetryCount);
+                                    }
+                                });
+                            },
+                            () -> future.completeExceptionally(exception)
+                    );
+                    try {
+                        responseContextConsumer.accept(responseContext);
+                    } catch (Throwable e) {
+                        future.completeExceptionally(e);
                     }
                 }
             });
         } catch (Throwable throwable) {
             future.completeExceptionally(throwable);
         }
+    }
+
+    public void close() {
+        this.close = true;
     }
 
     private interface RequestListener {
@@ -192,22 +212,26 @@ public class AliyunAppsClient {
         final DashScopeResult result;
         final Exception exception;
         final int remainRetryCount;
-        final boolean throttling;
+        final boolean exceptionThrottling;
         final Consumer<ApplicationParam.ApplicationParamBuilder<?, ?>> retry;
         final Runnable complete;
+        final CompletableFuture<DashScopeResult> future;
         ApplicationParam.ApplicationParamBuilder<?, ?> paramBuilder;
 
-        public Response(ApplicationParam.ApplicationParamBuilder<?, ?> paramBuilder, DashScopeResult result, Exception exception, boolean throttling, int remainRetryCount, Consumer<ApplicationParam.ApplicationParamBuilder<?, ?>> retry, Runnable complete) {
+        public Response(ApplicationParam.ApplicationParamBuilder<?, ?> paramBuilder, DashScopeResult result, Exception exception, boolean exceptionThrottling, int remainRetryCount,
+                        CompletableFuture<DashScopeResult> future,
+                        Consumer<ApplicationParam.ApplicationParamBuilder<?, ?>> retry, Runnable complete) {
             this.paramBuilder = paramBuilder;
             this.result = result;
             this.exception = exception;
-            this.throttling = throttling;
+            this.exceptionThrottling = exceptionThrottling;
             this.remainRetryCount = remainRetryCount;
+            this.future = future;
             this.retry = retry;
             this.complete = complete;
         }
 
-        public static boolean isThrottling(Exception exception) {
+        public static boolean isExceptionThrottling(Exception exception) {
             if (exception != null) {
                 String errorString = Objects.toString(exception.getMessage(), "");
                 // 限流异常
@@ -216,6 +240,58 @@ public class AliyunAppsClient {
             } else {
                 return false;
             }
+        }
+
+        public int getRemainRetryCount() {
+            return remainRetryCount;
+        }
+
+        public boolean hasRemainRetryCount() {
+            return remainRetryCount > 0;
+        }
+
+        /**
+         * 是否限流异常
+         *
+         * @return true=限流异常，false=不是
+         */
+        public boolean isExceptionThrottling() {
+            return exceptionThrottling;
+        }
+
+        /**
+         * 是否接口超时异常
+         *
+         * @return true=接口超时异常，false=不是
+         */
+        public boolean isExceptionTimeout() {
+            return exception instanceof SocketTimeoutException;
+        }
+
+        /**
+         * 是否被工作流拒绝服务
+         * {"statusCode":500,"message":"{\"nodeName\":\"大模型1\",\"errorInfo\":\"<400> InternalError.Algo: An error occurred in model serving, error message is: [!]\",\"nodeId\":\"LLM_Mqdp\"}","code":"ModelServiceFailed","isJson":true,"requestId":"5ea0d282-5513-9e7c-9b8f-729c9a448441"}; status body:{"statusCode":500,"message":"{\"nodeName\":\"大模型1\",\"errorInfo\":\"<400> InternalError.Algo: An error occurred in model serving, error message is: [Request rejected by inference engine!]\",\"nodeId\":\"LLM_Mqdp\"}",
+         * "code":"ModelServiceFailed","isJson":true,"requestId":"xxxx"}
+         *
+         * @return true=工作流拒绝服务，false=不是
+         */
+        public boolean isExceptionModelServiceRejected() {
+            return exception instanceof ApiException
+                    && Objects.toString(exception.getMessage(), "").contains("Request rejected by inference engine");
+        }
+
+        /**
+         * 是否安全拦截异常
+         *
+         * @return true=安全拦截异常，false=不是
+         */
+        public boolean isExceptionDataInspectionFailed() {
+            return exception instanceof ApiException
+                    && Objects.toString(exception.getMessage(), "").contains("DataInspectionFailed");
+        }
+
+        public CompletableFuture<DashScopeResult> getFuture() {
+            return future;
         }
 
         public ApplicationParam.ApplicationParamBuilder<?, ?> getParamBuilder() {
@@ -258,13 +334,6 @@ public class AliyunAppsClient {
             complete.run();
         }
 
-        public int getRemainRetryCount() {
-            return remainRetryCount;
-        }
-
-        public boolean isThrottling() {
-            return throttling;
-        }
     }
 
     private static class TimeOutCancelCompletableFuture<T> extends CompletableFuture<T> {
@@ -284,6 +353,7 @@ public class AliyunAppsClient {
         final AtomicInteger currentRequestCount = new AtomicInteger();
         final LinkedList<RequestListener> listeners = new LinkedList<>();
         volatile long avgRequestMs = 0;
+        volatile long avgOnceRequestMs = 0;
 
         private ApiKeyStatus(String apiKey) {
             this.apiKey = apiKey;
@@ -294,14 +364,15 @@ public class AliyunAppsClient {
             return "ApiKeyStatus{" +
                     "apiKey='" + apiKey + '\'' +
                     ", currentRequestCount=" + currentRequestCount +
+                    ", avgOnceRequestMs=" + (avgRequestMs / 1000) +
                     ", avgRequestSec=" + (avgRequestMs / 1000) +
                     '}';
         }
 
         public int getNextRetrySeconds(boolean isThrottling) {
             // 有其他请求还没回来
-            if (currentRequestCount.intValue() > 1) {
-                long avgS = avgRequestMs / 1000;
+            if (listeners.size() > 1) {
+                long avgS = avgOnceRequestMs / 1000;
                 return ThreadLocalRandom.current().nextInt((int) Math.max(30, avgS * 0.8), (int) Math.max(60, avgS));
             } else if (isThrottling) {
                 return ThreadLocalRandom.current().nextInt(1, 6);
@@ -319,6 +390,11 @@ public class AliyunAppsClient {
 
         public void beforeRequest() {
             currentRequestCount.incrementAndGet();
+        }
+
+        public void addOnceRequest(long ms) {
+            long m = this.avgOnceRequestMs;
+            this.avgOnceRequestMs = m == 0 ? ms : (m + ms) / 2;
         }
 
         public void afterRequest(long ms) {
