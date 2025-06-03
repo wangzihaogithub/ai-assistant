@@ -34,7 +34,7 @@ public class AliyunAppsClient {
         if (retry.isThrottling()) {
             retry.retry();
         } else {
-            retry.exit();
+            retry.complete();
         }
     };
     private static final Map<String, ApiKeyStatus> API_KEY_STATUS_MAP = new ConcurrentHashMap<>();
@@ -194,17 +194,17 @@ public class AliyunAppsClient {
         final int remainRetryCount;
         final boolean throttling;
         final Consumer<ApplicationParam.ApplicationParamBuilder<?, ?>> retry;
-        final Runnable exit;
+        final Runnable complete;
         ApplicationParam.ApplicationParamBuilder<?, ?> paramBuilder;
 
-        public Response(ApplicationParam.ApplicationParamBuilder<?, ?> paramBuilder, DashScopeResult result, Exception exception, boolean throttling, int remainRetryCount, Consumer<ApplicationParam.ApplicationParamBuilder<?, ?>> retry, Runnable exit) {
+        public Response(ApplicationParam.ApplicationParamBuilder<?, ?> paramBuilder, DashScopeResult result, Exception exception, boolean throttling, int remainRetryCount, Consumer<ApplicationParam.ApplicationParamBuilder<?, ?>> retry, Runnable complete) {
             this.paramBuilder = paramBuilder;
             this.result = result;
             this.exception = exception;
             this.throttling = throttling;
             this.remainRetryCount = remainRetryCount;
             this.retry = retry;
-            this.exit = exit;
+            this.complete = complete;
         }
 
         public static boolean isThrottling(Exception exception) {
@@ -230,7 +230,7 @@ public class AliyunAppsClient {
             if (needRetry) {
                 retry.accept(paramBuilder);
             } else {
-                exit.run();
+                complete.run();
             }
         }
 
@@ -238,8 +238,8 @@ public class AliyunAppsClient {
             return result;
         }
 
-        public Runnable getExit() {
-            return exit;
+        public Runnable getComplete() {
+            return complete;
         }
 
         public Consumer<ApplicationParam.ApplicationParamBuilder<?, ?>> getRetry() {
@@ -254,8 +254,8 @@ public class AliyunAppsClient {
             retry.accept(paramBuilder);
         }
 
-        public void exit() {
-            exit.run();
+        public void complete() {
+            complete.run();
         }
 
         public int getRemainRetryCount() {
