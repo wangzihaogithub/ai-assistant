@@ -62,10 +62,10 @@ public class AiMemorySearchServiceImpl {
                                                            Integer aiChatId,
                                                            String userQueryTraceNumber) {
         AiMemorySearchRequest request = new AiMemorySearchRequest();
-        Date ragStartTime = new Date();
+        Date searchStartTime = new Date();
         try {
             knnFuture.whenComplete((knVOS, throwable) -> {
-                Date ragEndTime = new Date();
+                Date searchEndTime = new Date();
                 request.setAiMemoryId(aiMemoryId);
                 request.setIndexName(knnFuture.getIndexName());
                 request.setAiChatId(aiChatId);
@@ -74,9 +74,9 @@ public class AiMemorySearchServiceImpl {
                 request.setResponseDocCount(knVOS == null ? 0 : knVOS.size());
                 request.setErrorMessage(throwable == null ? "" : StringUtils.left(ThrowableUtil.stackTraceToString(throwable), 3995, true));
                 request.setUserQueryTraceNumber(StringUtils.left(userQueryTraceNumber, 32, true));
-                request.setSearchStartTime(ragStartTime);
-                request.setSearchEndTime(ragEndTime);
-                request.setSearchCostMs((int) (ragEndTime.getTime() - ragStartTime.getTime()));
+                request.setSearchStartTime(searchStartTime);
+                request.setSearchEndTime(searchEndTime);
+                request.setSearchCostMs((int) (searchEndTime.getTime() - searchStartTime.getTime()));
                 if (knVOS != null) {
                     for (KnVO knVO : knVOS) {
                         AiMemorySearchDoc doc = new AiMemorySearchDoc();

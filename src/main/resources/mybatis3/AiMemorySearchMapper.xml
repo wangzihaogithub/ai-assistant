@@ -3,11 +3,11 @@
 <mapper namespace="com.github.aiassistant.dao.AiMemorySearchMapper">
     <insert id="insertBatchSomeColumn" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO `ai_memory_search`
-        (`ai_chat_id`,`ai_memory_id`,`create_time`,`error_message`,`id`,`index_name`,`rag_cost_ms`,`rag_end_time`,`rag_start_time`,`request_body`,`response_doc_count`,`user_query_trace_number`)
+        (`ai_chat_id`,`ai_memory_id`,`create_time`,`error_message`,`id`,`index_name`,`search_cost_ms`,`search_end_time`,`search_start_time`,`request_body`,`response_doc_count`,`user_query_trace_number`)
         VALUES
         <foreach collection="arg0" item="item" open="" separator="," close="">
             (
-            #{item.aiChatId},  #{item.aiMemoryId},  #{item.createTime},  #{item.errorMessage},  #{item.id},  #{item.indexName},  #{item.ragCostMs},  #{item.ragEndTime},  #{item.ragStartTime},  #{item.requestBody},  #{item.responseDocCount},  #{item.userQueryTraceNumber}
+            #{item.aiChatId},  #{item.aiMemoryId},  #{item.createTime},  #{item.errorMessage},  #{item.id},  #{item.indexName},  #{item.searchCostMs},  #{item.searchEndTime},  #{item.searchStartTime},  #{item.requestBody},  #{item.responseDocCount},  #{item.userQueryTraceNumber}
             )
         </foreach>
     </insert>
