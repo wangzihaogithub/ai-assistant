@@ -189,7 +189,7 @@ public class KnnApiService {
 
     /**
      * 知识库向量搜索
-     * https://www.elastic.co/guide/en/elasticsearch/reference/current/knn-search-api.html
+     * <a href="https://www.elastic.co/guide/en/elasticsearch/reference/current/knn-search-api.html">https://www.elastic.co/guide/en/elasticsearch/reference/current/knn-search-api.html</a>
      *
      * @param minScore           minScore
      * @param knTop1Score        knTop1Score

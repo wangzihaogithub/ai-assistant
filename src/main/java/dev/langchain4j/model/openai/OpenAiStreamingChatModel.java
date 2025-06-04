@@ -33,7 +33,7 @@ import static java.time.Duration.ofSeconds;
 import static java.util.Collections.emptyList;
 
 /**
- * 通义千问API接口文档：https://help.aliyun.com/zh/model-studio/use-qwen-by-calling-api
+ * 通义千问API接口文档：<a href="https://help.aliyun.com/zh/model-studio/use-qwen-by-calling-api">https://help.aliyun.com/zh/model-studio/use-qwen-by-calling-api</a>
  * Represents an OpenAI language model with a chat completion interface, such as gpt-3.5-turbo and gpt-4.
  * The model's response is streamed token by token and should be handled with {@link StreamingResponseHandler}.
  * You can find description of parameters <a href="https://platform.openai.com/docs/api-reference/chat/create">here</a>.

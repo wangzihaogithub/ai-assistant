@@ -240,7 +240,7 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
      * 如：audio={"voice": "Cherry", "format": "wav"}，
      * 其中商业版模型voice参数可选值为：["Cherry", "Serena", "Ethan", "Chelsie"]，
      * 开源版模型voice参数可选值为：["Ethan", "Chelsie"]。
-     * https://bailian.console.aliyun.com/?tab=api#/api/?type=model
+     * <a href="https://bailian.console.aliyun.com/?tab=api#/api/?type=model">https://bailian.console.aliyun.com/?tab=api#/api/?type=model</a>
      *
      * @param audioChunk 部分语音回复块
      */

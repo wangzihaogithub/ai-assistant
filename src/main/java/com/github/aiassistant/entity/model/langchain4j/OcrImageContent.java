@@ -7,7 +7,7 @@ import java.net.URI;
 
 /**
  * 关于通义千问OCR模型进行文字提取更多用法，请参见文字提取。
- * https://help.aliyun.com/zh/model-studio/qwen-vl-ocr
+ * <a href="https://help.aliyun.com/zh/model-studio/qwen-vl-ocr">https://help.aliyun.com/zh/model-studio/qwen-vl-ocr</a>
  */
 public class OcrImageContent extends ImageContent {
     /**

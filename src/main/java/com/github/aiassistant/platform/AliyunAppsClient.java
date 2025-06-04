@@ -27,21 +27,26 @@ import java.util.function.Consumer;
 
 /**
  * 阿里云大模型客户端
- * 接口文档：https://help.aliyun.com/zh/model-studio/call-application-through-api
- * 错误码文档：https://help.aliyun.com/zh/model-studio/error-code
- * 连接池配置文档: https://help.aliyun.com/zh/model-studio/developer-reference/connection-pool-configuration
- * 应用详情：https://bailian.console.aliyun.com/?tab=app#/app-center/assistant/{appId}
+ * 接口文档：<a href="https://help.aliyun.com/zh/model-studio/call-application-through-api">https://help.aliyun.com/zh/model-studio/call-application-through-api</a>
+ * 错误码文档：<a href="https://help.aliyun.com/zh/model-studio/error-code">https://help.aliyun.com/zh/model-studio/error-code</a>
+ * 连接池配置文档: <a href="https://help.aliyun.com/zh/model-studio/developer-reference/connection-pool-configuration">https://help.aliyun.com/zh/model-studio/developer-reference/connection-pool-configuration</a>
+ * 应用详情：<a href="https://bailian.console.aliyun.com/?tab=app#/app-center/assistant/{yourAppId}">https://bailian.console.aliyun.com/?tab=app#/app-center/assistant/{yourAppId}</a>
  */
 public class AliyunAppsClient {
     /**
      * 如果被拒绝，则永久重试
      */
     public static final Consumer<Response> IF_REJECT_FOREVER_RETRY = response -> {
-        if (response.isExceptionThrottling() || response.isExceptionModelServiceRejected() || response.isExceptionServiceRequestTimeOut()) {
+        // 是否限流异常 || 是否被工作流拒绝服务 || 阿里云智能体服务超时
+        if (response.isExceptionThrottling() || response.isExceptionModelServiceRejected() || response.isExceptionRequestTimeOutPleaseAgainLater()) {
+            // 重试
             response.retry();
         } else if (response.hasRemainRetryCount() && response.isExceptionTimeout()) {
+            // 是否还有剩余重试次数 && 是否接口超时异常
+            // 重试
             response.retry();
         } else {
+            // 完成请求，不重试
             response.complete();
         }
     };
@@ -231,6 +236,13 @@ public class AliyunAppsClient {
             this.complete = complete;
         }
 
+        /**
+         * 是否限流异常
+         * 错误码文档：<a href="https://help.aliyun.com/zh/model-studio/error-code">https://help.aliyun.com/zh/model-studio/error-code</a>
+         *
+         * @param exception 异常
+         * @return true=限流异常，false=不是
+         */
         public static boolean isExceptionThrottling(Exception exception) {
             if (exception != null) {
                 String errorString = Objects.toString(exception.getMessage(), "");
@@ -242,10 +254,19 @@ public class AliyunAppsClient {
             }
         }
 
+        public boolean isException() {
+            return exception != null;
+        }
+
         public int getRemainRetryCount() {
             return remainRetryCount;
         }
 
+        /**
+         * 是否还有剩余重试次数
+         *
+         * @return true=还有重试次数，false=没有
+         */
         public boolean hasRemainRetryCount() {
             return remainRetryCount > 0;
         }
@@ -281,14 +302,17 @@ public class AliyunAppsClient {
         }
 
         /**
-         * 是否工作流内部超时
+         * 是否阿里云智能体服务超时
          * Caused by: com.alibaba.dashscope.exception.ApiException: {"statusCode":500,"message":"Request timed out, please try again later.","code":"RequestTimeOut","isJson":true,"requestId":"4cdd9eef-a0cd-90d3-8b7a-0c673144a93c"}; status body:{"statusCode":500,"message":"Request timed out, please try again later.","code":"RequestTimeOut","isJson":true,"requestId":"4cdd9eef-a0cd-90d3-8b7a-0c673144a93c"}
+         * 阿里云服务支持:(当前由真人提供服务（工程师是杜依纯，非机器人）): 您好，这个考虑是服务器并发满了，请求拒绝了.
          *
-         * @return true=工作流内部超时，false=不是
+         * @return true=智能体服务超时，false=不是
          */
-        public boolean isExceptionServiceRequestTimeOut() {
+        public boolean isExceptionRequestTimeOutPleaseAgainLater() {
+            String message;
             return exception instanceof ApiException
-                    && Objects.toString(exception.getMessage(), "").contains("RequestTimeOut");
+                    && (message = Objects.toString(exception.getMessage(), "")).contains("RequestTimeOut")
+                    && message.contains("please try again later");
         }
 
         /**
@@ -341,6 +365,9 @@ public class AliyunAppsClient {
             retry.accept(paramBuilder);
         }
 
+        /**
+         * 完成请求，不重试
+         */
         public void complete() {
             complete.run();
         }
