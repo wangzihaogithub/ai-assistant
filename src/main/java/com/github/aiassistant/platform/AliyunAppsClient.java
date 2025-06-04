@@ -27,10 +27,14 @@ import java.util.function.Consumer;
 
 /**
  * 阿里云大模型客户端
+ * <p>
  * 接口文档：<a href="https://help.aliyun.com/zh/model-studio/call-application-through-api">https://help.aliyun.com/zh/model-studio/call-application-through-api</a>
+ * <p>
  * 错误码文档：<a href="https://help.aliyun.com/zh/model-studio/error-code">https://help.aliyun.com/zh/model-studio/error-code</a>
+ * <p>
  * 连接池配置文档: <a href="https://help.aliyun.com/zh/model-studio/developer-reference/connection-pool-configuration">https://help.aliyun.com/zh/model-studio/developer-reference/connection-pool-configuration</a>
- * 应用详情：<a href="https://bailian.console.aliyun.com/?tab=app#/app-center/assistant/{yourAppId}">https://bailian.console.aliyun.com/?tab=app#/app-center/assistant/{yourAppId}</a>
+ * <p>
+ * 应用详情：<a href="https://bailian.console.aliyun.com/?tab=app#/app-center/assistant/yourAppId">https://bailian.console.aliyun.com/?tab=app#/app-center/assistant/yourAppId</a>
  */
 public class AliyunAppsClient {
     /**
