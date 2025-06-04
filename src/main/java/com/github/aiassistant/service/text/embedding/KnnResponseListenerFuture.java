@@ -18,6 +18,7 @@ public class KnnResponseListenerFuture<T extends KnVO> extends CompletableFuture
     private final double minScore;
     private final Double knTop1Score;
     private final String indexName;
+    private final long createTime = System.currentTimeMillis();
     private Response response;
 
     KnnResponseListenerFuture(double minScore,
@@ -34,6 +35,10 @@ public class KnnResponseListenerFuture<T extends KnVO> extends CompletableFuture
             cancellable.cancel();
         }
         requestBytesFuture.complete(new Request(cancellable, requestBody));
+    }
+
+    public long getCreateTime() {
+        return createTime;
     }
 
     @Override

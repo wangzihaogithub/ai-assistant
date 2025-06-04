@@ -62,10 +62,10 @@ public class AiMemorySearchServiceImpl {
                                                            Integer aiChatId,
                                                            String userQueryTraceNumber) {
         AiMemorySearchRequest request = new AiMemorySearchRequest();
-        Date searchStartTime = new Date();
         try {
             knnFuture.whenComplete((knVOS, throwable) -> {
                 Date searchEndTime = new Date();
+                Date searchStartTime = new Date(knnFuture.getCreateTime());
                 request.setAiMemoryId(aiMemoryId);
                 request.setIndexName(knnFuture.getIndexName());
                 request.setAiChatId(aiChatId);
