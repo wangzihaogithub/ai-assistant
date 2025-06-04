@@ -5,6 +5,7 @@ import com.github.aiassistant.entity.AiAssistantKn;
 import com.github.aiassistant.entity.model.chat.KnVO;
 import com.github.aiassistant.platform.JsonUtil;
 import com.github.aiassistant.util.AiUtil;
+import com.github.aiassistant.util.FutureUtil;
 import com.github.aiassistant.util.StringUtils;
 import dev.langchain4j.model.openai.OpenAiEmbeddingModel;
 import org.apache.http.client.entity.EntityBuilder;
@@ -13,8 +14,8 @@ import org.elasticsearch.client.*;
 
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
 /**
  * 向量模型服务
@@ -104,18 +105,26 @@ public class KnnApiService {
 
     public <R, T extends KnVO> Map<String, CompletableFuture<List<R>>> knnSearchLibMap(Collection<String> queryStringList,
                                                                                        AiAssistantKn kn,
-                                                                                       Function<T, R> mapper,
                                                                                        Function<String, CompletableFuture<Map<String, Object>>> bodyBuilder,
-                                                                                       Class<T> type) {
+                                                                                       Class<T> type,
+                                                                                       Function<KnnResponseListenerFuture<T>, CompletableFuture<List<R>>> mapper) {
         LinkedHashMap<String, CompletableFuture<List<R>>> map = new LinkedHashMap<>();
         for (String s : queryStringList) {
             if (map.containsKey(s)) {
                 continue;
             }
-            map.put(s, knnSearchLib(kn, type, bodyBuilder.apply(s))
-                    .thenApply(e1 -> e1.stream().map(mapper).collect(Collectors.toList())));
+            map.put(s, mapper.apply(knnSearchLib(kn, type, bodyBuilder.apply(s))));
         }
         return map;
+    }
+
+    public <R, T extends KnVO> Map<String, CompletableFuture<List<R>>> knnSearchLibMap(Collection<String> queryStringList,
+                                                                                       AiAssistantKn kn,
+                                                                                       Function<String, CompletableFuture<Map<String, Object>>> bodyBuilder,
+                                                                                       Class<T> type,
+                                                                                       Function<T, R> mapper,
+                                                                                       Consumer<KnnResponseListenerFuture<T>> consumer) {
+        return knnSearchLibMap(queryStringList, kn, bodyBuilder, type, e -> FutureUtil.map(e, mapper, consumer));
     }
 
     /**
