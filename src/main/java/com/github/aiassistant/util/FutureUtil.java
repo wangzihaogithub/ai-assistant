@@ -1,8 +1,5 @@
 package com.github.aiassistant.util;
 
-import com.github.aiassistant.entity.model.chat.KnVO;
-import com.github.aiassistant.service.text.ChatStreamingResponseHandler;
-import com.github.aiassistant.service.text.embedding.KnnResponseListenerFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -13,7 +10,6 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
 /**
  * 异步工具类（1.对象转换，2.流程编排）
@@ -384,19 +380,6 @@ public class FutureUtil {
             });
         }
         return future;
-    }
-
-    public static <R, T extends KnVO> CompletableFuture<List<R>> map(KnnResponseListenerFuture<T> future,
-                                                                     Function<T, R> mapper,
-                                                                     Consumer<KnnResponseListenerFuture<T>> consumer) {
-        consumer.accept(future);
-        return future.thenApply(list -> list.stream().map(mapper).collect(Collectors.toList()));
-    }
-
-    public static <R, T extends KnVO> CompletableFuture<List<R>> map(KnnResponseListenerFuture<T> future,
-                                                                     Function<T, R> mapper,
-                                                                     ChatStreamingResponseHandler consumer) {
-        return map(future, mapper, consumer::onKnnSearch);
     }
 
     @FunctionalInterface

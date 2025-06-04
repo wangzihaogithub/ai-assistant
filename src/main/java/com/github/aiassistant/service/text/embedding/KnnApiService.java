@@ -5,7 +5,6 @@ import com.github.aiassistant.entity.AiAssistantKn;
 import com.github.aiassistant.entity.model.chat.KnVO;
 import com.github.aiassistant.platform.JsonUtil;
 import com.github.aiassistant.util.AiUtil;
-import com.github.aiassistant.util.FutureUtil;
 import com.github.aiassistant.util.StringUtils;
 import dev.langchain4j.model.openai.OpenAiEmbeddingModel;
 import org.apache.http.client.entity.EntityBuilder;
@@ -77,54 +76,90 @@ public class KnnApiService {
         this.embeddingStore = embeddingStore;
     }
 
-//    public static void settingIO(RestClientBuilder builder) {
-//        int concurrentRequest = 50;
-//        int socketTimeout = 120_000;
-//        builder.setRequestConfigCallback(requestConfigBuilder -> requestConfigBuilder
-//                .setConnectTimeout(5000)
-//                .setConnectionRequestTimeout(10_000)
-//                .setSocketTimeout(socketTimeout));
-//        builder.setHttpClientConfigCallback(httpClientBuilder -> {
-//            IOReactorConfig reactorConfig = IOReactorConfig.custom()
-//                    .setIoThreadCount(Math.max(concurrentRequest, Runtime.getRuntime().availableProcessors()))
-//                    .setSelectInterval(100)
-//                    .setSoKeepAlive(true)
-//                    .setShutdownGracePeriod(60_000)
-//                    .build();
-//            httpClientBuilder.setMaxConnTotal(concurrentRequest);
-//            httpClientBuilder.setMaxConnPerRoute(concurrentRequest);
-//            httpClientBuilder.setDefaultIOReactorConfig(reactorConfig);
-//            httpClientBuilder.setKeepAliveStrategy((response, context) -> socketTimeout / 3);
-//            return httpClientBuilder;
-//        });
-//    }
-
     private static String uniqueKey(Object... keys) {
         return Arrays.toString(keys);
     }
 
+    /**
+     * 批量查询关键词
+     *
+     * @param queryStringList 查询关键词
+     * @param kn              知识库配置
+     * @param bodyBuilder     查询条件
+     * @param type            结果类型
+     * @param mapper          如果需要结果转换
+     * @param <R>             返回结果类型
+     * @param <T>             知识库类型
+     * @return 批量查询异步结果
+     */
     public <R, T extends KnVO> Map<String, CompletableFuture<List<R>>> knnSearchLibMap(Collection<String> queryStringList,
                                                                                        AiAssistantKn kn,
                                                                                        Function<String, CompletableFuture<Map<String, Object>>> bodyBuilder,
                                                                                        Class<T> type,
                                                                                        Function<KnnResponseListenerFuture<T>, CompletableFuture<List<R>>> mapper) {
-        LinkedHashMap<String, CompletableFuture<List<R>>> map = new LinkedHashMap<>();
+        LinkedHashMap<String, CompletableFuture<List<R>>> map = new LinkedHashMap<>(queryStringList.size());
         for (String s : queryStringList) {
             if (map.containsKey(s)) {
                 continue;
             }
-            map.put(s, mapper.apply(knnSearchLib(kn, type, bodyBuilder.apply(s))));
+            KnnResponseListenerFuture<T> future = knnSearchLib(kn, type, bodyBuilder.apply(s));
+            map.put(s, mapper != null ? mapper.apply(future) : (CompletableFuture) future);
         }
         return map;
     }
 
-    public <R, T extends KnVO> Map<String, CompletableFuture<List<R>>> knnSearchLibMap(Collection<String> queryStringList,
-                                                                                       AiAssistantKn kn,
-                                                                                       Function<String, CompletableFuture<Map<String, Object>>> bodyBuilder,
-                                                                                       Class<T> type,
-                                                                                       Function<T, R> mapper,
-                                                                                       Consumer<KnnResponseListenerFuture<T>> consumer) {
-        return knnSearchLibMap(queryStringList, kn, bodyBuilder, type, e -> FutureUtil.map(e, mapper, consumer));
+    /**
+     * 批量查询关键词
+     *
+     * @param queryStringList 查询关键词
+     * @param kn              知识库配置
+     * @param bodyBuilder     查询条件
+     * @param type            结果类型
+     * @param <T>             知识库类型
+     * @param consumer        如果需要结果处理
+     * @return 批量查询异步结果
+     */
+    public <T extends KnVO> Map<String, KnnResponseListenerFuture<T>> knnSearchLibMap(Collection<String> queryStringList,
+                                                                                      AiAssistantKn kn,
+                                                                                      Function<String, CompletableFuture<Map<String, Object>>> bodyBuilder,
+                                                                                      Class<T> type,
+                                                                                      Consumer<KnnResponseListenerFuture<T>> consumer) {
+        LinkedHashMap<String, KnnResponseListenerFuture<T>> map = new LinkedHashMap<>(queryStringList.size());
+        for (String s : queryStringList) {
+            if (map.containsKey(s)) {
+                continue;
+            }
+            KnnResponseListenerFuture<T> future = knnSearchLib(kn, type, bodyBuilder.apply(s));
+            if (consumer != null) {
+                consumer.accept(future);
+            }
+            map.put(s, future);
+        }
+        return map;
+    }
+
+    /**
+     * 批量查询关键词
+     *
+     * @param queryStringList 查询关键词
+     * @param kn              知识库配置
+     * @param bodyBuilder     查询条件
+     * @param type            结果类型
+     * @param <T>             知识库类型
+     * @return 批量查询异步结果
+     */
+    public <T extends KnVO> Map<String, KnnResponseListenerFuture<T>> knnSearchLibMap(Collection<String> queryStringList,
+                                                                                      AiAssistantKn kn,
+                                                                                      Function<String, CompletableFuture<Map<String, Object>>> bodyBuilder,
+                                                                                      Class<T> type) {
+        LinkedHashMap<String, KnnResponseListenerFuture<T>> map = new LinkedHashMap<>(queryStringList.size());
+        for (String s : queryStringList) {
+            if (map.containsKey(s)) {
+                continue;
+            }
+            map.put(s, knnSearchLib(kn, type, bodyBuilder.apply(s)));
+        }
+        return map;
     }
 
     /**
@@ -143,57 +178,6 @@ public class KnnApiService {
         Double knTop1Score = AiUtil.scoreToDouble(kn.getKnTop1Score());
         String indexName = kn.getKnIndexName();
         return knnSearch(minScore, knTop1Score, indexName, KnnQueryBuilderFuture.completedFuture(type, body));
-    }
-
-    /**
-     * 获取向量模型
-     *
-     * @param assistant assistant
-     * @return 向量模型
-     */
-    public EmbeddingModelClient getModel(AiAssistantKn assistant) {
-        if (assistant == null) {
-            return null;
-        }
-        String embeddingApiKey = assistant.getEmbeddingApiKey();
-        if (!StringUtils.hasText(embeddingApiKey)) {
-            return null;
-        }
-        String embeddingBaseUrl = assistant.getEmbeddingBaseUrl();
-        String embeddingModelName = assistant.getEmbeddingModelName();
-        Integer embeddingDimensions = assistant.getEmbeddingDimensions();
-        OpenAiEmbeddingModel[] models = modelMap.computeIfAbsent(uniqueKey(embeddingModelName, embeddingApiKey, embeddingBaseUrl, embeddingDimensions), e -> {
-            OpenAiEmbeddingModel[] arrays = new OpenAiEmbeddingModel[concurrentEmbeddingModelCount];
-            for (int i = 0; i < arrays.length; i++) {
-                arrays[i] = create(embeddingApiKey, embeddingBaseUrl, embeddingModelName, embeddingDimensions);
-            }
-            return arrays;
-        });
-        return new EmbeddingModelClient(models[modelModIndex++ % models.length],
-                assistant.getEmbeddingModelName(),
-                assistant.getEmbeddingDimensions(),
-                assistant.getEmbeddingMaxRequestSize(),
-                aiEmbeddingMapper, executor);
-    }
-
-    @Override
-    public String toString() {
-        return modelMap.keySet().toString();
-    }
-
-    /**
-     * 创建向量模型
-     */
-    private OpenAiEmbeddingModel create(String embeddingApiKey,
-                                        String embeddingBaseUrl,
-                                        String embeddingModelName,
-                                        Integer embeddingDimensions) {
-        return OpenAiEmbeddingModel.builder()
-                .apiKey(embeddingApiKey)
-                .baseUrl(embeddingBaseUrl)
-                .modelName(embeddingModelName)
-                .dimensions(embeddingDimensions)
-                .build();
     }
 
     /**
@@ -243,5 +227,78 @@ public class KnnApiService {
             }
         });
         return future;
+    }
+
+    /**
+     * 获取向量模型
+     *
+     * @param assistant assistant
+     * @return 向量模型
+     */
+    public EmbeddingModelClient getModel(AiAssistantKn assistant) {
+        if (assistant == null) {
+            return null;
+        }
+        String embeddingApiKey = assistant.getEmbeddingApiKey();
+        if (!StringUtils.hasText(embeddingApiKey)) {
+            return null;
+        }
+        String embeddingBaseUrl = assistant.getEmbeddingBaseUrl();
+        String embeddingModelName = assistant.getEmbeddingModelName();
+        Integer embeddingDimensions = assistant.getEmbeddingDimensions();
+        OpenAiEmbeddingModel[] models = modelMap.computeIfAbsent(uniqueKey(embeddingModelName, embeddingApiKey, embeddingBaseUrl, embeddingDimensions), e -> {
+            OpenAiEmbeddingModel[] arrays = new OpenAiEmbeddingModel[concurrentEmbeddingModelCount];
+            for (int i = 0; i < arrays.length; i++) {
+                arrays[i] = create(embeddingApiKey, embeddingBaseUrl, embeddingModelName, embeddingDimensions);
+            }
+            return arrays;
+        });
+        return new EmbeddingModelClient(models[modelModIndex++ % models.length],
+                assistant.getEmbeddingModelName(),
+                assistant.getEmbeddingDimensions(),
+                assistant.getEmbeddingMaxRequestSize(),
+                aiEmbeddingMapper, executor);
+    }
+
+//    public static void settingIO(RestClientBuilder builder) {
+//        int concurrentRequest = 50;
+//        int socketTimeout = 120_000;
+//        builder.setRequestConfigCallback(requestConfigBuilder -> requestConfigBuilder
+//                .setConnectTimeout(5000)
+//                .setConnectionRequestTimeout(10_000)
+//                .setSocketTimeout(socketTimeout));
+//        builder.setHttpClientConfigCallback(httpClientBuilder -> {
+//            IOReactorConfig reactorConfig = IOReactorConfig.custom()
+//                    .setIoThreadCount(Math.max(concurrentRequest, Runtime.getRuntime().availableProcessors()))
+//                    .setSelectInterval(100)
+//                    .setSoKeepAlive(true)
+//                    .setShutdownGracePeriod(60_000)
+//                    .build();
+//            httpClientBuilder.setMaxConnTotal(concurrentRequest);
+//            httpClientBuilder.setMaxConnPerRoute(concurrentRequest);
+//            httpClientBuilder.setDefaultIOReactorConfig(reactorConfig);
+//            httpClientBuilder.setKeepAliveStrategy((response, context) -> socketTimeout / 3);
+//            return httpClientBuilder;
+//        });
+//    }
+
+    /**
+     * 创建向量模型
+     */
+    private OpenAiEmbeddingModel create(String embeddingApiKey,
+                                        String embeddingBaseUrl,
+                                        String embeddingModelName,
+                                        Integer embeddingDimensions) {
+        return OpenAiEmbeddingModel.builder()
+                .apiKey(embeddingApiKey)
+                .baseUrl(embeddingBaseUrl)
+                .modelName(embeddingModelName)
+                .dimensions(embeddingDimensions)
+                .build();
+    }
+
+    @Override
+    public String toString() {
+        return modelMap.keySet().toString();
     }
 }
