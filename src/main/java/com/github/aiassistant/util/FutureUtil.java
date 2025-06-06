@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -120,7 +121,7 @@ public class FutureUtil {
      * @param <T>    数据类型
      * @return 新异步执行后的异步
      */
-    public static <T> CompletableFuture<T> join(CompletableFuture<T> future, CompletableFuture<T> join) {
+    public static <T, F extends CompletionStage<T>> CompletableFuture<T> join(F future, CompletableFuture<T> join) {
         return future.whenComplete((t, throwable) -> {
             if (throwable != null) {
                 try {
@@ -139,7 +140,7 @@ public class FutureUtil {
                     }
                 }
             }
-        });
+        }).toCompletableFuture();
     }
 
     /**
@@ -150,19 +151,19 @@ public class FutureUtil {
      * @param <V> Value数据格式
      * @return 扁平格式（等待全部结束）
      */
-    public static <K, V> CompletableFuture<Map<K, List<V>>> allOfMapList(Map<K, List<CompletableFuture<V>>> map) {
+    public static <K, V, F extends CompletionStage<V>> CompletableFuture<Map<K, List<V>>> allOfMapList(Map<K, List<F>> map) {
         Map<K, List<V>> result = new ConcurrentHashMap<>();
         AtomicInteger countDown = new AtomicInteger(map.values().stream().mapToInt(List::size).sum());
         if (countDown.intValue() == 0) {
             return CompletableFuture.completedFuture(result);
         }
         CompletableFuture<Map<K, List<V>>> future = new CompletableFuture<>();
-        for (Map.Entry<K, List<CompletableFuture<V>>> entry : map.entrySet()) {
+        for (Map.Entry<K, List<F>> entry : map.entrySet()) {
             K key = entry.getKey();
-            List<CompletableFuture<V>> value = entry.getValue();
+            List<F> value = entry.getValue();
             List<V> list = Collections.synchronizedList(new ArrayList<>(value.size()));
             result.put(key, list);
-            for (CompletableFuture<V> f : value) {
+            for (F f : value) {
                 f.whenComplete((resp, throwable) -> {
                     if (throwable != null) {
                         try {
@@ -195,9 +196,10 @@ public class FutureUtil {
      * 不同于{@link CompletableFuture#allOf(CompletableFuture[])} 的区别是，本方法的allOf是快速失败
      *
      * @param futures 异步
+     * @param <F>     异步数据格式
      * @return 需要等待一次的扁平格式（等待全部结束）
      */
-    public static CompletableFuture<List<Object>> allOf(CompletableFuture<?>... futures) {
+    public static <F extends CompletionStage<?>> CompletableFuture<List<Object>> allOf(F... futures) {
         return allOf((List) Arrays.asList(futures));
     }
 
@@ -207,16 +209,17 @@ public class FutureUtil {
      *
      * @param futures 异步
      * @param <V>     Value数据格式
+     * @param <F>     异步数据格式
      * @return 需要等待一次的扁平格式（等待全部结束）
      */
-    public static <V> CompletableFuture<List<V>> allOf(List<? extends CompletableFuture<V>> futures) {
+    public static <V, F extends CompletionStage<V>> CompletableFuture<List<V>> allOf(List<F> futures) {
         switch (futures.size()) {
             case 0: {
                 return CompletableFuture.completedFuture(new ArrayList<>());
             }
             case 1: {
-                return futures.get(0).thenApply(v -> {
-                    ArrayList<V> list = new ArrayList<>(1);
+                return futures.get(0).toCompletableFuture().thenApply(v -> {
+                    List<V> list = new ArrayList<>(1);
                     list.add(v);
                     return list;
                 });
@@ -225,7 +228,7 @@ public class FutureUtil {
                 CompletableFuture<List<V>> result = new CompletableFuture<>();
                 List<V> list = new ArrayList<>(futures.size());
                 AtomicInteger count = new AtomicInteger(futures.size());
-                for (CompletableFuture<V> future : futures) {
+                for (F future : futures) {
                     future.whenComplete((v, throwable) -> {
                         if (throwable != null) {
                             try {
@@ -242,7 +245,11 @@ public class FutureUtil {
                                     result.complete(list);
                                 } catch (Throwable t) {
                                     try {
-                                        future.obtrudeException(t);
+                                        if (future instanceof CompletableFuture) {
+                                            ((CompletableFuture<?>) future).obtrudeException(t);
+                                        } else {
+                                            future.toCompletableFuture().obtrudeException(t);
+                                        }
                                     } catch (Throwable ttt) {
                                         log.error("FutureUtil allOf Error while executing future {}", t.toString(), t);
                                     }
@@ -262,9 +269,10 @@ public class FutureUtil {
      * @param future    异步
      * @param scheduled 是否切换线程，如果要后续任务会阻塞IO线程，建议穿一个scheduled
      * @param <V>       Value数据格式
+     * @param <F>       异步数据格式
      * @return 需要等待一次的扁平格式（等待全部结束）
      */
-    public static <V> CompletableFuture<V> allOf(CompletableFuture<CompletableFuture<V>> future, Executor scheduled) {
+    public static <V, F extends CompletionStage<V>> CompletableFuture<V> allOf(CompletableFuture<F> future, Executor scheduled) {
         Executor scheduledNotNull = scheduled == null ? Runnable::run : e -> {
             boolean[] run = new boolean[1];
             try {
@@ -330,9 +338,9 @@ public class FutureUtil {
      * @param <V>  Value数据格式
      * @return 扁平格式（等待全部结束）
      */
-    public static <V> CompletableFuture<List<List<V>>> allOfListList(List<List<CompletableFuture<V>>> list) {
+    public static <V, F extends CompletionStage<V>> CompletableFuture<List<List<V>>> allOfListList(List<List<F>> list) {
         List<CompletableFuture<List<V>>> result = new ArrayList<>();
-        for (List<CompletableFuture<V>> l : list) {
+        for (List<F> l : list) {
             result.add(allOf(l));
         }
         return allOf(result);
@@ -346,16 +354,16 @@ public class FutureUtil {
      * @param <V> Value数据格式
      * @return 扁平格式（等待全部结束）
      */
-    public static <K, V> CompletableFuture<Map<K, V>> allOfMap(Map<K, CompletableFuture<V>> map) {
+    public static <K, V, F extends CompletionStage<V>> CompletableFuture<Map<K, V>> allOfMap(Map<K, F> map) {
         Map<K, V> result = new ConcurrentHashMap<>();
         AtomicInteger countDown = new AtomicInteger(map.size());
         if (countDown.intValue() == 0) {
             return CompletableFuture.completedFuture(result);
         }
         CompletableFuture<Map<K, V>> future = new CompletableFuture<>();
-        for (Map.Entry<K, CompletableFuture<V>> entry : map.entrySet()) {
+        for (Map.Entry<K, F> entry : map.entrySet()) {
             K key = entry.getKey();
-            CompletableFuture<V> value = entry.getValue();
+            F value = entry.getValue();
             value.whenComplete((resultList, throwable) -> {
                 if (throwable != null) {
                     try {
