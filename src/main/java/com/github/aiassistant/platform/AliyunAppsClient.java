@@ -209,7 +209,7 @@ public class AliyunAppsClient {
      * @param responseContextConsumer 用户重试逻辑
      * @param maxRetryCount           最大重试次数
      */
-    private void requestIfRetry(ApplicationParam.ApplicationParamBuilder<?, ?> paramBuilder, CompletableFuture<DashScopeResult> future, Consumer<Response> responseContextConsumer, int maxRetryCount) {
+    private void requestIfRetry(ApplicationParam.ApplicationParamBuilder<?, ?> paramBuilder, TimeOutCancelCompletableFuture<DashScopeResult> future, Consumer<Response> responseContextConsumer, int maxRetryCount) {
         if (future.isDone()) {
             // 外部调用方主动完成或取消任务
             return;
@@ -251,6 +251,7 @@ public class AliyunAppsClient {
 
                 @Override
                 public void onError(Exception exception) {
+                    future.lastException = exception;
                     if (close) {
                         future.completeExceptionally(exception);
                         return;
@@ -477,6 +478,7 @@ public class AliyunAppsClient {
         private final long timestamp = System.currentTimeMillis();
         private final long id;
         private final AliyunAppsClient client;
+        private Exception lastException;
 
         private TimeOutCancelCompletableFuture(AliyunAppsClient client) {
             this.id = client.futureIdIncr.getAndIncrement();
@@ -556,13 +558,14 @@ public class AliyunAppsClient {
             long timestamp = System.currentTimeMillis();
             Iterator<TimeOutCancelCompletableFuture<DashScopeResult>> iterator = currentRequestCount.iterator();
             while (iterator.hasNext()) {
-                TimeOutCancelCompletableFuture<DashScopeResult> next = iterator.next();
-                if (next.client == client) {
-                    long t = timestamp - next.timestamp;
+                TimeOutCancelCompletableFuture<DashScopeResult> future = iterator.next();
+                if (future.client == client) {
+                    long t = timestamp - future.timestamp;
                     if (t >= timeout) {
                         iterator.remove();
                         try {
-                            next.completeExceptionally(new TimeoutException("request timeout! cost=" + t + "ms, timeout=" + timeout + "ms"));
+                            Exception lastException = future.lastException;
+                            future.completeExceptionally(lastException != null ? lastException : new TimeoutException("request timeout! cost=" + t + "ms, timeout=" + timeout + "ms"));
                         } catch (Throwable e) {
                             log.error("removeTimeout cancel error! {} ", e.toString(), e);
                         }
