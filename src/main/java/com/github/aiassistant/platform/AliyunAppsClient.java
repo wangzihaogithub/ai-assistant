@@ -107,9 +107,9 @@ public class AliyunAppsClient {
             thread.setName("AliyunAppsClientRetry-" + appId + "-" + thread.getId());
             return thread;
         });
-        scheduled.allowCoreThreadTimeOut(true);
-        scheduled.setRemoveOnCancelPolicy(true);
         scheduled.setKeepAliveTime(60, TimeUnit.SECONDS);
+        scheduled.setRemoveOnCancelPolicy(true);
+        scheduled.allowCoreThreadTimeOut(true);
         this.apiKeyStatus = API_KEY_STATUS_MAP.computeIfAbsent(apiKey, ApiKeyStatus::new);
     }
 
