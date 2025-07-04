@@ -18,14 +18,10 @@ import org.slf4j.LoggerFactory;
 import java.net.SocketTimeoutException;
 import java.nio.channels.ClosedChannelException;
 import java.time.LocalTime;
-import java.util.Arrays;
-import java.util.LinkedList;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.LongAdder;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
 /**
@@ -82,7 +78,12 @@ public class AliyunAppsClient {
     private final ApiKeyStatus apiKeyStatus;
     private Semaphore maxCurrentRequestCount = new Semaphore(2000);
     // 将重试请求均匀分担到未来的几秒内
-    private final SecondIncr secondIncr = new SecondIncr();
+    private final SecondIncr retrySecondIncr = new SecondIncr(60);
+    // 将超时延迟任务合并
+    private final SecondIncr autoCancelTimeoutScheduledFutureIdIncr = new SecondIncr(300);
+    // 两分钟超时自动取消(毫秒)
+    private long autoCancelTimeoutMs = 120_000;
+    private final AtomicLong futureIdIncr = new AtomicLong();
     private boolean close = false;
 
     public AliyunAppsClient(String apiKey, String appId) {
@@ -128,6 +129,14 @@ public class AliyunAppsClient {
         this.maxCurrentRequestCount = new Semaphore(maxCurrentRequestCount);
     }
 
+    public void setAutoCancelTimeoutMs(long autoCancelTimeoutMs) {
+        this.autoCancelTimeoutMs = autoCancelTimeoutMs;
+    }
+
+    public long getAutoCancelTimeoutMs() {
+        return autoCancelTimeoutMs;
+    }
+
     /**
      * 向阿里云发起请求
      *
@@ -160,23 +169,30 @@ public class AliyunAppsClient {
      * @return 大模型返回结果 com.alibaba.dashscope.common.DashScopeResult
      */
     public CompletableFuture<DashScopeResult> request(ApplicationParam.ApplicationParamBuilder<?, ?> paramBuilder, Consumer<Response> responseContextConsumer, int maxRetryCount) {
-        // 统计返回耗时
-        long timestamp = System.currentTimeMillis();
-        apiKeyStatus.beforeRequest();
-
-        CompletableFuture<DashScopeResult> future = new TimeOutCancelCompletableFuture<>();
         try {
             maxCurrentRequestCount.acquire();
         } catch (InterruptedException e) {
+            TimeOutCancelCompletableFuture<DashScopeResult> future = new TimeOutCancelCompletableFuture<>(this);
             future.completeExceptionally(e);
+            return future;
         }
+
+        // 超时自动取消
+        long autoCancelTimeoutMs = this.autoCancelTimeoutMs;
+        if (autoCancelTimeoutMs > 0 && autoCancelTimeoutScheduledFutureIdIncr.getNextSecond() == 0) {
+            scheduled.schedule(() -> apiKeyStatus.removeTimeout(this), autoCancelTimeoutMs, TimeUnit.MILLISECONDS);
+        }
+
+        TimeOutCancelCompletableFuture<DashScopeResult> future = new TimeOutCancelCompletableFuture<>(this);
+        // 统计返回耗时
+        apiKeyStatus.beforeRequest(future);
         // 发起请求阿里云，如果异常自动重试
         requestIfRetry(paramBuilder, future, responseContextConsumer == null ? IF_REJECT_FOREVER_RETRY : responseContextConsumer, maxRetryCount);
 
         // 统计返回耗时
         future.whenComplete((dashScopeResult, throwable) -> {
             maxCurrentRequestCount.release();
-            apiKeyStatus.afterRequest(System.currentTimeMillis() - timestamp);
+            apiKeyStatus.afterRequest(future);
         });
         return future;
     }
@@ -260,7 +276,7 @@ public class AliyunAppsClient {
                                             scheduledFuture.cancel(false);
                                             requestIfRetry(p, future, responseContextConsumer, remainRetryCount);
                                         }
-                                    }, secondIncr.getNextSecond(60), TimeUnit.SECONDS);
+                                    }, retrySecondIncr.getNextSecond(), TimeUnit.SECONDS);
                                 });
                             },
                             () -> future.completeExceptionally(exception)
@@ -454,6 +470,15 @@ public class AliyunAppsClient {
     }
 
     private static class TimeOutCancelCompletableFuture<T> extends CompletableFuture<T> {
+        private final long timestamp = System.currentTimeMillis();
+        private final long id;
+        private final AliyunAppsClient client;
+
+        private TimeOutCancelCompletableFuture(AliyunAppsClient client) {
+            this.id = client.futureIdIncr.getAndIncrement();
+            this.client = client;
+        }
+
         @Override
         public T get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
             try {
@@ -471,14 +496,23 @@ public class AliyunAppsClient {
     private static class SecondIncr {
         private int secondIncr;
         private int lastSecond;
+        private final int futureSecond;
+
+        /**
+         * 分摊到未来的几秒内
+         *
+         * @param futureSecond 分摊到未来的几秒内
+         */
+        private SecondIncr(int futureSecond) {
+            this.futureSecond = futureSecond;
+        }
 
         /**
          * 将重试请求均匀分担到未来的几秒内
          *
-         * @param futureSecond 分摊到未来的几秒内
          * @return 应该在第几秒后继续请求
          */
-        public int getNextSecond(int futureSecond) {
+        public int getNextSecond() {
             int second = LocalTime.now().getSecond();
             int lastSecond = this.lastSecond;
             this.lastSecond = second;
@@ -497,15 +531,42 @@ public class AliyunAppsClient {
         final String apiKey;
         final LinkedList<RequestListener> listeners = new LinkedList<>();
         // 当前请求未完成的数量
-        final AtomicInteger currentRequestCount = new AtomicInteger();
+        final NavigableSet<TimeOutCancelCompletableFuture<DashScopeResult>> currentRequestCount = new ConcurrentSkipListSet<>(Comparator.comparing(e -> e.timestamp));
         // 平均完成用户完整请求的耗时，一次用户完整请求如果出发限流会包含多次阿里云调用的耗时
         volatile long avgRequestMs = 0;
         // 平均一次阿里云调用的耗时
         volatile long avgOnceRequestMs = 0;
-        private final SecondIncr secondIncr = new SecondIncr();
+        private final SecondIncr secondIncr = new SecondIncr(60);
 
         private ApiKeyStatus(String apiKey) {
             this.apiKey = apiKey;
+        }
+
+        /**
+         * 这个客户端下的所有超时请求的都删除
+         *
+         * @param client 客户端
+         */
+        public void removeTimeout(AliyunAppsClient client) {
+            long timeout = client.autoCancelTimeoutMs;
+            long timestamp = System.currentTimeMillis();
+            Iterator<TimeOutCancelCompletableFuture<DashScopeResult>> iterator = currentRequestCount.iterator();
+            while (iterator.hasNext()) {
+                TimeOutCancelCompletableFuture<DashScopeResult> next = iterator.next();
+                if (next.client == client) {
+                    long t = timestamp - next.timestamp;
+                    if (t >= timeout) {
+                        iterator.remove();
+                        try {
+                            next.completeExceptionally(new TimeoutException("request timeout! cost=" + t + "ms, timeout=" + timeout + "ms"));
+                        } catch (Throwable e) {
+                            log.error("removeTimeout cancel error! {} ", e.toString(), e);
+                        }
+                    } else {
+                        break;
+                    }
+                }
+            }
         }
 
         /**
@@ -526,7 +587,7 @@ public class AliyunAppsClient {
                 return 0;
             }
             // 将重试请求均匀分担到未来的60秒内
-            return nextRetrySeconds + secondIncr.getNextSecond(60);
+            return nextRetrySeconds + secondIncr.getNextSecond();
         }
 
         /**
@@ -541,8 +602,8 @@ public class AliyunAppsClient {
             }
         }
 
-        public void beforeRequest() {
-            currentRequestCount.incrementAndGet();
+        public void beforeRequest(TimeOutCancelCompletableFuture<DashScopeResult> future) {
+            currentRequestCount.add(future);
         }
 
         public void addOnceRequest(long ms) {
@@ -550,8 +611,9 @@ public class AliyunAppsClient {
             this.avgOnceRequestMs = m == 0 ? ms : (m + ms) / 2;
         }
 
-        public void afterRequest(long ms) {
-            currentRequestCount.decrementAndGet();
+        public void afterRequest(TimeOutCancelCompletableFuture<DashScopeResult> future) {
+            currentRequestCount.remove(future);
+            long ms = System.currentTimeMillis() - future.timestamp;
             synchronized (listeners) {
                 long m = this.avgRequestMs;
                 this.avgRequestMs = m == 0 ? ms : (m + ms) / 2;
