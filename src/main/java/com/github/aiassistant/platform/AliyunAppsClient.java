@@ -81,6 +81,7 @@ public class AliyunAppsClient {
     private final String appId;
     private final ApiKeyStatus apiKeyStatus;
     private Semaphore maxCurrentRequestCount = new Semaphore(2000);
+    private int retryIncr = 0;
     private boolean close = false;
 
     public AliyunAppsClient(String apiKey, String appId) {
@@ -252,10 +253,13 @@ public class AliyunAppsClient {
 
                                 //  重试策略2: 当有接口返回后，说明限流-1，可以发起重试。 追加到队列末尾
                                 apiKeyStatus.addListener(() -> {
-                                    if (mutex.compareAndSet(false, true)) {
-                                        scheduledFuture.cancel(false);
-                                        requestIfRetry(p, future, responseContextConsumer, remainRetryCount);
-                                    }
+                                    scheduled.schedule(() -> {
+                                        if (mutex.compareAndSet(false, true)) {
+                                            scheduledFuture.cancel(false);
+                                            requestIfRetry(p, future, responseContextConsumer, remainRetryCount);
+                                        }
+                                    }, (retryIncr++ % 60), TimeUnit.SECONDS);
+
                                 });
                             },
                             () -> future.completeExceptionally(exception)
