@@ -186,14 +186,18 @@ public class AliyunAppsClient {
         TimeOutCancelCompletableFuture<DashScopeResult> future = new TimeOutCancelCompletableFuture<>(this);
         // 统计返回耗时
         apiKeyStatus.beforeRequest(future);
-        // 发起请求阿里云，如果异常自动重试
-        requestIfRetry(paramBuilder, future, responseContextConsumer == null ? IF_REJECT_FOREVER_RETRY : responseContextConsumer, maxRetryCount);
-
-        // 统计返回耗时
-        future.whenComplete((dashScopeResult, throwable) -> {
-            maxCurrentRequestCount.release();
-            apiKeyStatus.afterRequest(future);
-        });
+        try {
+            // 发起请求阿里云，如果异常自动重试
+            requestIfRetry(paramBuilder, future, responseContextConsumer == null ? IF_REJECT_FOREVER_RETRY : responseContextConsumer, maxRetryCount);
+        } catch (Throwable t) {
+            future.completeExceptionally(t);
+        } finally {
+            // 统计返回耗时
+            future.whenComplete((dashScopeResult, throwable) -> {
+                maxCurrentRequestCount.release();
+                apiKeyStatus.afterRequest(future);
+            });
+        }
         return future;
     }
 
