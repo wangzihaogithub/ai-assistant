@@ -42,15 +42,15 @@ public class AliyunAppsClient {
      */
     public static final Consumer<Response> IF_REJECT_FOREVER_RETRY = response -> {
         // 是否限流异常 || 是否被工作流拒绝服务 || 阿里云智能体服务超时
-        if (response.isExceptionThrottling() || response.isExceptionModelServiceRejected() || response.isExceptionRequestTimeOutPleaseAgainLater()) {
-            // 重试
-            response.retry();
-        } else if (response.hasRemainRetryCount() && response.isExceptionTimeout()) {
-            // 是否还有剩余重试次数 && 是否接口超时异常
+        boolean serviceReject = response.isExceptionThrottling() || response.isExceptionModelServiceRejected() || response.isExceptionRequestTimeOutPleaseAgainLater();
+        // 是否还有剩余重试次数 && 是否socket超时
+        boolean retrySocketTimeout = response.hasRemainRetryCount() && response.isExceptionSocketTimeout();
+        // 决定是否重试
+        if (serviceReject || retrySocketTimeout) {
             // 重试
             response.retry();
         } else {
-            // 完成请求，不重试
+            // 不重试, 完成请求
             response.complete();
         }
     };
@@ -73,7 +73,7 @@ public class AliyunAppsClient {
 //    }
     private static final Logger log = LoggerFactory.getLogger(AliyunAppsClient.class);
     private final SynchronizeHalfDuplexApi<HalfDuplexParamBase> client;
-    private final ScheduledExecutorService scheduled;
+    private final ScheduledThreadPoolExecutor scheduled;
     private final String apiKey;
     private final String appId;
     private final ApiKeyStatus apiKeyStatus;
@@ -96,11 +96,13 @@ public class AliyunAppsClient {
         this.apiKey = apiKey;
         this.appId = appId;
         this.client = new SynchronizeHalfDuplexApi<>(option);
-        this.scheduled = Executors.newScheduledThreadPool(1, r -> {
+        this.scheduled = new ScheduledThreadPoolExecutor(1, r -> {
             Thread thread = new Thread(r);
             thread.setName("AliyunAppsClientRetry-" + appId + "-" + thread.getId());
             return thread;
         });
+        scheduled.allowCoreThreadTimeOut(true);
+        scheduled.setKeepAliveTime(60, TimeUnit.SECONDS);
         this.apiKeyStatus = API_KEY_STATUS_MAP.computeIfAbsent(apiKey, ApiKeyStatus::new);
     }
 
@@ -115,33 +117,66 @@ public class AliyunAppsClient {
         Constants.connectionConfigurations = connectionConfigurations;
     }
 
+    /**
+     * 向阿里云发起请求
+     *
+     * @param maxRetryCount 最大重试次数
+     * @return 大模型返回结果 com.alibaba.dashscope.common.DashScopeResult
+     */
     public CompletableFuture<DashScopeResult> request(String userMessage, int maxRetryCount) {
         ApplicationParam.ApplicationParamBuilder<?, ?> paramBuilder = ApplicationParam.builder().prompt(userMessage);
         return request(paramBuilder, null, maxRetryCount);
     }
 
-    public CompletableFuture<DashScopeResult> request(String userMessage, Consumer<Response> consumer, int maxRetryCount) {
+    /**
+     * 向阿里云发起请求
+     *
+     * @param responseContextConsumer 用户重试逻辑
+     * @param maxRetryCount           最大重试次数
+     * @return 大模型返回结果 com.alibaba.dashscope.common.DashScopeResult
+     */
+    public CompletableFuture<DashScopeResult> request(String userMessage, Consumer<Response> responseContextConsumer, int maxRetryCount) {
         ApplicationParam.ApplicationParamBuilder<?, ?> paramBuilder = ApplicationParam.builder().prompt(userMessage);
-        return request(paramBuilder, consumer, maxRetryCount);
+        return request(paramBuilder, responseContextConsumer, maxRetryCount);
     }
 
-    public CompletableFuture<DashScopeResult> request(ApplicationParam.ApplicationParamBuilder<?, ?> paramBuilder, Consumer<Response> consumer, int maxRetryCount) {
-        if (close) {
-            CompletableFuture<DashScopeResult> future = new CompletableFuture<>();
-            future.completeExceptionally(new ClosedChannelException());
-            return future;
-        }
+    /**
+     * 向阿里云发起请求
+     *
+     * @param paramBuilder            阿里云参数
+     * @param responseContextConsumer 用户重试逻辑
+     * @param maxRetryCount           最大重试次数
+     * @return 大模型返回结果 com.alibaba.dashscope.common.DashScopeResult
+     */
+    public CompletableFuture<DashScopeResult> request(ApplicationParam.ApplicationParamBuilder<?, ?> paramBuilder, Consumer<Response> responseContextConsumer, int maxRetryCount) {
+        // 统计返回耗时
         long timestamp = System.currentTimeMillis();
         apiKeyStatus.beforeRequest();
+
+        // 发起请求阿里云，如果异常自动重试
         CompletableFuture<DashScopeResult> future = new TimeOutCancelCompletableFuture<>();
-        requestIfRetry(paramBuilder, future, consumer == null ? IF_REJECT_FOREVER_RETRY : consumer, maxRetryCount);
+        requestIfRetry(paramBuilder, future, responseContextConsumer == null ? IF_REJECT_FOREVER_RETRY : responseContextConsumer, maxRetryCount);
+
+        // 统计返回耗时
         future.whenComplete((dashScopeResult, throwable) -> apiKeyStatus.afterRequest(System.currentTimeMillis() - timestamp));
         return future;
     }
 
+    /**
+     * 发起请求阿里云，如果异常自动重试
+     *
+     * @param paramBuilder            阿里云参数
+     * @param future                  CompletableFuture
+     * @param responseContextConsumer 用户重试逻辑
+     * @param maxRetryCount           最大重试次数
+     */
     private void requestIfRetry(ApplicationParam.ApplicationParamBuilder<?, ?> paramBuilder, CompletableFuture<DashScopeResult> future, Consumer<Response> responseContextConsumer, int maxRetryCount) {
         if (future.isDone()) {
             // 外部调用方主动完成或取消任务
+            return;
+        }
+        if (close) {
+            future.completeExceptionally(new ClosedChannelException());
             return;
         }
         long startTimestamp = System.currentTimeMillis();
@@ -151,16 +186,19 @@ public class AliyunAppsClient {
             client.call(paramBuilder.appId(appId).apiKey(apiKey).build(), new ResultCallback<DashScopeResult>() {
                 @Override
                 public void onEvent(DashScopeResult message) {
+                    // 统计耗时，为限流应该在?秒后重试做数据支撑
                     apiKeyStatus.addOnceRequest(System.currentTimeMillis() - startTimestamp);
                     if (close) {
                         future.complete(message);
                         return;
                     }
+                    // 将结果封装为一个Response对象，用户可以Response对象操作异步重试
                     Response responseContext = new Response(paramBuilder, message, null, false, remainRetryCount, future,
                             p -> requestIfRetry(p, future, responseContextConsumer, remainRetryCount),
                             () -> future.complete(message)
                     );
                     try {
+                        // 回掉用户传进来的重试逻辑
                         responseContextConsumer.accept(responseContext);
                     } catch (Throwable e) {
                         future.completeExceptionally(e);
@@ -178,16 +216,24 @@ public class AliyunAppsClient {
                         future.completeExceptionally(exception);
                         return;
                     }
+                    // 判断是否被限流
                     boolean throttling = Response.isExceptionThrottling(exception);
+                    // 将阿里云的结果封装为一个Response对象，用户可以Response对象操作异步重试
                     Response responseContext = new Response(paramBuilder, null, exception, throttling, remainRetryCount, future,
                             p -> {
+                                // mutex两种策略互斥判断
                                 AtomicBoolean mutex = new AtomicBoolean();
+
+                                // 计算下次应该几秒后重试
+                                int nextRetrySeconds = apiKeyStatus.getNextRetrySeconds(throttling);
+                                // 重试策略1: nextRetrySeconds秒后进行重试
                                 ScheduledFuture<?> scheduledFuture = scheduled.schedule(() -> {
                                     if (mutex.compareAndSet(false, true)) {
                                         requestIfRetry(p, future, responseContextConsumer, remainRetryCount);
                                     }
-                                }, apiKeyStatus.getNextRetrySeconds(throttling), TimeUnit.SECONDS);
-                                // 追加到末尾
+                                }, nextRetrySeconds, TimeUnit.SECONDS);
+
+                                //  重试策略2: 当有接口返回后，说明限流-1，可以发起重试。 追加到队列末尾
                                 apiKeyStatus.addListener(() -> {
                                     if (mutex.compareAndSet(false, true)) {
                                         scheduledFuture.cancel(false);
@@ -198,6 +244,7 @@ public class AliyunAppsClient {
                             () -> future.completeExceptionally(exception)
                     );
                     try {
+                        // 回掉用户传进来的重试逻辑
                         responseContextConsumer.accept(responseContext);
                     } catch (Throwable e) {
                         future.completeExceptionally(e);
@@ -217,6 +264,9 @@ public class AliyunAppsClient {
         void complete();
     }
 
+    /**
+     * 将阿里云的结果封装为一个Response对象，用户可以Response对象操作异步重试
+     */
     public static class Response {
         final DashScopeResult result;
         final Exception exception;
@@ -289,7 +339,7 @@ public class AliyunAppsClient {
          *
          * @return true=接口超时异常，false=不是
          */
-        public boolean isExceptionTimeout() {
+        public boolean isExceptionSocketTimeout() {
             return exception instanceof SocketTimeoutException;
         }
 
@@ -365,6 +415,9 @@ public class AliyunAppsClient {
             return exception;
         }
 
+        /**
+         * 重试
+         */
         public void retry() {
             retry.accept(paramBuilder);
         }
@@ -390,27 +443,29 @@ public class AliyunAppsClient {
         }
     }
 
+    /**
+     * 统计ApiKey的请求状态，为限流应该在何时重试做数据支撑
+     */
     private static class ApiKeyStatus {
         final String apiKey;
-        final AtomicInteger currentRequestCount = new AtomicInteger();
         final LinkedList<RequestListener> listeners = new LinkedList<>();
+        // 当前请求未完成的数量
+        final AtomicInteger currentRequestCount = new AtomicInteger();
+        // 平均完成用户完整请求的耗时，一次用户完整请求如果出发限流会包含多次阿里云调用的耗时
         volatile long avgRequestMs = 0;
+        // 平均一次阿里云调用的耗时
         volatile long avgOnceRequestMs = 0;
 
         private ApiKeyStatus(String apiKey) {
             this.apiKey = apiKey;
         }
 
-        @Override
-        public String toString() {
-            return "ApiKeyStatus{" +
-                    "apiKey='" + apiKey + '\'' +
-                    ", currentRequestCount=" + currentRequestCount +
-                    ", avgOnceRequestMs=" + (avgRequestMs / 1000) +
-                    ", avgRequestSec=" + (avgRequestMs / 1000) +
-                    '}';
-        }
-
+        /**
+         * 计算下次应该几秒后重试
+         *
+         * @param isThrottling 是否限流
+         * @return 下次应该N秒后重试
+         */
         public int getNextRetrySeconds(boolean isThrottling) {
             // 有其他请求还没回来
             if (listeners.size() > 1) {
@@ -423,6 +478,11 @@ public class AliyunAppsClient {
             }
         }
 
+        /**
+         * 重试策略2: 当有接口返回后，说明限流-1，可以发起重试。 追加到队列末尾
+         *
+         * @param listener 监听有接口返回后
+         */
         public void addListener(RequestListener listener) {
             // 追加到末尾
             synchronized (listeners) {
@@ -454,6 +514,16 @@ public class AliyunAppsClient {
                     }
                 }
             }
+        }
+
+        @Override
+        public String toString() {
+            return "ApiKeyStatus{" +
+                    "apiKey='" + apiKey + '\'' +
+                    ", currentRequestCount=" + currentRequestCount +
+                    ", avgOnceRequestMs=" + (avgRequestMs / 1000) +
+                    ", avgRequestSec=" + (avgRequestMs / 1000) +
+                    '}';
         }
     }
 }
