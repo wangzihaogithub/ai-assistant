@@ -17,12 +17,15 @@ import org.slf4j.LoggerFactory;
 
 import java.net.SocketTimeoutException;
 import java.nio.channels.ClosedChannelException;
+import java.time.LocalTime;
+import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Consumer;
 
 /**
@@ -77,6 +80,7 @@ public class AliyunAppsClient {
     private final String apiKey;
     private final String appId;
     private final ApiKeyStatus apiKeyStatus;
+    private Semaphore maxCurrentRequestCount = new Semaphore(2000);
     private boolean close = false;
 
     public AliyunAppsClient(String apiKey, String appId) {
@@ -102,6 +106,7 @@ public class AliyunAppsClient {
             return thread;
         });
         scheduled.allowCoreThreadTimeOut(true);
+        scheduled.setRemoveOnCancelPolicy(true);
         scheduled.setKeepAliveTime(60, TimeUnit.SECONDS);
         this.apiKeyStatus = API_KEY_STATUS_MAP.computeIfAbsent(apiKey, ApiKeyStatus::new);
     }
@@ -115,6 +120,10 @@ public class AliyunAppsClient {
         // 以下代码示例展示了如何配置连接池相关参数（如超时时间、最大连接数等），并调用大模型服务。您可以根据实际需求调整相关参数，以优化并发性能和资源利用率。
         // 连接池配置
         Constants.connectionConfigurations = connectionConfigurations;
+    }
+
+    public void setMaxCurrentRequestCount(int maxCurrentRequestCount) {
+        this.maxCurrentRequestCount = new Semaphore(maxCurrentRequestCount);
     }
 
     /**
@@ -153,12 +162,20 @@ public class AliyunAppsClient {
         long timestamp = System.currentTimeMillis();
         apiKeyStatus.beforeRequest();
 
-        // 发起请求阿里云，如果异常自动重试
         CompletableFuture<DashScopeResult> future = new TimeOutCancelCompletableFuture<>();
+        try {
+            maxCurrentRequestCount.acquire();
+        } catch (InterruptedException e) {
+            future.completeExceptionally(e);
+        }
+        // 发起请求阿里云，如果异常自动重试
         requestIfRetry(paramBuilder, future, responseContextConsumer == null ? IF_REJECT_FOREVER_RETRY : responseContextConsumer, maxRetryCount);
 
         // 统计返回耗时
-        future.whenComplete((dashScopeResult, throwable) -> apiKeyStatus.afterRequest(System.currentTimeMillis() - timestamp));
+        future.whenComplete((dashScopeResult, throwable) -> {
+            apiKeyStatus.afterRequest(System.currentTimeMillis() - timestamp);
+            maxCurrentRequestCount.release();
+        });
         return future;
     }
 
@@ -455,6 +472,7 @@ public class AliyunAppsClient {
         volatile long avgRequestMs = 0;
         // 平均一次阿里云调用的耗时
         volatile long avgOnceRequestMs = 0;
+        private int secondIncr = 0;
 
         private ApiKeyStatus(String apiKey) {
             this.apiKey = apiKey;
@@ -467,15 +485,17 @@ public class AliyunAppsClient {
          * @return 下次应该N秒后重试
          */
         public int getNextRetrySeconds(boolean isThrottling) {
+            int nextRetrySeconds;
             // 有其他请求还没回来
             if (listeners.size() > 1) {
                 long avgS = avgOnceRequestMs / 1000;
-                return ThreadLocalRandom.current().nextInt((int) Math.max(30, avgS * 0.8), (int) Math.max(60, avgS));
+                nextRetrySeconds = ThreadLocalRandom.current().nextInt((int) Math.max(30, avgS * 0.8), (int) Math.max(60, avgS));
             } else if (isThrottling) {
-                return ThreadLocalRandom.current().nextInt(1, 6);
+                nextRetrySeconds = ThreadLocalRandom.current().nextInt(1, 6);
             } else {
                 return 0;
             }
+            return nextRetrySeconds + (secondIncr++ % 60);
         }
 
         /**
