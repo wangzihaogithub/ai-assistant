@@ -81,7 +81,8 @@ public class AliyunAppsClient {
     private final String appId;
     private final ApiKeyStatus apiKeyStatus;
     private Semaphore maxCurrentRequestCount = new Semaphore(2000);
-    private int retryIncr = 0;
+    // 将重试请求均匀分担到未来的几秒内
+    private final SecondIncr secondIncr = new SecondIncr();
     private boolean close = false;
 
     public AliyunAppsClient(String apiKey, String appId) {
@@ -174,8 +175,8 @@ public class AliyunAppsClient {
 
         // 统计返回耗时
         future.whenComplete((dashScopeResult, throwable) -> {
-            apiKeyStatus.afterRequest(System.currentTimeMillis() - timestamp);
             maxCurrentRequestCount.release();
+            apiKeyStatus.afterRequest(System.currentTimeMillis() - timestamp);
         });
         return future;
     }
@@ -253,13 +254,13 @@ public class AliyunAppsClient {
 
                                 //  重试策略2: 当有接口返回后，说明限流-1，可以发起重试。 追加到队列末尾
                                 apiKeyStatus.addListener(() -> {
+                                    // 将重试请求均匀分担到未来的60秒内
                                     scheduled.schedule(() -> {
                                         if (mutex.compareAndSet(false, true)) {
                                             scheduledFuture.cancel(false);
                                             requestIfRetry(p, future, responseContextConsumer, remainRetryCount);
                                         }
-                                    }, (retryIncr++ % 60), TimeUnit.SECONDS);
-
+                                    }, secondIncr.getNextSecond(60), TimeUnit.SECONDS);
                                 });
                             },
                             () -> future.completeExceptionally(exception)
@@ -465,6 +466,31 @@ public class AliyunAppsClient {
     }
 
     /**
+     * 将重试请求均匀分担到每一秒内
+     */
+    private static class SecondIncr {
+        private int secondIncr;
+        private int lastSecond;
+
+        /**
+         * 将重试请求均匀分担到未来的几秒内
+         *
+         * @param futureSecond 分摊到未来的几秒内
+         * @return 应该在第几秒后继续请求
+         */
+        public int getNextSecond(int futureSecond) {
+            int second = LocalTime.now().getSecond();
+            int lastSecond = this.lastSecond;
+            this.lastSecond = second;
+            if (lastSecond == second) {
+                return secondIncr++ % futureSecond;
+            } else {
+                return secondIncr = 0;
+            }
+        }
+    }
+
+    /**
      * 统计ApiKey的请求状态，为限流应该在何时重试做数据支撑
      */
     private static class ApiKeyStatus {
@@ -476,7 +502,7 @@ public class AliyunAppsClient {
         volatile long avgRequestMs = 0;
         // 平均一次阿里云调用的耗时
         volatile long avgOnceRequestMs = 0;
-        private int secondIncr = 0;
+        private final SecondIncr secondIncr = new SecondIncr();
 
         private ApiKeyStatus(String apiKey) {
             this.apiKey = apiKey;
@@ -499,7 +525,8 @@ public class AliyunAppsClient {
             } else {
                 return 0;
             }
-            return nextRetrySeconds + (secondIncr++ % 60);
+            // 将重试请求均匀分担到未来的60秒内
+            return nextRetrySeconds + secondIncr.getNextSecond(60);
         }
 
         /**
