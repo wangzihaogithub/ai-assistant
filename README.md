@@ -17,10 +17,10 @@ AI助手jar包，可二次开发复用 (基于langchain4j的java8版本开发)
             - text（文本模型）
               - reasoning（思考）
               - acting（行动）
-              - memory（记忆）
-              - chat（聊天）
+              - memory（记忆[长期-片段，长期-变量，短期-消息记录]）
+              - chat（聊天[终止记录，重新回答记录，消息记录，思考记录，联网记录]）
               - embedding（向量模型）
-              - repository（存储）
+              - repository（存储[存数据库，存本地，消息截断，token截断]）
               - sseemitter（sse推送）
               - tools（工具）
               - variables（变量）
@@ -88,7 +88,7 @@ AI助手jar包，可二次开发复用 (基于langchain4j的java8版本开发)
   聊天记忆消息使用了哪些工具
 
 - [AiMemoryMstate.java](src%2Fmain%2Fjava%2Fcom%2Fgithub%2Faiassistant%2Fentity%2FAiMemoryMstate.java)
-  长期的已知记忆变量值
+  长期的记忆片段与记忆变量
 
 - [AiQuestionClassify.java](src%2Fmain%2Fjava%2Fcom%2Fgithub%2Faiassistant%2Fentity%2FAiQuestionClassify.java)
   定义聊天问题的分类
