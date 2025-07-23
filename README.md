@@ -10,15 +10,22 @@ AI助手jar包，可二次开发复用 (基于langchain4j的java8版本开发)
 
          - entity(数据实体)
          - dao(数据访问)
+         - enums(业务自定义枚举)
          - serviceintercept（业务拦截器）
+         - exception（明确区分出各种异常）
+         - platform（平台agent接口[阿里百炼等]）
          - service（业务）
-            - accessuser（登陆用户）
+            - accessuser（用户访问授权）
             - jsonschema（json模型）
             - text（文本模型）
               - reasoning（思考）
               - acting（行动）
               - memory（记忆[长期-片段，长期-变量，短期-消息记录]）
               - chat（聊天[终止记录，重新回答记录，消息记录，思考记录，联网记录]）
+              - memory（记忆）
+              - chat（聊天）
+              - nlu（自然语言理解[文本分类、文本聚类、命名实体识别]）
+              - rerank（文本重排序）
               - embedding（向量模型）
               - repository（存储[存数据库，存本地，消息截断，token截断]）
               - sseemitter（sse推送）
