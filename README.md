@@ -4,6 +4,39 @@
 
 AI助手jar包，可二次开发复用 (基于langchain4j的java8版本开发)
 
+### maven
+
+https://github.com/wangzihaogithub/ai-assistant
+
+[![Maven Central](https://img.shields.io/maven-central/v/com.github.wangzihaogithub/ai-assistant.svg?label=Maven%20Central)](https://search.maven.org/search?q=g:com.github.wangzihaogithub%20AND%20a:ai-assistant)
+
+```xml
+<!-- https://github.com/wangzihaogithub/ai-assistant -->
+<!-- https://mvnrepository.com/artifact/com.github.wangzihaogithub/ai-assistant -->
+<dependency>
+    <groupId>com.github.wangzihaogithub</groupId>
+    <artifactId>ai-assistant</artifactId>
+    <version>1.0.0</version>
+</dependency>
+
+<dependency>
+  <groupId>dev.langchain4j</groupId>
+  <artifactId>langchain4j</artifactId>
+  <version>0.35.0</version>
+</dependency>
+<dependency>
+  <groupId>dev.langchain4j</groupId>
+  <artifactId>langchain4j-open-ai</artifactId>
+  <version>0.35.0</version>
+</dependency>
+<dependency>
+  <groupId>com.squareup.okhttp3</groupId>
+  <artifactId>okhttp-sse</artifactId>
+  <version>3.14.9</version>
+</dependency>
+
+```
+
 #### 模块
 
 `
@@ -137,36 +170,3 @@ AI助手jar包，可二次开发复用 (基于langchain4j的java8版本开发)
 #### 4.追加提示词变量
 
 ![var.png](docs/var.png)
-
-### maven
-
-https://github.com/wangzihaogithub/ai-assistant
-
-[![Maven Central](https://img.shields.io/maven-central/v/com.github.wangzihaogithub/ai-assistant.svg?label=Maven%20Central)](https://search.maven.org/search?q=g:com.github.wangzihaogithub%20AND%20a:ai-assistant)
-
-```xml
-<!-- https://github.com/wangzihaogithub/ai-assistant -->
-<!-- https://mvnrepository.com/artifact/com.github.wangzihaogithub/ai-assistant -->
-<dependency>
-    <groupId>com.github.wangzihaogithub</groupId>
-    <artifactId>ai-assistant</artifactId>
-    <version>1.0.0</version>
-</dependency>
-
-<dependency>
-  <groupId>dev.langchain4j</groupId>
-  <artifactId>langchain4j</artifactId>
-  <version>0.35.0</version>
-</dependency>
-<dependency>
-  <groupId>dev.langchain4j</groupId>
-  <artifactId>langchain4j-open-ai</artifactId>
-  <version>0.35.0</version>
-</dependency>
-<dependency>
-  <groupId>com.squareup.okhttp3</groupId>
-  <artifactId>okhttp-sse</artifactId>
-  <version>3.14.9</version>
-</dependency>
-
-```
