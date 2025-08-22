@@ -142,7 +142,7 @@ AI助手jar包，可二次开发复用 (基于langchain4j的java8版本开发)
 
 https://github.com/wangzihaogithub/ai-assistant
 
-[![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.github.wangzihaogithub/ai-assistant/badge.svg)](https://search.maven.org/search?q=g:com.github.wangzihaogithub%20AND%20a:ai-assistant)
+[![Maven Central](https://img.shields.io/maven-central/v/com.github.wangzihaogithub/ai-assistant.svg?label=Maven%20Central)](https://search.maven.org/search?q=g:com.github.wangzihaogithub%20AND%20a:ai-assistant)
 
 ```xml
 <!-- https://github.com/wangzihaogithub/ai-assistant -->
