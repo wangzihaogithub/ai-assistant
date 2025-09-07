@@ -1,0 +1,1401 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI系统数据库表结构文档</title>
+    <style>
+        :root {
+            --primary-color: #1890ff;
+            --success-color: #52c41a;
+            --warning-color: #faad14;
+            --danger-color: #f5222d;
+            --info-color: #13c2c2;
+            --bg-color: #f0f2f5;
+            --card-bg: #ffffff;
+            --border-color: #d9d9d9;
+            --text-primary: #262626;
+            --text-secondary: #8c8c8c;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px 0;
+            text-align: center;
+            margin-bottom: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .search-container {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+
+        .search-box {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 12px 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+        }
+
+        .search-btn {
+            padding: 12px 24px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+
+        .search-btn:hover {
+            background-color: #40a9ff;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .tab-btn {
+            padding: 8px 16px;
+            background: #f5f5f5;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .tab-btn.active {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .content-area {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 20px;
+        }
+
+        .sidebar {
+            background: var(--card-bg);
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 20px;
+            height: fit-content;
+        }
+
+        .sidebar-title {
+            font-size: 1.3em;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .table-list {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .table-item {
+            padding: 10px;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .table-item:hover {
+            background-color: #f5f5f5;
+        }
+
+        .table-item.active {
+            background-color: #e6f7ff;
+            border-left: 3px solid var(--primary-color);
+        }
+
+        .table-name {
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        .table-comment {
+            font-size: 0.9em;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        .main-content {
+            background: var(--card-bg);
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 30px;
+        }
+
+        .table-header {
+            margin-bottom: 25px;
+        }
+
+        .table-title {
+            font-size: 2em;
+            color: var(--primary-color);
+            margin-bottom: 10px;
+        }
+
+        .table-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .info-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+        }
+
+        .info-label {
+            font-weight: bold;
+            color: var(--text-secondary);
+            margin-bottom: 5px;
+        }
+
+        .info-value {
+            font-size: 1.1em;
+        }
+
+        .section-title {
+            font-size: 1.4em;
+            margin: 25px 0 15px 0;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .fields-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+        }
+
+        .fields-table th,
+        .fields-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .fields-table th {
+            background-color: #fafafa;
+            font-weight: bold;
+        }
+
+        .field-name {
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        .field-type {
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        .relations-section {
+            margin-top: 30px;
+        }
+
+        .relation-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 10px;
+        }
+
+        .relation-title {
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .relation-desc {
+            color: var(--text-secondary);
+            font-size: 0.9em;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-secondary);
+        }
+
+        .highlight {
+            background-color: #fffbe6;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+
+        @media (max-width: 768px) {
+            .content-area {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                margin-bottom: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <header>
+        <h1>AI系统数据库表结构文档</h1>
+        <p class="subtitle">完整的数据表结构说明与关系图谱</p>
+    </header>
+
+    <div class="search-container">
+        <div class="search-box">
+            <input type="text" id="searchInput" class="search-input" placeholder="搜索表名、备注、字段名或字段备注..." onchange="performSearch()">
+            <button class="search-btn" onclick="performSearch()" >搜索</button>
+        </div>
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('all')">全部表</button>
+            <button class="tab-btn" onclick="switchTab('tab1AssistantDef')">配置表-智能体</button>
+            <button class="tab-btn" onclick="switchTab('tab1Def')">配置表-基础数据</button>
+            <button class="tab-btn" onclick="switchTab('tab2ChatRuntime')">运行时表-聊天</button>
+            <button class="tab-btn" onclick="switchTab('tab3MemoryRuntime')">运行时表-记忆</button>
+            <button class="tab-btn" onclick="switchTab('tab4EmbeddingRuntime')">运行时表-向量</button>
+        </div>
+    </div>
+
+    <div class="content-area">
+        <div class="sidebar">
+            <h3 class="sidebar-title">数据表列表</h3>
+            <div class="table-list" id="tableList">
+                <!-- 表列表将通过JavaScript动态生成 -->
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div id="tableDetail">
+                <div class="no-data">
+                    <h3>请选择一个数据表查看详细信息</h3>
+                    <p>从左侧列表中选择一个表来查看其结构和关系</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 模拟数据库表结构数据
+    const tableData = [
+        {
+            name: "ai_assistant",
+            comment: "通用型智能体",
+            engine: "InnoDB",
+            charset: "utf8mb4",
+            fields: [
+                {name: "id", type: "varchar(32)", nullable: false, key: "PRI", default: null, extra: "", comment: "智能体ID，不可变。保证唯一"},
+                {name: "name", type: "varchar(50)", nullable: false, key: "", default: null, extra: "", comment: "智能体名称"},
+                {name: "system_prompt_text", type: "text", nullable: false, key: "", default: null, extra: "", comment: "系统提示词"},
+                {name: "description", type: "varchar(255)", nullable: false, key: "", default: null, extra: "", comment: "智能体描述"},
+                {name: "hello_message", type: "varchar(255)", nullable: false, key: "", default: null, extra: "", comment: "智能体打招呼语"},
+                {name: "logo_url", type: "varchar(255)", nullable: false, key: "", default: null, extra: "", comment: "智能体的头像"},
+                {name: "kn_prompt_text", type: "text", nullable: false, key: "", default: null, extra: "", comment: "知识库提示词"},
+                {name: "status_enum", type: "int", nullable: false, key: "", default: null, extra: "", comment: "智能体状态：1发布 0未发布"},
+                {name: "sorted", type: "int", nullable: false, key: "", default: null, extra: "", comment: "智能体排列顺序，从小到大"},
+                {name: "ai_tool_ids", type: "varchar(255)", nullable: false, key: "", default: null, extra: "", comment: "这个智能体能使用的工具"},
+                {name: "max_memory_tokens", type: "int", nullable: false, key: "", default: null, extra: "", comment: "记忆字数的上限"},
+                {name: "max_memory_rounds", type: "int", nullable: false, key: "", default: null, extra: "", comment: "最多记忆几轮对话"},
+                {name: "create_time", type: "datetime", nullable: false, key: "", default: null, extra: "", comment: "智能体创建时间"},
+                {name: "create_uid", type: "int", nullable: false, key: "", default: null, extra: "", comment: "智能体创建人"},
+                {name: "update_time", type: "datetime", nullable: false, key: "", default: null, extra: "", comment: "智能体更新时间"},
+                {name: "update_uid", type: "int", nullable: false, key: "", default: null, extra: "", comment: "智能体更新人"},
+                {name: "temperature", type: "double", nullable: false, key: "", default: null, extra: "", comment: "丰富度，0.1至1之间，最大越丰富"},
+                {name: "chat_api_key", type: "varchar(128)", nullable: false, key: "", default: null, extra: "", comment: "聊天大模型的密码"},
+                {name: "chat_base_url", type: "varchar(128)", nullable: false, key: "", default: null, extra: "", comment: "聊天大模型的url"},
+                {name: "chat_model_name", type: "varchar(50)", nullable: false, key: "", default: null, extra: "", comment: "聊天大模型的名称"},
+                {name: "ai_jsonschema_ids", type: "varchar(100)", nullable: false, key: "", default: null, extra: "", comment: "使用哪些jsonschema "},
+                {name: "mstate_prompt_text", type: "varchar(512)", nullable: false, key: "", default: null, extra: "", comment: "记忆状态提示词"},
+                {name: "max_completion_tokens", type: "int", nullable: false, key: "", default: null, extra: "", comment: "指令生成的回答中包含的最大token数。例如，如果设置为100，那么模型生成的回答中token数不会超过100个"}
+            ]
+        },
+        {
+            name: "ai_assistant_fewshot",
+            comment: "少样本学习",
+            engine: "InnoDB",
+            charset: "utf8mb4",
+            fields: [
+                {name: "id", type: "int", nullable: false, key: "PRI", default: null, extra: "auto_increment", comment: ""},
+                {name: "ai_assistant_id", type: "varchar(32)", nullable: false, key: "MUL", default: null, extra: "", comment: "智能体ID"},
+                {name: "message_index", type: "int", nullable: false, key: "", default: null, extra: "", comment: "消息下标"},
+                {name: "message_text", type: "text", nullable: false, key: "", default: null, extra: "", comment: "消息内容"},
+                {name: "message_type_enum", type: "varchar(15)", nullable: false, key: "", default: null, extra: "", comment: "消息类型枚举: 参考MessageTypeEnum枚举 取值范围【User，Ai】"}
+            ]
+        },
+        {
+            name: "ai_assistant_kn",
+            comment: "智能体知识库",
+            engine: "InnoDB",
+            charset: "utf8mb4",
+            fields: [
+                {name: "id", type: "int", nullable: false, key: "PRI", default: null, extra: "auto_increment", comment: ""},
+                {name: "assistant_id", type: "varchar(32)", nullable: false, key: "", default: null, extra: "", comment: "智能体ID"},
+                {name: "vector_field_name", type: "varchar(20)", nullable: false, key: "", default: null, extra: "", comment: "搜索字段"},
+                {name: "min_score", type: "bigint", nullable: false, key: "", default: null, extra: "", comment: "最小匹配度"},
+                {name: "kn_limit", type: "int", nullable: false, key: "", default: null, extra: "", comment: "最多召回几个"},
+                {name: "kn_index_name", type: "varchar(128)", nullable: false, key: "", default: null, extra: "", comment: "知识库数据存储es"},
+                {name: "kn_type_enum", type: "varchar(50)", nullable: false, key: "", default: null, extra: "", comment: "知识库类型枚举（qa=问答，majorjob=专业，job=岗位）"},
+                {name: "kn_top1_score", type: "bigint", nullable: true, key: "", default: null, extra: "", comment: "知识库如果超过这个分数，直接用这1个"},
+                {name: "embedding_api_key", type: "varchar(128)", nullable: false, key: "", default: null, extra: "", comment: "向量大模型的密码"},
+                {name: "embedding_base_url", type: "varchar(128)", nullable: false, key: "", default: null, extra: "", comment: "向量大模型的url"},
+                {name: "embedding_model_name", type: "varchar(50)", nullable: false, key: "", default: null, extra: "", comment: "向量大模型的名称"},
+                {name: "embedding_dimensions", type: "int", nullable: false, key: "", default: null, extra: "", comment: "向量纬度，参考供应商文档，一般都是1024个纬度"},
+                {name: "embedding_max_request_size", type: "int", nullable: false, key: "", default: null, extra: "", comment: "向量每次最大提交条数"},
+                {name: "kn_query_min_char_length", type: "int", nullable: false, key: "", default: null, extra: "", comment: "用户的提问最少几个字才用知识库"},
+                {name: "knn_factor", type: "int", nullable: false, key: "", default: null, extra: "", comment: "knn搜索k的系数"}
+            ]
+        },
+        {
+            name: "ai_assistant_mstate",
+            comment: "智能体记忆状态字段的定义与提示词",
+            engine: "InnoDB",
+            charset: "utf8mb4",
+            fields: [
+                {name: "id", type: "int", nullable: false, key: "PRI", default: null, extra: "auto_increment", comment: "主键"},
+                {name: "assistant_id", type: "varchar(32)", nullable: false, key: "MUL", default: null, extra: "", comment: "智能体ID，不可变。保证唯一"},
+                {name: "state_key", type: "varchar(50)", nullable: false, key: "", default: null, extra: "", comment: "系统提示词"},
+                {name: "prompt_text", type: "text", nullable: false, key: "", default: null, extra: "", comment: "字段提示词"},
+                {name: "create_time", type: "datetime", nullable: false, key: "", default: null, extra: "", comment: "创建时间"},
+                {name: "update_time", type: "datetime", nullable: false, key: "", default: null, extra: "", comment: ""}
+            ]
+        },
+        {
+            name: "ai_chat",
+            comment: "聊天",
+            engine: "InnoDB",
+            charset: "utf8mb4",
+            fields: [
+                {name: "id", type: "int", nullable: false, key: "PRI", default: null, extra: "auto_increment", comment: ""},
+                {name: "name", type: "varchar(100)", nullable: false, key: "", default: null, extra: "", comment: "聊天名称"},
+                {name: "create_time", type: "datetime", nullable: false, key: "", default: null, extra: "", comment: "创建时间"},
+                {name: "update_time", type: "datetime", nullable: false, key: "", default: null, extra: "", comment: "更新时间"},
+                {name: "create_uid", type: "int", nullable: false, key: "", default: null, extra: "", comment: "创建人"},
+                {name: "ai_memory_id", type: "int", nullable: false, key: "MUL", default: null, extra: "", comment: "记忆ID"},
+                {name: "delete_time", type: "datetime", nullable: true, key: "", default: null, extra: "", comment: "重新回答时间"},
+                {name: "assistant_id", type: "varchar(32)", nullable: false, key: "", default: null, extra: "", comment: "智能体ID"},
+                {name: "uid_type", type: "varchar(15)", nullable: false, key: "", default: null, extra: "", comment: "用户类型 类型等于表名 student= 学生 sys_user=员工"},
+                {name: "last_chat_time", type: "datetime", nullable: false, key: "", default: null, extra: "", comment: "最后一次聊天时间"},
+                {name: "last_websearch_flag", type: "bit(1)", nullable: false, key: "", default: null, extra: "", comment: "最后一次是否联网"},
+                {name: "chat_source_enum", type: "varchar(15)", nullable: false, key: "", default: null, extra: "", comment: "聊天来源枚举（pc=pc端创建的，wxmini=微信小程序）"}
+            ]
+        },
+        {
+            name: "ai_chat_abort",
+            comment: "用户点击终止生成",
+            engine: "InnoDB",
+            charset: "utf8mb4",
+            fields: [
+                {name: "id", type: "int", nullable: false, key: "PRI", default: null, extra: "auto_increment", comment: ""},
+                {name: "create_time", type: "datetime", nullable: false, key: "", default: null, extra: "", comment: "终止时间"},
+                {name: "before_text", type: "text", nullable: false, key: "", default: null, extra: "", comment: "终止时的文本"},
+                {name: "ai_memory_id", type: "int", nullable: false, key: "MUL", default: null, extra: "", comment: "记忆ID"},
+                {name: "ai_chat_id", type: "int", nullable: false, key: "MUL", default: null, extra: "", comment: "聊天ID"},
+                {name: "user_query_trace_number", type: "varchar(32)", nullable: false, key: "MUL", default: null, extra: "", comment: "用户提问追踪ID"},
+                {name: "message_index", type: "int", nullable: true, key: "", default: null, extra: "", comment: "第几个消息"},
+                {name: "root_again_user_query_trace_number", type: "varchar(32)", nullable: false, key: "", default: null, extra: "", comment: "重新回答用户问题聊天追踪号，根问题"}
+            ]
+        },
+        {
+            name: "ai_chat_classify",
+            comment: "聊天分类",
+            engine: "InnoDB",
+            charset: "utf8mb4",
+            fields: [
+                {name: "id", type: "int", nullable: false, key: "PRI", default: null, extra: "auto_increment", comment: "主键"},
+                {name: "ai_chat_id", type: "int", nullable: false, key: "MUL", default: null, extra: "", comment: "聊天ID"},
+                {name: "user_query_trace_number", type: "varchar(32)", nullable: false, key: "MUL", default: null, extra: "", comment: "用户问题追踪ID"},
+                {name: "classify_id", type: "int", nullable: false, key: "MUL", default: null, extra: "", comment: "分类id（ai_question_classify表主键）"},
+                {name: "classify_name", type: "varchar(50)", nullable: false, key: "", default: null, extra: "", comment: "分类名称（ai_question_classify表name）"},
+                {name: "classify_group_code", type: "varchar(20)", nullable: false, key: "", default: null, extra: "", comment: "分类分组（ai_question_classify表group_code）"},
+                {name: "classify_group_name", type: "varchar(50)", nullable: false, key: "", default: null, extra: "", comment: "分类分组（ai_question_classify表group_name）"},
+                {name: "create_time", type: "datetime", nullable: false, key: "", default: null, extra: "", comment: "创建时间"},
+                {name: "question", type: "text", nullable: false, key: "", default: null, extra: "", comment: "用户问题"},
+                {name: "ai_question_classify_assistant_id", type: "int", nullable: true, key: "", default: null, extra: "", comment: "分配AI"},
+                {name: "action_enums", type: "varchar(255)", nullable: true, key: "", default: null, extra: "", comment: "控制的动作 AiQuestionClassifyActionEnum"}
+            ]
+        },
+        {
+            name: "ai_chat_history",
+            comment: "聊天记录",
+            engine: "InnoDB",
+            charset: "utf8mb4",
+            fields: [
+                {name: "id", type: "int", nullable: false, key: "PRI", default: null, extra: "auto_increment", comment: ""},
+                {name: "ai_chat_id", type: "int", nullable: false, key: "MUL", default: null, extra: "", comment: "聊天ID"},
+                {name: "create_time", type: "datetime", nullable: false, key: "MUL", default: null, extra: "", comment: "创建时间"},
+                {name: "message_type_enum", type: "varchar(10)", nullable: false, key: "", default: null, extra: "", comment: "消息类型 user=用户 ai=ai "},
+                {name: "message_text", type: "text", nullable: false, key: "", default: null, extra: "", comment: "消息内容"},
+                {name: "message_index", type: "int", nullable: false, key: "", default: null, extra: "", comment: "消息下标"},
+                {name: "text_char_length", type: "int", nullable: false, key: "", default: null, extra: "", comment: "内容长度"},
+                {name: "user_chat_history_id", type: "int", nullable: true, key: "MUL", default: null, extra: "", comment: "用户问题聊天ID"},
+                {name: "delete_time", type: "datetime", nullable: true, key: "", default: null, extra: "", comment: "重新提问会触发删除"},
+                {name: "user_query_trace_number", type: "varchar(32)", nullable: false, key: "MUL", default: null, extra: "", comment: "用户问题追踪ID"},
+                {name: "user_query_flag", type: "bit(1)", nullable: false, key: "", default: null, extra: "", comment: "是否用户问题"},
+                {name: "again_user_query_trace_number", type: "varchar(32)", nullable: false, key: "", default: null, extra: "", comment: "重新回答的哪个问题"},
+                {name: "stage_enum", type: "varchar(20)", nullable: false, key: "", default: null, extra: "", comment: "数据是哪个阶段生产出来的，取值范围【Request,Response】"},
+                {name: "root_user_query_trace_number", type: "varchar(32)", nullable: false, key: "", default: null, extra: "", comment: "重新回答用户问题聊天追踪号，根问题"},
+                {name: "websearch_flag", type: "bit(1)", nullable: false, key: "", default: null, extra: "", comment: "是否联网"},
+                {name: "start_time", type: "datetime", nullable: false, key: "", default: null, extra: "", comment: "开始时间"}
+            ]
+        },
+        {
+            name: "ai_chat_reasoning",
+            comment: "思考问题",
+            engine: "InnoDB",
+            charset: "utf8mb4",
+            fields: [
+                {name: "id", type: "int", nullable: false, key: "PRI", default: null, extra: "auto_increment", comment: ""},
+                {name: "ai_chat_id", type: "int", nullable: false, key: "MUL", default: null, extra: "", comment: "聊天ID"},
+                {name: "question", type: "text", nullable: false, key: "", default: null, extra: "", comment: "问题"},
+                {name: "need_splitting_flag", type: "bit(1)", nullable: false, key: "", default: null, extra: "", comment: "是否需要问题拆分"},
+                {name: "user_chat_history_id", type: "int", nullable: false, key: "", default: null, extra: "", comment: "用户提问的消息ID"},
+                {name: "create_time", type: "datetime", nullable: false, key: "", default: null, extra: "", comment: "创建时间"},
+                {name: "user_query_trace_number", type: "varchar(32)", nullable: false, key: "", default: null, extra: "", comment: "用户回答追踪ID"}
+            ]
+        },
+        {
+            name: "ai_chat_reasoning_plan",
+            comment: "思考问题得出的计划",
+            engine: "InnoDB",
+            charset: "utf8mb4",
+            fields: [
+                {name: "id", type: "int", nullable: false, key: "PRI", default: null, extra: "auto_increment", comment: ""},
+                {name: "ai_chat_reasoning_id", type: "int", nullable: false, key: "MUL", default: null, extra: "", comment: "思考ID"},
+                {name: "ai_chat_id", type: "int", nullable: false, key: "MUL", default: null, extra: "", comment: "聊天ID"},
+                {name: "user_chat_history_id", type: "int", nullable: false, key: "", default: null, extra: "", comment: "用户提问的消息ID"},
+                {name: "task", type: "varchar(512)", nullable: false, key: "", default: null, extra: "", comment: "任务"},
+                {name: "plan_index", type: "int", nullable: false, key: "", default: null, extra: "", comment: "第几个计划下标"},
+                {name: "resolved_flag", type: "bit(1)", nullable: false, key: "", default: null, extra: "", comment: "此字段用于标识这个任务是否被解决"},
+                {name: "fail_message", type: "varchar(2000)", nullable: false, key: "", default: null, extra: "", comment: "此字段用于你向用户解释，没有解决的原因"},
+                {name: "answer", type: "text", nullable: false, key: "", default: null, extra: "", comment: "如果已被解决，这就是解决的最终答案"},
+                {name: "ai_question", type: "varchar(512)", nullable: false, key: "", default: null, extra: "", comment: "如果你有不明白或需要向用户确认的问题，可以通过此字段向用户提问"},
+                {name: "websearch_keyword", type: "varchar(1024)", nullable: false, key: "", default: null, extra: "", comment: "如果任务未被解决，可以在此字段上返回一些搜索关键词，以助于使用搜索引擎"}
+            ]
+        },
+        {
+            name: "ai_chat_websearch",
+            comment: "联网",
+            engine: "InnoDB",
+            charset: "utf8mb4",
+            fields: [
+                {name: "id", type: "int", nullable: false, key: "PRI", default: null, extra: "auto_increment", comment: ""},
+                {name: "ai_chat_id", type: "int", nullable: false, key: "MUL", default: null, extra: "", comment: "聊天ID"},
+                {name: "user_chat_history_id", type: "int", nullable: false, key: "MUL", default: null, extra: "", comment: "用户提问的消息ID"},
+                {name: "source_enum", type: "varchar(30)", nullable: false, key: "", default: null, extra: "", comment: "触发来源"},
+                {name: "question", type: "varchar(512)", nullable: false, key: "", default: null, extra: "", comment: "联网的问题"},
+                {name: "create_time", type: "datetime", nullable: false, key: "", default: null, extra: "", comment: "创建时间"},
+                {name: "provider_name", type: "varchar(10)", nullable: false, key: "", default: null, extra: "", comment: "供应商"},
+                {name: "search_time_ms", type: "int", nullable: false, key: "", default: null, extra: "", comment: "查询耗时"},
+                {name: "search_proxy", type: "varchar(255)", nullable: false, key: "", default: null, extra: "", comment: "搜索代理"},
+                {name: "user_query_trace_number", type: "varchar(32)", nullable: false, key: "", default: null, extra: "", comment: "用户回答追踪ID"}
+            ]
+        },
+        {
+            name: "ai_chat_websearch_result",
+            comment: "联网结果",
+            engine: "InnoDB",
+            charset: "utf8mb4",
+            fields: [
+                {name: "id", type: "int", nullable: false, key: "PRI", default: null, extra: "auto_increment", comment: ""},
+                {name: "ai_chat_id", type: "int", nullable: false, key: "MUL", default: null, extra: "", comment: "聊天ID"},
+                {name: "user_chat_history_id", type: "int", nullable: false, key: "MUL", default: null, extra: "", comment: "用户提问的消息ID"},
+                {name: "ai_chat_websearch_id", type: "int", nullable: false, key: "MUL", default: null, extra: "", comment: "联网搜索id"},
+                {name: "page_url", type: "varchar(255)", nullable: false, key: "", default: null, extra: "", comment: "网页url"},
+                {name: "page_title", type: "varchar(255)", nullable: false, key: "", default: null, extra: "", comment: "网页标题"},
+                {name: "page_time", type: "varchar(50)", nullable: false, key: "", default: null, extra: "", comment: "网页时间"},
+                {name: "page_source", type: "varchar(50)", nullable: false, key: "", default: null, extra: "", comment: "网页来源"},
+                {name: "page_content", type: "text", nullable: false, key: "", default: null, extra: "", comment: "网页正文"},
+                {name: "url_read_time_cost", type: "int", nullable: false, key: "", default: null, extra: "", comment: "读取内容耗时"},
+                {name: "url_read_proxy", type: "varchar(35)", nullable: false, key: "", default: null, extra: "", comment: "读取内容的代理"}
+            ]
+        },
+        {
+            name: "ai_embedding",
+            comment: "AI向量缓存",
+            engine: "InnoDB",
+            charset: "utf8mb4",
+            fields: [
+                {name: "id", type: "int", nullable: false, key: "PRI", default: null, extra: "auto_increment", comment: "id"},
+                {name: "keyword", type: "varchar(4000)", nullable: false, key: "", default: null, extra: "", comment: "关键词"},
+                {name: "vector", type: "json", nullable: false, key: "", default: null, extra: "", comment: "向量"},
+                {name: "md5", type: "varchar(32)", nullable: false, key: "", default: null, extra: "", comment: "关键词的md5"},
+                {name: "create_time", type: "datetime", nullable: false, key: "", default: null, extra: "", comment: "创建时间"},
+                {name: "model_name", type: "varchar(30)", nullable: false, key: "", default: null, extra: "", comment: "模型名称"},
+                {name: "dimensions", type: "int", nullable: false, key: "", default: null, extra: "", comment: "向量纬度"}
+            ]
+        },
+        {
+            name: "ai_jsonschema",
+            comment: "任务型智能体",
+            engine: "InnoDB",
+            charset: "utf8mb4",
+            fields: [
+                {name: "id", type: "int", nullable: false, key: "PRI", default: null, extra: "auto_increment", comment: "智能体ID，不可变。保证唯一"},
+                {name: "api_key", type: "varchar(128)", nullable: false, key: "", default: null, extra: "", comment: "聊天大模型的密码"},
+                {name: "base_url", type: "varchar(128)", nullable: false, key: "", default: null, extra: "", comment: "聊天大模型的url"},
+                {name: "model_name", type: "varchar(50)", nullable: false, key: "", default: null, extra: "", comment: "聊天大模型的名称"},
+                {name: "json_schema_enum", type: "varchar(50)", nullable: false, key: "MUL", default: null, extra: "", comment: "接口枚举"},
+                {name: "remark", type: "varchar(512)", nullable: false, key: "", default: null, extra: "", comment: "备注"},
+                {name: "system_prompt_text", type: "text", nullable: false, key: "", default: null, extra: "", comment: "系统提示词"},
+                {name: "user_prompt_text", type: "text", nullable: false, key: "", default: null, extra: "", comment: "用户提示词"},
+                {name: "kn_prompt_text", type: "varchar(4000)", nullable: false, key: "", default: null, extra: "", comment: "知识库提示词"},
+                {name: "enable_flag", type: "bit(1)", nullable: false, key: "", default: null, extra: "", comment: "是否开启"},
+                {name: "response_format", type: "varchar(30)", nullable: false, key: "", default: null, extra: "", comment: "@JsonProperty(\"text\") TEXT, @JsonProperty(\"json_object\") JSON_OBJECT, @JsonProperty(\"json_schema\") JSON_SCHEMA"},
+                {name: "ai_tool_ids", type: "varchar(255)", nullable: false, key: "", default: null, extra: "", comment: "工具ID"},
+                {name: "max_completion_tokens", type: "int", nullable: false, key: "", default: null, extra: "", comment: "指令生成的回答中包含的最大token数。例如，如果设置为100，那么模型生成的回答中token数不会超过100个"},
+                {name: "temperature", type: "double", nullable: false, key: "", default: null, extra: "", comment: "丰富度，0.1至1之间，最大越丰富"},
+                {name: "top_p", type: "double", nullable: false, key: "", default: null, extra: "", comment: "随机度，0.1至1之间，最大越随机"},
+                {name: "timeout_ms", type: "int", nullable: false, key: "", default: null, extra: "", comment: "接口请求大模型超时时间（毫秒）"}
+            ]
+        },
+        {
+            name: "ai_memory",
+            comment: "记忆",
+            engine: "InnoDB",
+            charset: "utf8mb4",
+            fields: [
+                {name: "id", type: "int", nullable: false, key: "PRI", default: null, extra: "auto_increment", comment: ""},
+                {name: "create_time", type: "datetime", nullable: false, key: "", default: null, extra: "", comment: "创建时间"},
+                {name: "update_time", type: "datetime", nullable: false, key: "", default: null, extra: "", comment: "更新时间"},
+                {name: "user_token_count", type: "int", nullable: false, key: "", default: null, extra: "", comment: "用户的token数量"},
+                {name: "ai_token_count", type: "int", nullable: false, key: "", default: null, extra: "", comment: "AI回复的token数量"},
+                {name: "knowledge_token_count", type: "int", nullable: false, key: "", default: "0", extra: "", comment: ""},
+                {name: "user_char_length", type: "int", nullable: false, key: "", default: null, extra: "", comment: "用户使用的文本长度"},
+                {name: "ai_char_length", type: "int", nullable: false, key: "", default: null, extra: "", comment: "ai使用的文本长度"},
+                {name: "knowledge_char_length", type: "int", nullable: false, key: "", default: "0", extra: "", comment: ""}
+            ]
+        },
+        {
+            name: "ai_memory_error",
+            comment: "Ai错误",
+            engine: "InnoDB",
+            charset: "utf8mb4",
+            fields: [
+                {name: "id", type: "int", nullable: false, key: "PRI", default: null, extra: "auto_increment", comment: ""},
+                {name: "memory_id", type: "int", nullable: false, key: "MUL", default: null, extra: "", comment: "记忆ID"},
+                {name: "error_class_name", type: "varchar(128)", nullable: false, key: "", default: null, extra: "", comment: "错误的java的Clas类"},
+                {name: "error_message", type: "text", nullable: false, key: "", default: null, extra: "", comment: "错误消息"},
+                {name: "base_message_index", type: "int", nullable: false, key: "", default: null, extra: "", comment: "基础消息下标"},
+                {name: "add_message_count", type: "int", nullable: false, key: "", default: null, extra: "", comment: "本次回复增加的下标"},
+                {name: "generate_count", type: "int", nullable: false, key: "", default: null, extra: "", comment: "本次AI生成次数"},
+                {name: "create_time", type: "datetime", nullable: false, key: "", default: null, extra: "", comment: "创建时间"},
+                {name: "session_time", type: "datetime", nullable: false, key: "", default: null, extra: "", comment: "本次提问的创建时间"},
+                {name: "user_query_trace_number", type: "varchar(32)", nullable: false, key: "", default: null, extra: "", comment: "本次提问的问题追踪ID"},
+                {name: "message_count", type: "int", nullable: false, key: "", default: null, extra: "", comment: "消息下标"},
+                {name: "error_type", type: "varchar(128)", nullable: true, key: "", default: null, extra: "", comment: "错误类型"},
+                {name: "message_text", type: "varchar(512)", nullable: true, key: "", default: null, extra: "", comment: "显示的信息"},
+                {name: "attachment_json", type: "text", nullable: true, key: "", default: null, extra: "", comment: "附加数据"},
+                {name: "root_again_user_query_trace_number", type: "varchar(32)", nullable: true, key: "", default: null, extra: "", comment: "原始问题"},
+                {name: "ai_chat_id", type: "int", nullable: true, key: "", default: null, extra: "", comment: "聊天ID"}
+            ]
+        },
+        {
+            name: "ai_memory_message",
+            comment: "记忆的消息",
+            engine: "InnoDB",
+            charset: "utf8mb4",
+            fields: [
+                {name: "id", type: "int", nullable: false, key: "PRI", default: null, extra: "auto_increment", comment: ""},
+                {name: "ai_memory_id", type: "int", nullable: false, key: "MUL", default: null, extra: "", comment: "记忆ID"},
+                {name: "message_index", type: "int", nullable: false, key: "", default: null, extra: "", comment: "消息下标"},
+                {name: "message_text", type: "text", nullable: false, key: "", default: null, extra: "", comment: "消息内容"},
+                {name: "message_type_enum", type: "varchar(15)", nullable: false, key: "", default: null, extra: "", comment: "消息类型枚举: 参考MessageTypeEnum枚举"},
+                {name: "use_knowledge_flag", type: "bit(1)", nullable: false, key: "", default: "0", extra: "", comment: ""},
+                {name: "use_tool_flag", type: "bit(1)", nullable: false, key: "", default: null, extra: "", comment: "是否使用工具"},
+                {name: "user_query_flag", type: "bit(1)", nullable: false, key: "", default: null, extra: "", comment: "是否是用户提的问题"},
+                {name: "create_time", type: "datetime", nullable: false, key: "", default: null, extra: "", comment: "创建时间"},
+                {name: "commit_time", type: "datetime", nullable: false, key: "", default: null, extra: "", comment: "持久化时间"},
+                {name: "reply_tool_request_id", type: "varchar(128)", nullable: false, key: "", default: null, extra: "", comment: "回复的是哪个工具ID"},
+                {name: "reply_tool_name", type: "varchar(50)", nullable: false, key: "", default: null, extra: "", comment: "回复的是哪个工具名称"},
+                {name: "token_count", type: "int", nullable: false, key: "", default: null, extra: "", comment: "token数量"},
+                {name: "char_length", type: "int", nullable: false, key: "", default: null, extra: "", comment: "内容字符串长度"},
+                {name: "user_token_count", type: "int", nullable: false, key: "", default: null, extra: "", comment: "用户token数量"},
+                {name: "user_char_length", type: "int", nullable: false, key: "", default: null, extra: "", comment: "用户内容字符串长度"},
+                {name: "ai_token_count", type: "int", nullable: false, key: "", default: null, extra: "", comment: "ai的token数量"},
+                {name: "ai_char_length", type: "int", nullable: false, key: "", default: null, extra: "", comment: "ai的内容长度"},
+                {name: "knowledge_token_count", type: "int", nullable: false, key: "", default: "0", extra: "", comment: ""},
+                {name: "knowledge_char_length", type: "int", nullable: false, key: "", default: "0", extra: "", comment: ""},
+                {name: "delete_time", type: "datetime", nullable: true, key: "", default: null, extra: "", comment: "重新回答"},
+                {name: "user_query_trace_number", type: "varchar(32)", nullable: false, key: "", default: null, extra: "", comment: "用户问题追踪ID"},
+                {name: "again_user_query_trace_number", type: "varchar(32)", nullable: false, key: "", default: null, extra: "", comment: "重新回答的哪个问题"},
+                {name: "stage_enum", type: "varchar(20)", nullable: false, key: "", default: null, extra: "", comment: "数据是哪个阶段生产出来的，取值范围【Request,Response】"},
+                {name: "root_user_query_trace_number", type: "varchar(32)", nullable: false, key: "", default: null, extra: "", comment: "重新回答用户问题聊天追踪号，根问题"},
+                {name: "open_ai_request_id", type: "varchar(128)", nullable: false, key: "", default: null, extra: "", comment: "供应商的请求id，用于向供应商反馈错误问题"},
+                {name: "websearch_flag", type: "bit(1)", nullable: true, key: "", default: null, extra: "", comment: "是否联网"},
+                {name: "start_time", type: "datetime", nullable: true, key: "", default: null, extra: "", comment: "开始时间"},
+                {name: "first_token_time", type: "datetime", nullable: true, key: "", default: null, extra: "", comment: "AI吐第一个字的时间"}
+            ]
+        },
+        {
+            name: "ai_memory_message_kn",
+            comment: "知识库查询结果",
+            engine: "InnoDB",
+            charset: "utf8mb4",
+            fields: [
+                {name: "id", type: "int", nullable: false, key: "PRI", default: null, extra: "auto_increment", comment: ""},
+                {name: "ai_memory_message_id", type: "int", nullable: false, key: "MUL", default: null, extra: "", comment: "记忆的消息ID"},
+                {name: "kn_id", type: "int", nullable: false, key: "", default: null, extra: "", comment: "知识库id"},
+                {name: "kn_question_text", type: "varchar(4000)", nullable: false, key: "", default: null, extra: "", comment: "问题"},
+                {name: "kn_answer_text", type: "varchar(4000)", nullable: false, key: "", default: null, extra: "", comment: "回答"},
+                {name: "kn_score", type: "bigint", nullable: false, key: "", default: null, extra: "", comment: "匹配度，百分之，乘以100后的"},
+                {name: "kn_index_updated_time", type: "datetime", nullable: false, key: "", default: null, extra: "", comment: "知识库更新时间"},
+                {name: "kn_index_name", type: "varchar(128)", nullable: false, key: "", default: null, extra: "", comment: "知识库类型：就是es的索引名称"},
+                {name: "ai_memory_id", type: "int", nullable: false, key: "", default: null, extra: "", comment: "记忆ID"}
+            ]
+        },
+        {
+            name: "ai_memory_message_metadata",
+            comment: "通过AiMessageString放置的元数据，用于给业务做判断",
+            engine: "InnoDB",
+            charset: "utf8mb4",
+            fields: [
+                {name: "id", type: "int", nullable: false, key: "PRI", default: null, extra: "auto_increment", comment: ""},
+                {name: "ai_memory_message_id", type: "int", nullable: false, key: "MUL", default: null, extra: "", comment: "记忆消息ID"},
+                {name: "meta_index", type: "int", nullable: false, key: "", default: null, extra: "", comment: "第几个AiMessageString"},
+                {name: "meta_key", type: "varchar(32)", nullable: false, key: "", default: null, extra: "", comment: "通过AiMessageString放置的数据key"},
+                {name: "meta_value", type: "varchar(255)", nullable: false, key: "", default: null, extra: "", comment: "通过AiMessageString放置的数据value"},
+                {name: "ai_memory_id", type: "int", nullable: false, key: "", default: null, extra: "", comment: "记忆ID"},
+                {name: "user_query_trace_number", type: "varchar(32)", nullable: false, key: "", default: null, extra: "", comment: "用户问题追踪ID"},
+                {name: "again_user_query_trace_number", type: "varchar(32)", nullable: false, key: "", default: null, extra: "", comment: "重新回答的哪个问题"},
+                {name: "root_user_query_trace_number", type: "varchar(32)", nullable: false, key: "", default: null, extra: "", comment: "重新回答用户问题聊天追踪号，根问题"}
+            ]
+        },
+        {
+            name: "ai_memory_message_tool",
+            comment: "记忆消息中借助了工具",
+            engine: "InnoDB",
+            charset: "utf8mb4",
+            fields: [
+                {name: "id", type: "int", nullable: false, key: "PRI", default: null, extra: "auto_increment", comment: ""},
+                {name: "ai_memory_message_id", type: "int", nullable: false, key: "MUL", default: null, extra: "", comment: "记忆消息ID"},
+                {name: "tool_request_id", type: "varchar(128)", nullable: false, key: "", default: null, extra: "", comment: "工具的请求ID"},
+                {name: "tool_name", type: "varchar(128)", nullable: false, key: "", default: null, extra: "", comment: "工具名称"},
+                {name: "tool_arguments", type: "text", nullable: false, key: "", default: null, extra: "", comment: "工具参数"},
+                {name: "ai_memory_id", type: "int", nullable: false, key: "", default: null, extra: "", comment: "记忆ID"}
+            ]
+        },
+        {
+            name: "ai_memory_mstate",
+            comment: "长期记忆片段与记忆变量",
+            engine: "InnoDB",
+            charset: "utf8mb4",
+            fields: [
+                {name: "id", type: "int", nullable: false, key: "PRI", default: null, extra: "auto_increment", comment: ""},
+                {name: "ai_memory_id", type: "int", nullable: false, key: "MUL", default: null, extra: "", comment: "记忆ID"},
+                {name: "state_key", type: "varchar(50)", nullable: false, key: "", default: null, extra: "", comment: "状态的key"},
+                {name: "state_value", type: "text", nullable: false, key: "", default: null, extra: "", comment: "状态数据"},
+                {name: "user_ai_memory_message_id", type: "int", nullable: false, key: "", default: null, extra: "", comment: "用户的记忆消息ID"},
+                {name: "create_time", type: "datetime", nullable: false, key: "", default: null, extra: "", comment: "创建时间"},
+                {name: "user_message_index", type: "int", nullable: false, key: "", default: null, extra: "", comment: "消息下标"},
+                {name: "user_query_trace_number", type: "varchar(32)", nullable: false, key: "", default: null, extra: "", comment: "用户问题追踪ID"},
+                {name: "known_flag", type: "bit(1)", nullable: false, key: "", default: null, extra: "", comment: "是否是已知的状态"}
+            ]
+        },
+        {
+            name: "ai_memory_search",
+            comment: "记忆的RAG记录",
+            engine: "InnoDB",
+            charset: "utf8mb4",
+            fields: [
+                {name: "id", type: "int", nullable: false, key: "PRI", default: null, extra: "auto_increment", comment: "主键"},
+                {name: "ai_memory_id", type: "int", nullable: false, key: "MUL", default: null, extra: "", comment: "记忆ID"},
+                {name: "index_name", type: "varchar(128)", nullable: false, key: "", default: null, extra: "", comment: "查询索引对象"},
+                {name: "request_body", type: "text", nullable: false, key: "", default: null, extra: "", comment: "查询条件"},
+                {name: "response_doc_count", type: "int", nullable: false, key: "", default: null, extra: "", comment: "返回文档数量"},
+                {name: "error_message", type: "varchar(4000)", nullable: false, key: "", default: "\\0", extra: "", comment: "错误内容"},
+                {name: "user_query_trace_number", type: "varchar(32)", nullable: false, key: "", default: null, extra: "", comment: "本次提问的问题追踪ID"},
+                {name: "ai_chat_id", type: "int", nullable: false, key: "MUL", default: null, extra: "", comment: "聊天ID"},
+                {name: "create_time", type: "datetime", nullable: false, key: "", default: null, extra: "", comment: "创建时间"},
+                {name: "search_start_time", type: "datetime", nullable: false, key: "", default: null, extra: "", comment: "RAG开始时间"},
+                {name: "search_end_time", type: "datetime", nullable: false, key: "", default: null, extra: "", comment: "RAG结束时间"},
+                {name: "search_cost_ms", type: "int", nullable: false, key: "", default: null, extra: "", comment: "RAG耗时"}
+            ]
+        },
+        {
+            name: "ai_memory_search_doc",
+            comment: "记忆的RAG记录文档",
+            engine: "InnoDB",
+            charset: "utf8mb4",
+            fields: [
+                {name: "id", type: "int", nullable: false, key: "PRI", default: null, extra: "auto_increment", comment: "主键"},
+                {name: "ai_memory_search_id", type: "int", nullable: false, key: "MUL", default: null, extra: "", comment: "rag ID"},
+                {name: "doc_id_string", type: "varchar(36)", nullable: false, key: "MUL", default: null, extra: "", comment: "文档ID文本类型"},
+                {name: "doc_id_int", type: "int", nullable: true, key: "MUL", default: null, extra: "", comment: "文档ID数字类型"},
+                {name: "doc_score", type: "int", nullable: true, key: "", default: null, extra: "", comment: "返回文档匹配度"}
+            ]
+        },
+        {
+            name: "ai_question_classify",
+            comment: "问题分类",
+            engine: "InnoDB",
+            charset: "utf8mb4",
+            fields: [
+                {name: "id", type: "int", nullable: false, key: "PRI", default: null, extra: "auto_increment", comment: "主键"},
+                {name: "classify_name", type: "varchar(50)", nullable: false, key: "", default: null, extra: "", comment: "问题类型名称（二级）"},
+                {name: "group_name", type: "varchar(50)", nullable: false, key: "", default: null, extra: "", comment: "问题类型名称（一级）"},
+                {name: "group_code", type: "varchar(20)", nullable: false, key: "", default: null, extra: "", comment: "问题类型代码（一级）"},
+                {name: "action_enums", type: "varchar(255)", nullable: false, key: "", default: null, extra: "", comment: "控制的动作,多个用逗号分隔 qa= 问答库 jdlw = 简单联网 wtcj = 问题拆解 dclw = 多层联网 lwdd = 联网兜底 wfhd = 无法回答"},
+                {name: "example_text", type: "varchar(512)", nullable: false, key: "", default: null, extra: "", comment: "示例文案"},
+                {name: "enable_flag", type: "bit(1)", nullable: false, key: "", default: "1", extra: "", comment: "是否开启，1=开启"},
+                {name: "read_timeout_second", type: "int", nullable: false, key: "", default: null, extra: "", comment: "读超时秒数"},
+                {name: "ai_question_classify_assistant_id", type: "int", nullable: true, key: "", default: null, extra: "", comment: "聊天大模型"},
+                {name: "ai_assistant_id", type: "varchar(32)", nullable: false, key: "", default: null, extra: "", comment: "智能体"}
+            ]
+        },
+        {
+            name: "ai_question_classify_assistant",
+            comment: "专家智能体（经过问题分类后使用的）",
+            engine: "InnoDB",
+            charset: "utf8mb4",
+            fields: [
+                {name: "id", type: "int", nullable: false, key: "PRI", default: null, extra: "auto_increment", comment: "智能体ID，不可变。保证唯一"},
+                {name: "name", type: "varchar(50)", nullable: false, key: "", default: null, extra: "", comment: "智能体名称"},
+                {name: "system_prompt_text", type: "text", nullable: false, key: "", default: null, extra: "", comment: "系统提示词"},
+                {name: "ai_tool_ids", type: "varchar(255)", nullable: false, key: "", default: null, extra: "", comment: "这个智能体能使用的工具"},
+                {name: "max_memory_tokens", type: "int", nullable: false, key: "", default: null, extra: "", comment: "记忆字数的上限"},
+                {name: "max_memory_rounds", type: "int", nullable: false, key: "", default: null, extra: "", comment: "最多记忆几轮对话"},
+                {name: "temperature", type: "double", nullable: false, key: "", default: null, extra: "", comment: "丰富度，0.1至1之间，最大越丰富"},
+                {name: "chat_api_key", type: "varchar(128)", nullable: false, key: "", default: null, extra: "", comment: "聊天大模型的密码"},
+                {name: "chat_base_url", type: "varchar(128)", nullable: false, key: "", default: null, extra: "", comment: "聊天大模型的url"},
+                {name: "chat_model_name", type: "varchar(50)", nullable: false, key: "", default: null, extra: "", comment: "聊天大模型的名称"},
+                {name: "ai_jsonschema_ids", type: "varchar(100)", nullable: false, key: "", default: null, extra: "", comment: "使用哪些jsonschema "},
+                {name: "max_completion_tokens", type: "int", nullable: false, key: "", default: null, extra: "", comment: "指令生成的回答中包含的最大token数。例如，如果设置为100，那么模型生成的回答中token数不会超过100个"},
+                {name: "kn_prompt_text", type: "text", nullable: false, key: "", default: null, extra: "", comment: "知识库提示词"},
+                {name: "mstate_prompt_text", type: "text", nullable: false, key: "", default: null, extra: "", comment: "记忆状态提示词"}
+            ]
+        },
+        {
+            name: "ai_question_top",
+            comment: "热门问题",
+            engine: "InnoDB",
+            charset: "utf8mb4",
+            fields: [
+                {name: "id", type: "int", nullable: false, key: "PRI", default: null, extra: "auto_increment", comment: ""},
+                {name: "question_text", type: "varchar(255)", nullable: false, key: "", default: null, extra: "", comment: "问题"},
+                {name: "sorted", type: "int", nullable: false, key: "", default: null, extra: "", comment: "排序"},
+                {name: "create_time", type: "datetime", nullable: false, key: "", default: null, extra: "", comment: "创建时间"},
+                {name: "update_time", type: "datetime", nullable: false, key: "", default: null, extra: "", comment: "更新时间"},
+                {name: "icon_url", type: "varchar(255)", nullable: false, key: "", default: null, extra: "", comment: "问题icon"},
+                {name: "public_flag", type: "bit(1)", nullable: false, key: "", default: null, extra: "", comment: "是否全部人都能看"}
+            ]
+        },
+        {
+            name: "ai_question_top_assistant",
+            comment: "热门问题和智能体权限关联",
+            engine: "InnoDB",
+            charset: "utf8mb4",
+            fields: [
+                {name: "id", type: "int", nullable: false, key: "PRI", default: null, extra: "auto_increment", comment: ""},
+                {name: "ai_question_top_id", type: "int", nullable: false, key: "", default: null, extra: "", comment: "问题ID"},
+                {name: "assistant_id", type: "varchar(32)", nullable: false, key: "", default: null, extra: "", comment: "智能体"}
+            ]
+        },
+        {
+            name: "ai_tool",
+            comment: "AI工具提示词",
+            engine: "InnoDB",
+            charset: "utf8mb4",
+            fields: [
+                {name: "id", type: "int", nullable: false, key: "PRI", default: null, extra: "auto_increment", comment: ""},
+                {name: "tool_function_name", type: "varchar(50)", nullable: false, key: "", default: null, extra: "", comment: "函数名称，给AI和让用户看的名称（需要全局唯一）"},
+                {name: "tool_function_enum", type: "varchar(50)", nullable: false, key: "", default: null, extra: "", comment: "函数枚举（就是研发实现的工具类对象的方法名）"},
+                {name: "tool_enum", type: "varchar(50)", nullable: false, key: "", default: null, extra: "", comment: "工具枚举（就是研发实现的工具类在spring中的beanName）"},
+                {name: "remark", type: "varchar(512)", nullable: false, key: "", default: null, extra: "", comment: "备注"},
+                {name: "tool_function_description", type: "text", nullable: false, key: "", default: null, extra: "", comment: "函数提示词（给AI用的）"},
+                {name: "create_time", type: "datetime", nullable: false, key: "", default: null, extra: "", comment: "创建时间"},
+                {name: "update_time", type: "datetime", nullable: false, key: "", default: null, extra: "", comment: "更新时间"},
+                {name: "create_uid", type: "int", nullable: false, key: "", default: null, extra: "", comment: "创建人"},
+                {name: "update_uid", type: "int", nullable: false, key: "", default: null, extra: "", comment: "修改人"}
+            ]
+        },
+        {
+            name: "ai_tool_parameter",
+            comment: "AI工具参数的提示词",
+            engine: "InnoDB",
+            charset: "utf8mb4",
+            fields: [
+                {name: "id", type: "int", nullable: false, key: "PRI", default: null, extra: "auto_increment", comment: ""},
+                {name: "ai_tool_id", type: "int", nullable: false, key: "", default: null, extra: "", comment: "ai_tool的ID"},
+                {name: "parameter_enum", type: "varchar(50)", nullable: false, key: "", default: null, extra: "", comment: "参数枚举（就是研发实现的工具类对象的方法名）"},
+                {name: "parameter_description", type: "varchar(2000)", nullable: false, key: "", default: null, extra: "", comment: "参数提示词（给AI用的）"},
+                {name: "required_flag", type: "bit(1)", nullable: false, key: "", default: null, extra: "", comment: "是否必填"},
+                {name: "name", type: "varchar(50)", nullable: false, key: "", default: null, extra: "", comment: "名称，AI不用"},
+                {name: "enable_flag", type: "bit(1)", nullable: false, key: "", default: null, extra: "", comment: "是否开启"},
+                {name: "default_value", type: "varchar(255)", nullable: false, key: "", default: null, extra: "", comment: "默认值"}
+            ]
+        },
+        {
+            name: "ai_variables",
+            comment: "Ai提示词全局变量",
+            engine: "InnoDB",
+            charset: "utf8mb4",
+            fields: [
+                {name: "id", type: "int", nullable: false, key: "PRI", default: null, extra: "auto_increment", comment: ""},
+                {name: "var_key", type: "varchar(64)", nullable: false, key: "", default: null, extra: "", comment: "变量key"},
+                {name: "var_value", type: "text", nullable: false, key: "", default: null, extra: "", comment: "变量数据"},
+                {name: "create_time", type: "datetime", nullable: false, key: "", default: null, extra: "", comment: "创建时间"},
+                {name: "update_time", type: "datetime", nullable: false, key: "", default: null, extra: "", comment: "更新时间"},
+                {name: "enable_flag", type: "bit(1)", nullable: false, key: "", default: "1", extra: "", comment: "是否启用"}
+            ]
+        },
+        {
+            name: "kn_question",
+            comment: "问答知识库",
+            engine: "InnoDB",
+            charset: "utf8mb4",
+            fields: [
+                {name: "id", type: "int", nullable: false, key: "PRI", default: null, extra: "auto_increment", comment: ""},
+                {name: "question", type: "varchar(500)", nullable: false, key: "", default: null, extra: "", comment: ""},
+                {name: "answer", type: "varchar(4000)", nullable: false, key: "", default: null, extra: "", comment: ""},
+                {name: "qa_type", type: "varchar(20)", nullable: false, key: "", default: null, extra: "", comment: ""},
+                {name: "qa_level", type: "varchar(30)", nullable: false, key: "", default: null, extra: "", comment: ""}
+            ]
+        },
+        {
+            name: "kn_setting_websearch_blacklist",
+            comment: "Ai联网结果黑名单",
+            engine: "InnoDB",
+            charset: "utf8mb4",
+            fields: [
+                {name: "id", type: "int", nullable: false, key: "PRI", default: null, extra: "auto_increment", comment: ""},
+                {name: "question", type: "varchar(128)", nullable: false, key: "", default: null, extra: "", comment: "黑名单问题"},
+                {name: "similarity", type: "bigint", nullable: false, key: "", default: null, extra: "", comment: "相似度,0~100"},
+                {name: "sorted", type: "int", nullable: false, key: "", default: null, extra: "", comment: "排序，从小到大，越容易命中的放前面"}
+            ]
+        }
+    ];
+
+    // 表关系数据
+    const tableRelations = [
+        {
+            source: "ai_assistant",
+            target: "ai_assistant_fewshot",
+            type: "一对多",
+            description: "一个智能体可以有多个少样本学习示例"
+        },
+        {
+            source: "ai_assistant",
+            target: "ai_assistant_kn",
+            type: "一对多",
+            description: "一个智能体可以配置多个知识库"
+        },
+        {
+            source: "ai_assistant",
+            target: "ai_assistant_mstate",
+            type: "一对多",
+            description: "一个智能体可以定义多个记忆状态字段"
+        },
+        {
+            source: "ai_assistant",
+            target: "ai_chat",
+            type: "一对多",
+            description: "一个智能体可以参与多个聊天会话"
+        },
+        {
+            source: "ai_assistant",
+            target: "ai_question_classify",
+            type: "一对多",
+            description: "一个智能体可以配置多个问题分类"
+        },
+        {
+            source: "ai_chat",
+            target: "ai_chat_history",
+            type: "一对多",
+            description: "一个聊天会话包含多条聊天记录"
+        },
+        {
+            source: "ai_chat_history",
+            target: "ai_chat_abort",
+            type: "一对一",
+            description: "一条聊天明细对应一次终止。 ai_chat_abort[user_query_trace_number]"
+        },
+        {
+            source: "ai_memory_message",
+            target: "ai_chat_abort",
+            type: "一对一",
+            description: "一条记忆明细对应一次终止。 ai_chat_abort[user_query_trace_number]"
+        },
+        {
+            source: "ai_chat_history",
+            target: "ai_memory_error",
+            type: "一对一",
+            description: "一条聊天明细对应一次错误提示。 ai_memory_error[user_query_trace_number]"
+        },
+        {
+            source: "ai_memory_message",
+            target: "ai_memory_error",
+            type: "一对一",
+            description: "一条记忆明细对应一次错误提示。 ai_memory_error[user_query_trace_number]"
+        },
+        {
+            source: "ai_chat",
+            target: "ai_chat_abort",
+            type: "一对多",
+            description: "一个聊天会话可能有多个用户终止生成记录"
+        },
+        {
+            source: "ai_chat",
+            target: "ai_chat_classify",
+            type: "一对多",
+            description: "一个聊天会话可能有多个问题分类记录"
+        },
+        {
+            source: "ai_chat",
+            target: "ai_chat_reasoning",
+            type: "一对多",
+            description: "一个聊天会话可能有多个问题思考记录"
+        },
+        {
+            source: "ai_chat",
+            target: "ai_chat_websearch",
+            type: "一对多",
+            description: "一个聊天会话可能有多个联网搜索记录"
+        },
+        {
+            source: "ai_memory",
+            target: "ai_chat",
+            type: "一对多",
+            description: "一个记忆可以关联到多个聊天会话"
+        },
+        {
+            source: "ai_chat",
+            target: "ai_memory_error",
+            type: "一对多",
+            description: "一个聊天会话对应多次错误提示。 ai_memory_error[ai_chat_id]"
+        },
+        {
+            source: "ai_memory",
+            target: "ai_memory_error",
+            type: "一对多",
+            description: "一个记忆可以有多个错误记录"
+        },
+        {
+            source: "ai_memory",
+            target: "ai_memory_message",
+            type: "一对多",
+            description: "一个记忆包含多条消息记录"
+        },
+        {
+            source: "ai_memory_message",
+            target: "ai_memory_message_kn",
+            type: "一对多",
+            description: "一条记忆消息可能关联多个知识库查询结果"
+        },
+        {
+            source: "ai_memory_message",
+            target: "ai_memory_message_metadata",
+            type: "一对多",
+            description: "一条记忆消息可能包含多个元数据"
+        },
+        {
+            source: "ai_memory_message",
+            target: "ai_memory_message_tool",
+            type: "一对多",
+            description: "一条记忆消息可能调用多个工具"
+        },
+        {
+            source: "ai_memory",
+            target: "ai_memory_mstate",
+            type: "一对多",
+            description: "一个记忆可以有多个记忆状态"
+        },
+        {
+            source: "ai_memory",
+            target: "ai_memory_search",
+            type: "一对多",
+            description: "一个记忆可以有多个RAG搜索记录"
+        },
+        {
+            source: "ai_memory_search",
+            target: "ai_memory_search_doc",
+            type: "一对多",
+            description: "一个RAG搜索可以返回多个文档结果"
+        },
+        {
+            source: "ai_question_classify",
+            target: "ai_chat_classify",
+            type: "一对多",
+            description: "一个问题分类可以对应多个聊天分类记录"
+        },
+        {
+            source: "ai_question_top",
+            target: "ai_question_top_assistant",
+            type: "一对多",
+            description: "一个热门问题可以关联到多个智能体"
+        },
+        {
+            source: "ai_assistant",
+            target: "ai_tool",
+            type: "一对多",
+            description: "一个通用型智能体可以使用多个工具。ai_assistant[ai_tool_ids]"
+        },
+        {
+            source: "ai_assistant",
+            target: "ai_jsonschema",
+            type: "一对多",
+            description: "一个通用型智能体可以使用多个任务型智能体。ai_assistant[ai_jsonschema_ids]"
+        },
+        {
+            source: "ai_question_classify_assistant",
+            target: "ai_tool",
+            type: "一对多",
+            description: "一个专家型智能体可以使用多个工具。ai_question_classify_assistant[ai_tool_ids]"
+        },
+        {
+            source: "ai_question_classify_assistant",
+            target: "ai_jsonschema",
+            type: "一对多",
+            description: "一个专家型智能体可以使用多个任务型智能体。ai_question_classify_assistant[ai_jsonschema_ids]"
+        },
+        {
+            source: "ai_jsonschema",
+            target: "ai_tool",
+            type: "一对多",
+            description: "一个任务型智能体可以使用多个工具。ai_jsonschema[ai_tool_ids]"
+        },
+        {
+            source: "ai_tool",
+            target: "ai_tool_parameter",
+            type: "一对多",
+            description: "一个工具有多个参数。ai_tool_parameter[ai_tool_id]"
+        },
+        {
+            source: "ai_chat_reasoning",
+            target: "ai_chat_reasoning_plan",
+            type: "一对多",
+            description: "一次思考会规划多个子任务。ai_chat_reasoning_plan[ai_chat_reasoning_id]"
+        },
+        {
+            source: "ai_chat_history",
+            target: "ai_chat_reasoning",
+            type: "一对多",
+            description: "一次用户提问会多个思考。注意：（正常情况一次提问一个思考，只有重新回答的情况是多个）。ai_chat_reasoning[user_chat_history_id]"
+        },
+        {
+            source: "ai_chat_websearch",
+            target: "ai_chat_websearch_result",
+            type: "一对多",
+            description: "一次联网会得到多个结果。ai_chat_websearch_result[ai_chat_websearch_id]"
+        },
+        {
+            source: "ai_question_classify",
+            target: "ai_question_classify_assistant",
+            type: "一对一",
+            description: "一个分类对应一个专家智能体。ai_question_classify[ai_question_classify_assistant_id]"
+        },
+
+    ];
+
+    // 多级排序
+    tableRelations.sort((a, b) => {
+        // 1. 按 source 长度升序
+        if (a.source.length !== b.source.length) {
+            return a.source.length - b.source.length;
+        }
+        // 2. 按 source 字典序升序
+        if (a.source !== b.source) {
+            return a.source.localeCompare(b.source);
+        }
+        // 3. 按 target 字典序升序
+        return a.target.localeCompare(b.target);
+    });
+
+    let currentTableData = [...tableData];
+    let selectedTable = null;
+
+    const tabs = {
+        'tab1AssistantDef':  [
+            "ai_assistant",
+            "ai_assistant_fewshot",
+            "ai_assistant_kn",
+            "ai_assistant_mstate",
+            "ai_question_classify",
+            "ai_question_classify_assistant",
+        ],
+        'tab1Def' : [
+            "ai_jsonschema",
+            "ai_question_top",
+            "ai_question_top_assistant",
+            "ai_tool",
+            "ai_tool_parameter",
+            "ai_variables",
+            "kn_question",
+            "kn_setting_websearch_blacklist",
+        ],
+        'tab2ChatRuntime' : [
+            "ai_chat" ,
+            "ai_chat_abort" ,
+            "ai_chat_classify" ,
+            "ai_chat_history" ,
+            "ai_chat_reasoning" ,
+            "ai_chat_reasoning_plan" ,
+            "ai_chat_websearch" ,
+            "ai_chat_websearch_result" ,
+        ],
+        'tab3MemoryRuntime' : [
+            "ai_memory" ,
+            "ai_memory_error" ,
+            "ai_memory_message" ,
+            "ai_memory_message_kn" ,
+            "ai_memory_message_metadata" ,
+            "ai_memory_message_tool" ,
+            "ai_memory_mstate" ,
+            "ai_memory_search" ,
+            "ai_memory_search_doc"
+        ],
+        'tab4EmbeddingRuntime' : [
+            "ai_embedding"
+        ]
+    }
+
+    // 初始化
+    document.addEventListener('DOMContentLoaded', function() {
+        renderTableList();
+        setupSearch();
+    });
+
+    // 渲染表列表
+    function renderTableList() {
+        const listContainer = document.getElementById('tableList');
+        listContainer.innerHTML = '';
+
+        currentTableData.forEach(table => {
+            const item = document.createElement('div');
+            item.className = 'table-item';
+            item.onclick = () => showTableDetail(table.name);
+            item.innerHTML = `
+                    <div class="table-name">${table.name}</div>
+                    <div class="table-comment">${table.comment}</div>
+                `;
+            listContainer.appendChild(item);
+        });
+        if (currentTableData.length > 0) {
+            showTableDetail(currentTableData[0].name)
+        }
+    }
+
+    // 显示表详情
+    function showTableDetail(tableName) {
+        const table = tableData.find(t => t.name === tableName);
+        if (!table) return;
+
+        selectedTable = table;
+        updateTableListSelection(tableName);
+
+        const detailContainer = document.getElementById('tableDetail');
+        detailContainer.innerHTML = `
+                <div class="table-header">
+                    <h2 class="table-title">${table.name}</h2>
+                    <p>${table.comment}【共${table.fields.length}个字段】</p>
+                </div>
+
+                <div class="relations-section">
+                    <h3 class="section-title">上游关系</h3>
+                    ${getTableRelations(tableName, true)}
+                     <h3 class="section-title">下游关系</h3>
+                    ${getTableRelations(tableName, false)}
+                </div>
+
+                <h3 class="section-title">字段结构</h3>
+                <table class="fields-table">
+                    <thead>
+                        <tr>
+                            <th>字段名</th>
+                            <th>类型</th>
+                            <th>允许空</th>
+                            <th>键</th>
+                            <th>默认值</th>
+                            <th>额外信息</th>
+                            <th>注释</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${table.fields.map(field => `
+                            <tr>
+                                <td class="field-name">${field.name}</td>
+                                <td class="field-type">${field.type}</td>
+                                <td>${field.nullable ? '是' : '否'}</td>
+                                <td>${field.key || '-'}</td>
+                                <td>${field.default || '-'}</td>
+                                <td>${field.extra || '-'}</td>
+                                <td>${field.comment || '-'}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+
+            `;
+    }
+
+    // 获取表关系
+    function getTableRelations(tableName, up) {
+        const relations =
+            up ?
+                tableRelations.filter(r => r.target === tableName )
+                :
+                tableRelations.filter(r => r.source === tableName);
+
+        if (relations.length === 0) {
+            return '<div class="no-data">暂无关联关系</div>';
+        }
+
+        return relations.map(relation => `
+                <div class="relation-item">
+                    <div class="relation-title">
+                        ${relation.source} → ${relation.target} (${relation.type})
+                    </div>
+                    <div class="relation-desc">${relation.description}</div>
+                    <div>
+                        <button onclick="showTableDetail('${relation.source}')" style="margin-right: 10px;">查看 ${relation.source}</button>
+                        <button onclick="showTableDetail('${relation.target}')">查看 ${relation.target}</button>
+                    </div>
+                </div>
+            `).join('');
+    }
+
+    // 更新表列表选中状态
+    function updateTableListSelection(tableName) {
+        document.querySelectorAll('.table-item').forEach(item => {
+            item.classList.remove('active');
+        });
+
+        const selectedItem = Array.from(document.querySelectorAll('.table-item')).find(item =>
+            item.querySelector('.table-name').textContent === tableName
+        );
+
+        if (selectedItem) {
+            selectedItem.classList.add('active');
+        }
+    }
+
+    // 搜索功能
+    function performSearch() {
+        const keyword = document.getElementById('searchInput').value.toLowerCase();
+
+        if (!keyword) {
+            currentTableData = [...tableData];
+            renderTableList();
+            return;
+        }
+
+        currentTableData = tableData.filter(table => {
+            // 搜索表名和备注
+            if (table.name.toLowerCase().includes(keyword) ||
+                table.comment.toLowerCase().includes(keyword)) {
+                return true;
+            }
+
+            // 搜索字段名和字段备注
+            return table.fields.some(field =>
+                field.name.toLowerCase().includes(keyword) ||
+                field.comment.toLowerCase().includes(keyword)
+            );
+        });
+
+        renderTableList();
+    }
+
+    let lastTabType = 'all'
+
+    // 标签切换
+    function switchTab(tabType) {
+        if (lastTabType === tabType) {
+            return
+        }
+        lastTabType = tabType
+        // 更新按钮状态
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        event.target.classList.add('active');
+
+        const tableNameList = tabs[tabType]
+        // 过滤表数据
+        if (tableNameList) {
+            currentTableData = tableData.filter(table =>
+                tableNameList.includes(table.name)
+            );
+        } else {
+            currentTableData = [...tableData];
+        }
+        renderTableList();
+    }
+
+    // 设置搜索事件
+    function setupSearch() {
+        const searchInput = document.getElementById('searchInput');
+        searchInput.addEventListener('keyup', function(event) {
+            if (event.key === 'Enter') {
+                performSearch();
+            }
+        });
+    }
+
+    // 高亮搜索关键词
+    function highlightText(text, keyword) {
+        if (!keyword) return text;
+        const regex = new RegExp(`(${keyword})`, 'gi');
+        return text.replace(regex, '<span class="highlight">$1</span>');
+    }
+</script>
+</body>
+</html>
