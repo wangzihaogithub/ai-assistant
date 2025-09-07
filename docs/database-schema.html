@@ -297,7 +297,6 @@
 <div class="container">
     <header>
         <h1>AI系统数据库表结构文档</h1>
-        <p class="subtitle">完整的数据表结构说明与关系图谱</p>
     </header>
 
     <div class="search-container">
@@ -305,13 +304,8 @@
             <input type="text" id="searchInput" class="search-input" placeholder="搜索表名、备注、字段名或字段备注..." onchange="performSearch()">
             <button class="search-btn" onclick="performSearch()" >搜索</button>
         </div>
-        <div class="tabs">
-            <button class="tab-btn active" onclick="switchTab('all')">全部表</button>
-            <button class="tab-btn" onclick="switchTab('tab1AssistantDef')">配置表-智能体</button>
-            <button class="tab-btn" onclick="switchTab('tab1Def')">配置表-基础数据</button>
-            <button class="tab-btn" onclick="switchTab('tab2ChatRuntime')">运行时表-聊天</button>
-            <button class="tab-btn" onclick="switchTab('tab3MemoryRuntime')">运行时表-记忆</button>
-            <button class="tab-btn" onclick="switchTab('tab4EmbeddingRuntime')">运行时表-向量</button>
+        <div id="tabs" class="tabs">
+            <button id="tab-all" class="tab-btn active" onclick="switchTab('all')">全部表</button>
         </div>
     </div>
 
@@ -1162,49 +1156,74 @@
     let currentTableData = [...tableData];
     let selectedTable = null;
 
-    const tabs = {
-        'tab1AssistantDef':  [
-            "ai_assistant",
-            "ai_assistant_fewshot",
-            "ai_assistant_kn",
-            "ai_assistant_mstate",
-            "ai_question_classify",
-            "ai_question_classify_assistant",
-        ],
-        'tab1Def' : [
-            "ai_jsonschema",
-            "ai_question_top",
-            "ai_question_top_assistant",
-            "ai_tool",
-            "ai_tool_parameter",
-            "ai_variables",
-            "kn_question",
-            "kn_setting_websearch_blacklist",
-        ],
-        'tab2ChatRuntime' : [
-            "ai_chat" ,
-            "ai_chat_abort" ,
-            "ai_chat_classify" ,
-            "ai_chat_history" ,
-            "ai_chat_reasoning" ,
-            "ai_chat_reasoning_plan" ,
-            "ai_chat_websearch" ,
-            "ai_chat_websearch_result" ,
-        ],
-        'tab3MemoryRuntime' : [
-            "ai_memory" ,
-            "ai_memory_error" ,
-            "ai_memory_message" ,
-            "ai_memory_message_kn" ,
-            "ai_memory_message_metadata" ,
-            "ai_memory_message_tool" ,
-            "ai_memory_mstate" ,
-            "ai_memory_search" ,
-            "ai_memory_search_doc"
-        ],
-        'tab4EmbeddingRuntime' : [
-            "ai_embedding"
-        ]
+    const tabs = [
+        {
+            'name': '配置表-智能体',
+            'tablelist': [
+                "ai_assistant",
+                "ai_assistant_fewshot",
+                "ai_assistant_kn",
+                "ai_assistant_mstate",
+                "ai_question_classify",
+                "ai_question_classify_assistant",
+            ]
+        },
+        {
+            'name': '配置表-基础数据',
+            'tablelist': [
+                "ai_jsonschema",
+                "ai_question_top",
+                "ai_question_top_assistant",
+                "ai_tool",
+                "ai_tool_parameter",
+                "ai_variables",
+                "kn_question",
+                "kn_setting_websearch_blacklist",
+            ]
+        },
+        {
+            'name': '运行时表-聊天',
+            'tablelist': [
+                "ai_chat",
+                "ai_chat_abort",
+                "ai_chat_classify",
+                "ai_chat_history",
+                "ai_chat_reasoning",
+                "ai_chat_reasoning_plan",
+                "ai_chat_websearch",
+                "ai_chat_websearch_result",
+            ]
+        },
+        {
+            'name': '运行时表-记忆',
+            'tablelist': [
+                "ai_memory",
+                "ai_memory_error",
+                "ai_memory_message",
+                "ai_memory_message_kn",
+                "ai_memory_message_metadata",
+                "ai_memory_message_tool",
+                "ai_memory_mstate",
+                "ai_memory_search",
+                "ai_memory_search_doc"
+            ]
+        },
+        {
+            'name': '运行时表-向量',
+            'tablelist': [
+                "ai_embedding"
+            ]
+        }
+    ]
+
+    document.getElementById('tab-all').innerText = `全部表 (共${tableData.length}张)`
+    for (let i = 0; i < tabs.length; i++) {
+        const tab = tabs[i]
+        const button = document.createElement('button')
+        button.className = 'tab-btn'
+        button.addEventListener('click', () => switchTab(i))
+        button.innerText = `${tab.name} (共${tab.tablelist.length}张)`
+        document.getElementById('tabs').append(button)
     }
 
     // 初始化
@@ -1354,7 +1373,7 @@
         renderTableList();
     }
 
-    let lastTabType = 'all'
+    let lastTabType
 
     // 标签切换
     function switchTab(tabType) {
@@ -1372,7 +1391,7 @@
         // 过滤表数据
         if (tableNameList) {
             currentTableData = tableData.filter(table =>
-                tableNameList.includes(table.name)
+                tableNameList.tablelist.includes(table.name)
             );
         } else {
             currentTableData = [...tableData];
