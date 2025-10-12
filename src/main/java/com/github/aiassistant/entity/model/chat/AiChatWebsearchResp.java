@@ -1,9 +1,10 @@
 package com.github.aiassistant.entity.model.chat;
 
+import java.io.Serializable;
 import java.util.Date;
 
 // @Data
-public class AiChatWebsearchResp {
+public class AiChatWebsearchResp implements Serializable {
     public Integer getId() {
         return id;
     }

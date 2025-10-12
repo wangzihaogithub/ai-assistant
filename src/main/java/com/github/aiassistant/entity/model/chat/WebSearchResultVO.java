@@ -5,11 +5,12 @@ import com.github.aiassistant.util.AiUtil;
 import com.github.aiassistant.util.StringUtils;
 import com.github.aiassistant.util.ThrowableUtil;
 
+import java.io.Serializable;
 import java.util.*;
 import java.util.stream.Collectors;
 
 // @Data
-public class WebSearchResultVO {
+public class WebSearchResultVO implements Serializable {
     public static final String DESC_URL = "URL";
     public static final String DESC_TITLE = "标题";
     public static final String DESC_CONTENT = "摘要";
@@ -54,6 +55,9 @@ public class WebSearchResultVO {
         Set<UrlReadTools.ProxyVO> proxyList = new LinkedHashSet<>();
         List<String> error = new ArrayList<>();
         for (WebSearchResultVO resultVO : voList) {
+            if (resultVO == null) {
+                continue;
+            }
             if (resultVO.getList() != null) {
                 for (Row row : resultVO.getList()) {
                     String url = row.getUrl();
@@ -95,6 +99,9 @@ public class WebSearchResultVO {
         StringJoiner result = new StringJoiner("\n\n");
         StringJoiner rows = new StringJoiner("\n\n");
         for (WebSearchResultVO vo : voList) {
+            if (vo == null) {
+                continue;
+            }
             addRowString(vo.list, rows, simple);
         }
         if (rows.length() == 0) {
@@ -117,12 +124,6 @@ public class WebSearchResultVO {
             String content = rowVo.getContent();
             String source = rowVo.getSource();
             String time = rowVo.getTime();
-            if (!simple) {
-                String url = rowVo.getUrl();
-                if (StringUtils.hasText(url)) {
-                    row.add(AiUtil.toAiXmlString(DESC_URL, url));
-                }
-            }
             if (StringUtils.hasText(title)) {
                 row.add(AiUtil.toAiXmlString(DESC_TITLE, title));
             }
@@ -134,6 +135,12 @@ public class WebSearchResultVO {
             }
             if (StringUtils.hasText(time)) {
                 row.add(AiUtil.toAiXmlString(DESC_TIME, time));
+            }
+            if (!simple) {
+                String url = rowVo.getUrl();
+                if (StringUtils.hasText(url)) {
+                    row.add(AiUtil.toAiXmlString(DESC_URL, url));
+                }
             }
             rows.add(AiUtil.toAiXmlString("row", row.toString()));
         }

@@ -1,13 +1,14 @@
 package com.github.aiassistant.entity;
 
+import java.io.Serializable;
 import java.util.Date;
 
 //// @ApiModel(value = "AiMemoryMstate", description = "状态记忆数据\n")
 //// @Data
 //// @TableName("ai_memory_mstate")
-public class AiMemoryMstate {
+public class AiMemoryMstate implements Serializable {
 
-//    // @TableId(value = "id", type = IdType.AUTO)
+    //    // @TableId(value = "id", type = IdType.AUTO)
     private Integer id;
 
     private Integer aiMemoryId;

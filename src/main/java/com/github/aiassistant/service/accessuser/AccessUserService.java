@@ -93,7 +93,7 @@ public class AccessUserService {
     }
 
     /**
-     * 获取记忆ID
+     * 获取记忆ID(有越权校验)
      *
      * @param chatId      chatId
      * @param createUid   createUid
@@ -118,6 +118,28 @@ public class AccessUserService {
         } else {
             return null;
         }
+    }
+
+    /**
+     * 获取记忆ID(无越权校验)
+     *
+     * @param chatId chatId
+     * @return 记忆ID
+     */
+    public MemoryIdVO getMemoryId(Serializable chatId) {
+        if (chatId == null) {
+            return null;
+        }
+        AiChat aiChat = aiChatMapper.selectById(chatId);
+        MemoryIdVO vo = new MemoryIdVO();
+        vo.setAiChat(aiChat);
+        vo.setAiAssistant(aiAssistantMapper.selectById(aiChat.getAssistantId()));
+        vo.setAssistantKnMap(aiAssistantKnMapper.selectListByAssistantId(aiChat.getAssistantId()).stream()
+                .collect(Collectors.groupingBy(AiAssistantKn::getKnTypeEnum)));
+        for (AccessUserServiceIntercept intercept : interceptList.get()) {
+            vo = intercept.afterMemoryId(vo, chatId, aiChat.getCreateUid(), AiChatUidTypeEnum.valueOf(aiChat.getUidType()));
+        }
+        return vo;
     }
 
     /**

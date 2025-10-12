@@ -17,7 +17,6 @@ import com.github.aiassistant.service.text.tools.functioncall.UrlReadTools;
 import com.github.aiassistant.util.StringUtils;
 import com.github.aiassistant.util.ThrowableUtil;
 import com.mysql.cj.jdbc.MysqlDataSource;
-import dev.langchain4j.model.openai.OpenAiEmbeddingModel;
 import org.apache.http.Header;
 import org.apache.http.HttpHost;
 import org.apache.http.message.BasicHeader;
@@ -44,23 +43,30 @@ public class AiBuilders {
 //        return assistant;
 //    }
 
-    public static EmbeddingModelClient aliyunEmbeddingV3(String apiKey, int dimensions) {
-        String modelName = "text-embedding-v3";
-        return new EmbeddingModelClient(OpenAiEmbeddingModel.builder()
+    public static EmbeddingModelClient.Factory aliyunEmbeddingV4(String apiKey, int dimensions) {
+        return EmbeddingModelClient.builder()
                 .apiKey(apiKey)
-                .modelName(modelName)
+                .modelName("text-embedding-v4")
                 .baseUrl("https://dashscope.aliyuncs.com/compatible-mode/v1")
                 .dimensions(dimensions)
-                .build(),
-                modelName, dimensions, null, null, null);
+                .build();
+    }
+
+    public static EmbeddingModelClient.Factory aliyunEmbeddingV3(String apiKey, int dimensions) {
+        return EmbeddingModelClient.builder()
+                .apiKey(apiKey)
+                .modelName("text-embedding-v3")
+                .baseUrl("https://dashscope.aliyuncs.com/compatible-mode/v1")
+                .dimensions(dimensions)
+                .build();
     }
 
     public static EmbeddingReRankModel aliyunEmbeddingV3ReRank(String apiKey, int dimensions) {
-        return new EmbeddingReRankModel(aliyunEmbeddingV3(apiKey, dimensions));
+        return new EmbeddingReRankModel(aliyunEmbeddingV3(apiKey, dimensions).get());
     }
 
     public static EmbeddingReRankModel aliyunEmbeddingV3ReRank1024(String apiKey) {
-        return new EmbeddingReRankModel(aliyunEmbeddingV3(apiKey, 1024));
+        return new EmbeddingReRankModel(aliyunEmbeddingV3(apiKey, 1024).get());
     }
 
     public static AliyunReRankModel aliyunGteRerankV2(String apiKey) {

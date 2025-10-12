@@ -1,10 +1,29 @@
 package com.github.aiassistant.entity;
 
+import java.io.Serializable;
 import java.util.Date;
 
 // @Data
 // @TableName("ai_memory_error")
-public class AiMemoryError {
+public class AiMemoryError implements Serializable {
+    // @TableId(value = "id", type = IdType.AUTO)
+    private Integer id;
+    private Integer aiChatId;
+    private Integer memoryId;
+    private String userQueryTraceNumber;
+    private String rootAgainUserQueryTraceNumber;
+    private Integer messageCount;
+    private String errorClassName;
+    private String errorMessage;
+    private Integer baseMessageIndex;
+    private Integer addMessageCount;
+    private Integer generateCount;
+    private Date createTime;
+    private Date sessionTime;
+    private String errorType;
+    private String messageText;
+    private String attachmentJson;
+
     public Integer getId() {
         return id;
     }
@@ -132,28 +151,6 @@ public class AiMemoryError {
     public void setAttachmentJson(String attachmentJson) {
         this.attachmentJson = attachmentJson;
     }
-
-    // @TableId(value = "id", type = IdType.AUTO)
-    private Integer id;
-    private Integer aiChatId;
-    private Integer memoryId;
-    
-    private String userQueryTraceNumber;
-    private String rootAgainUserQueryTraceNumber;
-    private Integer messageCount;
-
-    private String errorClassName;
-    private String errorMessage;
-    private Integer baseMessageIndex;
-    private Integer addMessageCount;
-    private Integer generateCount;
-
-    private Date createTime;
-    private Date sessionTime;
-
-    private String errorType;
-    private String messageText;
-    private String attachmentJson;
 
     @Override
     public String toString() {

@@ -146,7 +146,7 @@ public class JdbcSessionMessageRepository extends AbstractSessionMessageReposito
                 });
         // 切换至AI消息List
         requestTrace.changeToResponse();
-        return FutureUtil.allOf(memory, chat);
+        return FutureUtil.allOfs(memory, chat);
     }
 
     /**
@@ -250,7 +250,7 @@ public class JdbcSessionMessageRepository extends AbstractSessionMessageReposito
             });
         }
         // 持久化完成后就可以恢复前端的提问按钮了
-        return FutureUtil.allOf(memory, chat);
+        return FutureUtil.allOfs(memory, chat);
     }
 
     public MStateAiParseVO parseState(MemoryIdVO memoryId,

@@ -59,7 +59,7 @@
         select id
         from ai_chat_history
         where (ai_chat_id, message_index, message_type_enum, user_query_flag, user_query_trace_number) in (
-            select ai_chat_id, max(message_index), message_type_enum, user_query_flag, user_query_trace_number
+            select ai_chat_id, max(message_index), message_type_enum, any_value(user_query_flag), any_value(user_query_trace_number)
             from ai_chat_history
             where ai_chat_id = #{arg0}
             and user_query_flag = true
@@ -87,7 +87,7 @@
 
     <select id="selectRootAgainTraceNumberList" resultType="com.github.aiassistant.entity.AiChatHistory">
         select
-            if(root_user_query_trace_number = '', user_query_trace_number, root_user_query_trace_number) root_user_query_trace_number,
+            any_value(if(root_user_query_trace_number = '', user_query_trace_number, root_user_query_trace_number)) root_user_query_trace_number,
             user_query_trace_number
         from ai_chat_history
         where user_query_trace_number in

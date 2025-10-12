@@ -97,15 +97,15 @@ public class AiApplication {
         this(null, new Mybatis3DAOProvider(dataSource), embeddingStore, toolsMap, interceptMap);
     }
 
-    public AiApplication(Executor threadPoolTaskExecutor,
+    public AiApplication(Executor functionCallThreadPool,
                          DataSource dataSource,
                          RestClient embeddingStore,
                          Function<String, Tools> toolsMap,
                          Function<Class<? extends ServiceIntercept>, Collection<ServiceIntercept>> interceptMap) {
-        this(threadPoolTaskExecutor, new Mybatis3DAOProvider(dataSource), embeddingStore, toolsMap, interceptMap);
+        this(functionCallThreadPool, new Mybatis3DAOProvider(dataSource), embeddingStore, toolsMap, interceptMap);
     }
 
-    public AiApplication(Executor threadPoolTaskExecutor,
+    public AiApplication(Executor functionCallThreadPool,
                          DAOProvider daoProvider,
                          RestClient embeddingStore,
                          Function<String, Tools> toolsMap,
@@ -168,7 +168,7 @@ public class AiApplication {
 
         this.aiVariablesService = new AiVariablesService(aiMemoryMstateService, aiVariablesMapper, getServiceInterceptSupplier(AiVariablesServiceIntercept.class, interceptMap));
         this.llmTextApiService = new LlmTextApiService(llmJsonSchemaApiService, aiQuestionClassifyService, aiAssistantJsonschemaMapper, aiAssistantFewshotMapper, aiToolService, aiVariablesService, knnApiService, actingService, reasoningService, knSettingWebsearchBlacklistServiceImpl,
-                threadPoolTaskExecutor, getServiceInterceptSupplier(LlmTextApiServiceIntercept.class, interceptMap));
+                functionCallThreadPool, getServiceInterceptSupplier(LlmTextApiServiceIntercept.class, interceptMap));
     }
 
     private static <T extends ServiceIntercept> Supplier<Collection<T>> getServiceInterceptSupplier(Class<T> clazz, Function<Class<? extends ServiceIntercept>, Collection<ServiceIntercept>> interceptMap) {

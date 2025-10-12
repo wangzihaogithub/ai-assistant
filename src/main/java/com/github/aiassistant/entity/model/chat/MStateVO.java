@@ -1,9 +1,10 @@
 package com.github.aiassistant.entity.model.chat;
 
+import java.io.Serializable;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-public class MStateVO {
+public class MStateVO implements Serializable {
     private Map<String, String> knownState;
     private Map<String, String> unknownState;
 

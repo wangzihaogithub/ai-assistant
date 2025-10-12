@@ -35,7 +35,7 @@ public class AiChatAbortServiceImpl {
     public boolean insert(String beforeText, Integer memoryId, Integer chatId, String userQueryTraceNumber, Integer messageIndex) {
         AiChatAbort abort = new AiChatAbort();
         abort.setCreateTime(new Date());
-        abort.setBeforeText(StringUtils.left(beforeText, 65000, true));
+        abort.setBeforeText(StringUtils.left(beforeText, 16380, true));
         abort.setAiMemoryId(memoryId);
         abort.setAiChatId(chatId);
         abort.setUserQueryTraceNumber(StringUtils.left(userQueryTraceNumber, 32, true));

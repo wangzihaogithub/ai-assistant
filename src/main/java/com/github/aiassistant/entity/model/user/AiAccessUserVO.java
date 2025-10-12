@@ -3,7 +3,7 @@ package com.github.aiassistant.entity.model.user;
 import java.io.Serializable;
 
 // @Data
-public class AiAccessUserVO {
+public class AiAccessUserVO implements Serializable {
     private Serializable id;
 
     public Serializable getId() {

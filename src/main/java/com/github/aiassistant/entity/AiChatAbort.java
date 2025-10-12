@@ -1,11 +1,30 @@
 package com.github.aiassistant.entity;
 
+import java.io.Serializable;
 import java.util.Date;
 
 // @Data
 // @ApiModel(value = "AiChatAbort", description = "用户点击终止生成")
 // @TableName("ai_chat_abort")
-public class AiChatAbort {
+public class AiChatAbort implements Serializable {
+    // @TableId(value = "id", type = IdType.AUTO)
+    // @ApiModelProperty(value = "ID", example = "1")
+    private Integer id;
+    // @ApiModelProperty(value = "创建时间", example = "2023-01-01T00:00:00")
+    private Date createTime;
+    // @ApiModelProperty(value = "终止前文本", example = "之前的文本内容")
+    private String beforeText;
+    // @ApiModelProperty(value = "聊天ID", example = "1")
+    private Integer aiChatId;
+    // @ApiModelProperty(value = "记忆ID", example = "1")
+    private Integer aiMemoryId;
+    // @ApiModelProperty(value = "用户问题聊天追踪号", example = "101")
+    private String userQueryTraceNumber;
+    // @ApiModelProperty(value = "用户问题聊天追踪号(原始问题编号)", example = "101")
+    private String rootAgainUserQueryTraceNumber;
+    // @ApiModelProperty(value = "第几个消息", example = "101")
+    private Integer messageIndex;
+
     public Integer getId() {
         return id;
     }
@@ -69,31 +88,6 @@ public class AiChatAbort {
     public void setMessageIndex(Integer messageIndex) {
         this.messageIndex = messageIndex;
     }
-
-    // @TableId(value = "id", type = IdType.AUTO)
-    // @ApiModelProperty(value = "ID", example = "1")
-    private Integer id;
-
-    // @ApiModelProperty(value = "创建时间", example = "2023-01-01T00:00:00")
-    private Date createTime;
-
-    // @ApiModelProperty(value = "终止前文本", example = "之前的文本内容")
-    private String beforeText;
-
-    // @ApiModelProperty(value = "聊天ID", example = "1")
-    private Integer aiChatId;
-
-    // @ApiModelProperty(value = "记忆ID", example = "1")
-    private Integer aiMemoryId;
-
-    // @ApiModelProperty(value = "用户问题聊天追踪号", example = "101")
-    private String userQueryTraceNumber;
-
-    // @ApiModelProperty(value = "用户问题聊天追踪号(原始问题编号)", example = "101")
-    private String rootAgainUserQueryTraceNumber;
-
-    // @ApiModelProperty(value = "第几个消息", example = "101")
-    private Integer messageIndex;
 
     @Override
     public String toString() {

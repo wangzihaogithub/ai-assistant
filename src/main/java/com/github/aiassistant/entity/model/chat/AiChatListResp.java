@@ -4,10 +4,11 @@ import com.github.aiassistant.entity.AiChatHistory;
 import com.github.aiassistant.util.BeanUtil;
 import com.github.aiassistant.util.StringUtils;
 
+import java.io.Serializable;
 import java.util.Date;
 
 // @Data
-public class AiChatListResp {
+public class AiChatListResp implements Serializable {
     private Integer id;
     private String name;
     private Date createTime;

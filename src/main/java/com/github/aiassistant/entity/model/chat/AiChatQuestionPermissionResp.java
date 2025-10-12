@@ -1,7 +1,9 @@
 package com.github.aiassistant.entity.model.chat;
 
+import java.io.Serializable;
+
 // @Data
-public class AiChatQuestionPermissionResp {
+public class AiChatQuestionPermissionResp implements Serializable {
     /**
      * 今日字数
      */

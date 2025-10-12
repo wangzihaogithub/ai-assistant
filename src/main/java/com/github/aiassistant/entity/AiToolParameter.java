@@ -1,12 +1,43 @@
 package com.github.aiassistant.entity;
 
+import java.io.Serializable;
+
 /**
  * AI工具参数提示词
  * UNIQUE INDEX `uniq_tool_parameter_enum`(`ai_tool_id`, `parameter_enum`) USING BTREE
  */
 // @Data
 // @TableName("ai_tool_parameter")
-public class AiToolParameter {
+public class AiToolParameter implements Serializable {
+    // @TableId(value = "id", type = IdType.AUTO)
+    private Integer id;
+    private Integer aiToolId;
+    /**
+     * 参数枚举（就是研发实现的工具类对象的方法名）
+     * UNIQUE INDEX `uniq_tool_parameter_enum`(`ai_tool_id`, `parameter_enum`) USING BTREE
+     */
+    private String parameterEnum;
+    /**
+     * 参数提示词（给AI用的）
+     */
+    private String parameterDescription;
+    /**
+     * 默认值
+     */
+    private String defaultValue;
+    /**
+     * 是否必填
+     */
+    private Boolean requiredFlag;
+    /**
+     * 是否开启这个参数
+     */
+    private Boolean enableFlag;
+    /**
+     * 是否给AI使用
+     */
+    private Boolean aiUseFlag;
+
     public Integer getId() {
         return id;
     }
@@ -70,36 +101,6 @@ public class AiToolParameter {
     public void setAiUseFlag(Boolean aiUseFlag) {
         this.aiUseFlag = aiUseFlag;
     }
-
-    // @TableId(value = "id", type = IdType.AUTO)
-    private Integer id;
-    private Integer aiToolId;
-    /**
-     * 参数枚举（就是研发实现的工具类对象的方法名）
-     * UNIQUE INDEX `uniq_tool_parameter_enum`(`ai_tool_id`, `parameter_enum`) USING BTREE
-     */
-    private String parameterEnum;
-    /**
-     * 参数提示词（给AI用的）
-     */
-    private String parameterDescription;
-    /**
-     * 默认值
-     */
-    private String defaultValue;
-    /**
-     * 是否必填
-     */
-    private Boolean requiredFlag;
-    /**
-     * 是否开启这个参数
-     */
-    private Boolean enableFlag;
-
-    /**
-     * 是否给AI使用
-     */
-    private Boolean aiUseFlag;
 
     @Override
     public String toString() {

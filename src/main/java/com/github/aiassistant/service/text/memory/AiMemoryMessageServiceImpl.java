@@ -270,7 +270,7 @@ public class AiMemoryMessageServiceImpl {
             AiMemoryMessageVO vo = new AiMemoryMessageVO();
             vo.setAiMemoryId(memoryId);
             vo.setMessageIndex(message.getMessageIndex());
-            vo.setMessageText(StringUtils.left(memoryString, 65000, true));
+            vo.setMessageText(StringUtils.left(memoryString, 16380, true));
             vo.setMessageTypeEnum(message.getType().getCode());
             vo.setUserQueryFlag(userQueryFlag);
             vo.setCreateTime(message.getCreateTime());
@@ -297,7 +297,7 @@ public class AiMemoryMessageServiceImpl {
                     AiMemoryMessageTool toolVo = new AiMemoryMessageTool();
                     toolVo.setToolRequestId(toolRequest.getRequestId());
                     toolVo.setToolName(StringUtils.left(toolRequest.getToolName(), 128, true));
-                    toolVo.setToolArguments(StringUtils.left(toolRequest.getArguments(), 65000, true));
+                    toolVo.setToolArguments(StringUtils.left(toolRequest.getArguments(), 16380, true));
                     toolVo.setAiMemoryId(memoryId);
                     vo.getToolList().add(toolVo);
                 }

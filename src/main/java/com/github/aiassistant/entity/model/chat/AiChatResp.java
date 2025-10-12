@@ -3,10 +3,11 @@ package com.github.aiassistant.entity.model.chat;
 import com.github.aiassistant.entity.AiChat;
 import com.github.aiassistant.util.BeanUtil;
 
+import java.io.Serializable;
 import java.util.Date;
 
 // @Data
-public class AiChatResp {
+public class AiChatResp implements Serializable {
     private Integer id;
     private String name;
     private Date createTime;

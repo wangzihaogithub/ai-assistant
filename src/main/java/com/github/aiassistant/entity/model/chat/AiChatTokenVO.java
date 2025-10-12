@@ -1,7 +1,9 @@
 package com.github.aiassistant.entity.model.chat;
 
+import java.io.Serializable;
+
 // @Data
-public class AiChatTokenVO {
+public class AiChatTokenVO implements Serializable {
     private Integer tokenCount;
 
     /**

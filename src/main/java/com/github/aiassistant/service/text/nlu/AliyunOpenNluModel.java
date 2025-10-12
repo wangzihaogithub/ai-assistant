@@ -13,6 +13,9 @@ import java.io.OutputStream;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 使用阿里云Open nlu模型
@@ -139,8 +142,8 @@ public class AliyunOpenNluModel implements NluModel {
                         OpenNluResponse nluResponse = objectReader.readValue(body.byteStream(), OpenNluResponse.class);
                         if (StringUtils.hasText(nluResponse.getCode())) {
                             future.completeExceptionally(new IOException(
-                                    String.format("classification fail! request_id=%s,code=%s, message=%s",
-                                            nluResponse.getRequestId(), nluResponse.getCode(), nluResponse.getMessage())));
+                                    String.format("classification fail! request_id=%s,code=%s, message=%s, headers=%s",
+                                            nluResponse.getRequestId(), nluResponse.getCode(), nluResponse.getMessage(), response.headers())));
                         } else {
                             String[] strings = Optional.ofNullable(nluResponse.getOutput())
                                     .map(OpenNluResponse.Output::getText)
@@ -151,7 +154,7 @@ public class AliyunOpenNluModel implements NluModel {
                         }
                     } else {
                         String string = body == null ? "" : body.string();
-                        future.completeExceptionally(new IOException("classification http fail! httpCode=" + response.code() + ", body=" + string));
+                        future.completeExceptionally(new IOException("classification http fail! httpCode=" + response.code() + ", body=" + string + ", headers=" + response.headers()));
                     }
                 } catch (Exception e) {
                     future.completeExceptionally(e);
@@ -213,7 +216,13 @@ public class AliyunOpenNluModel implements NluModel {
                         headers.forEach(builder::addHeader);
                         return chain.proceed(builder.build());
                     });
-
+                    okHttpClientBuilder.dispatcher(new Dispatcher(new ThreadPoolExecutor(0, Integer.MAX_VALUE, 60, TimeUnit.SECONDS,
+                            new SynchronousQueue<>(), runnable -> {
+                        Thread result = new Thread(runnable);
+                        result.setName("OkHttp ai-nlu-" + result.getId());
+                        result.setDaemon(false);
+                        return result;
+                    })));
                     client = okHttpClientBuilder.build();
                 }
             }

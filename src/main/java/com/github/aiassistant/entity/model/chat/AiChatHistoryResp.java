@@ -1,11 +1,12 @@
 package com.github.aiassistant.entity.model.chat;
 
+import java.io.Serializable;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
 // @Data
-public class AiChatHistoryResp {
+public class AiChatHistoryResp implements Serializable {
     // @ApiModelProperty(value = "ID", example = "1")
     private Integer id;
     // @ApiModelProperty(value = "创建时间", example = "2023-04-01T12:00:00")

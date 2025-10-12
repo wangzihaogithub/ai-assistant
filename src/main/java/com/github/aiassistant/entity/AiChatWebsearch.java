@@ -1,11 +1,51 @@
 package com.github.aiassistant.entity;
 
+import java.io.Serializable;
 import java.util.Date;
 
 // @ApiModel(value = "AiChatWebsearch", description = "联网")
 // @Data
 // @TableName("ai_chat_websearch")
-public class AiChatWebsearch {
+public class AiChatWebsearch implements Serializable {
+    // @TableId(value = "id", type = IdType.AUTO)
+    private Integer id;
+    /**
+     * 聊天ID
+     */
+    private Integer aiChatId;
+    /**
+     * 用户提问的消息ID
+     */
+    private Integer userChatHistoryId;
+    /**
+     * 触发来源
+     */
+    private String sourceEnum;
+    /**
+     * 联网的问题
+     */
+    private String question;
+    /**
+     * 创建时间
+     */
+    private Date createTime;
+    /**
+     * 供应商
+     */
+    private String providerName;
+    /**
+     * 查询耗时
+     */
+    private Long searchTimeMs;
+    /**
+     * 搜索用的代理
+     */
+    private String searchProxy;
+    /**
+     * 每次用户请求的唯一序号
+     */
+    private String userQueryTraceNumber;
+
     public String getUserQueryTraceNumber() {
         return userQueryTraceNumber;
     }
@@ -85,50 +125,6 @@ public class AiChatWebsearch {
     public void setId(Integer id) {
         this.id = id;
     }
-
-    // @TableId(value = "id", type = IdType.AUTO)
-    private Integer id;
-
-    /**
-     * 聊天ID
-     */
-    private Integer aiChatId;
-    /**
-     * 用户提问的消息ID
-     */
-    private Integer userChatHistoryId;
-    /**
-     * 触发来源
-     */
-    private String sourceEnum;
-    /**
-     * 联网的问题
-     */
-    private String question;
-
-    /**
-     * 创建时间
-     */
-    private Date createTime;
-
-    /**
-     * 供应商
-     */
-    private String providerName;
-    /**
-     * 查询耗时
-     */
-    private Long searchTimeMs;
-
-    /**
-     * 搜索用的代理
-     */
-    private String searchProxy;
-
-    /**
-     * 每次用户请求的唯一序号
-     */
-    private String userQueryTraceNumber;
 
     @Override
     public String toString() {

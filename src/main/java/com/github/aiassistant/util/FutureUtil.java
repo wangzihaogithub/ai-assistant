@@ -199,7 +199,7 @@ public class FutureUtil {
      * @param <F>     异步数据格式
      * @return 需要等待一次的扁平格式（等待全部结束）
      */
-    public static <F extends CompletionStage<?>> CompletableFuture<List<Object>> allOf(F... futures) {
+    public static <F extends CompletionStage<?>> CompletableFuture<List<Object>> allOfs(F... futures) {
         return allOf((List) Arrays.asList(futures));
     }
 
@@ -228,7 +228,10 @@ public class FutureUtil {
                 CompletableFuture<List<V>> result = new CompletableFuture<>();
                 List<V> list = new ArrayList<>(futures.size());
                 AtomicInteger count = new AtomicInteger(futures.size());
+                int i = 0;
+                futures.forEach(e -> list.add(null));
                 for (F future : futures) {
+                    int finalI = i;
                     future.whenComplete((v, throwable) -> {
                         if (throwable != null) {
                             try {
@@ -237,9 +240,7 @@ public class FutureUtil {
                                 log.error("FutureUtil allOf Error while executing future {}", t.toString(), t);
                             }
                         } else {
-                            synchronized (list) {
-                                list.add(v);
-                            }
+                            list.set(finalI, v);
                             if (count.decrementAndGet() == 0) {
                                 try {
                                     result.complete(list);
@@ -257,6 +258,7 @@ public class FutureUtil {
                             }
                         }
                     });
+                    i++;
                 }
                 return result;
             }

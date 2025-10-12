@@ -1,11 +1,21 @@
 package com.github.aiassistant.entity;
 
+import java.io.Serializable;
 import java.util.Date;
 
 // @Data
 // @ApiModel(description = "向量缓存")
 // @TableName("ai_embedding")
-public class AiEmbedding {
+public class AiEmbedding implements Serializable {
+    // @TableId(value = "id", type = IdType.AUTO)
+    private Integer id;
+    private Date createTime;
+    private String keyword;
+    private String vector;
+    private String md5;
+    private String modelName;
+    private Integer dimensions;
+
     public Integer getId() {
         return id;
     }
@@ -61,17 +71,6 @@ public class AiEmbedding {
     public void setDimensions(Integer dimensions) {
         this.dimensions = dimensions;
     }
-
-    // @TableId(value = "id", type = IdType.AUTO)
-    private Integer id;
-
-    private Date createTime;
-
-    private String keyword;
-    private String vector;
-    private String md5;
-    private String modelName;
-    private Integer dimensions;
 
     @Override
     public String toString() {

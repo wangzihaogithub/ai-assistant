@@ -1,12 +1,14 @@
 package com.github.aiassistant.entity;
 
 
+import java.io.Serializable;
+
 //// @ApiModel(value = "AiAssistantFewshot", description = "少样本学习")
 //// @Data
 //// @TableName("ai_assistant_fewshot")
-public class AiAssistantFewshot {
+public class AiAssistantFewshot implements Serializable {
 
-//    // @TableId(value = "id", type = IdType.AUTO)
+    //    // @TableId(value = "id", type = IdType.AUTO)
     private Integer id;
 
     /**

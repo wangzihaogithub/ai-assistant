@@ -1,10 +1,11 @@
 package com.github.aiassistant.entity;
 
+import java.io.Serializable;
 import java.util.Date;
 
 //// // @ApiModel(value = "AiMemoryMessageKn", description = "知识库查询结果")
 //// @TableName("ai_memory_message_kn")
-public class AiMemoryMessageKn {
+public class AiMemoryMessageKn implements Serializable {
 
     //     // @TableId(value = "id", type = IdType.AUTO)
     // // @ApiModelProperty(value = "ID", example = "1")

@@ -1,10 +1,11 @@
 package com.github.aiassistant.entity;
 
+import java.io.Serializable;
 import java.util.Date;
 
 //// @Data
 //// @TableName("ai_chat")
-public class AiChat {
+public class AiChat implements Serializable {
     //    // @TableId(value = "id", type = IdType.AUTO)
     private Integer id;
     private String name;

@@ -2,11 +2,12 @@ package com.github.aiassistant.entity;
 
 import com.github.aiassistant.service.text.AssistantConfig;
 
+import java.io.Serializable;
 import java.util.Date;
 
 //// @Data
 //// @TableName("ai_assistant")
-public class AiAssistant implements AssistantConfig {
+public class AiAssistant implements AssistantConfig, Serializable {
     //    // @TableId(value = "id", type = IdType.NONE)
     private String id;
 

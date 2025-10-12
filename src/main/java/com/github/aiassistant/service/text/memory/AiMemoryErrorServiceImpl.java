@@ -54,7 +54,7 @@ public class AiMemoryErrorServiceImpl {
         error.setAiChatId(requestTrace.getMemoryId().getChatId());
         error.setMemoryId(requestTrace.getMemoryId().getMemoryId());
         error.setErrorClassName(StringUtils.left(throwable.getClass().getName(), 128, true));
-        error.setErrorMessage(StringUtils.left(buf.toString(), 65000, true));
+        error.setErrorMessage(StringUtils.left(buf.toString(), 16380, true));
         error.setUserQueryTraceNumber(userQueryTraceNumber);
         error.setMessageCount(requestTrace.getMessageSize());
 
@@ -110,7 +110,7 @@ public class AiMemoryErrorServiceImpl {
         error.setAiChatId(memoryId.getChatId());
         error.setMemoryId(memoryId.getMemoryId());
         error.setErrorClassName(StringUtils.left(errorClassName, 128, true));
-        error.setErrorMessage(StringUtils.left(errorMessage, 65000, true));
+        error.setErrorMessage(StringUtils.left(errorMessage, 16380, true));
         error.setUserQueryTraceNumber(StringUtils.left(userQueryTraceNumber, 32, true));
         error.setMessageCount(0);
 
@@ -122,7 +122,7 @@ public class AiMemoryErrorServiceImpl {
 
         error.setErrorType(StringUtils.left(errorType, 128, true));
         error.setMessageText(StringUtils.left(messageText, 512, true));
-        error.setAttachmentJson(StringUtils.left(attachmentJson, 65000, true));
+        error.setAttachmentJson(StringUtils.left(attachmentJson, 16380, true));
         if (StringUtils.hasText(userQueryTraceNumber)) {
             String rootAgainUserQueryTraceNumber = aiChatHistoryService.selectRootAgainUserQueryTraceNumberMap(Collections.singletonList(userQueryTraceNumber)).get(userQueryTraceNumber);
             error.setRootAgainUserQueryTraceNumber(Objects.toString(rootAgainUserQueryTraceNumber, userQueryTraceNumber));

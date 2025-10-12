@@ -3,12 +3,13 @@ package com.github.aiassistant.entity.model.chat;
 import com.github.aiassistant.util.BeanMap;
 import com.github.aiassistant.util.BeanUtil;
 
+import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-public class AiVariablesVO {
+public class AiVariablesVO implements Serializable {
     /**
      * 知识库变量
      */

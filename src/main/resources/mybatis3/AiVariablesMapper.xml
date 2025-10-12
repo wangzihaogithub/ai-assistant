@@ -5,7 +5,7 @@
     <select id="selectEnableList" resultType="com.github.aiassistant.entity.AiVariables">
         SELECT
             var_key,
-            var_value
+            any_value(var_value) var_value
         FROM `ai_variables`
         where enable_flag = true
         group by var_key

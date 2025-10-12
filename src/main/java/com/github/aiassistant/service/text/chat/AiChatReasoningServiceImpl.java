@@ -138,7 +138,7 @@ public class AiChatReasoningServiceImpl {
                     insertPlan.setUserChatHistoryId(request.getUserChatHistoryId());
                     insertPlan.setTask(StringUtils.left(plan.getTask(), 512, true));
                     insertPlan.setFailMessage(StringUtils.left(plan.getResult().failMessage, 2000, true));
-                    insertPlan.setAnswer(StringUtils.left(plan.getResult().answer, 65000, true));
+                    insertPlan.setAnswer(StringUtils.left(plan.getResult().answer, 16380, true));
                     insertPlan.setAiQuestion(StringUtils.left(plan.getResult().aiQuestion, 512, true));
                     Collection<String> websearchKeyword = plan.getResult().websearchKeyword;
                     insertPlan.setWebsearchKeyword(websearchKeyword == null || websearchKeyword.isEmpty() ? "" : StringUtils.left(objectWriter.writeValueAsString(websearchKeyword), 1024, true));

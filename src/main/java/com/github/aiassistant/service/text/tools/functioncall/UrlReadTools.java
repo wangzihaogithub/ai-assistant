@@ -29,7 +29,7 @@ import java.util.zip.GZIPInputStream;
  */
 public class UrlReadTools extends Tools {
     public static final String NO_PROXY = "NO_PROXY";
-    private static final UserAgentGenerator userAgentGenerator = new UserAgentGenerator();
+//    private static final UserAgentGenerator userAgentGenerator = new UserAgentGenerator();
     public static Proxy PROXY1 = null;
     public static Proxy PROXY2 = null;
     private final int max302;
@@ -37,7 +37,7 @@ public class UrlReadTools extends Tools {
             "accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
             "accept-language", "zh-CN,zh;q=0.9",
             "accept-encoding", "gzip",
-            "cache-control", "no-cache",
+//            "cache-control", "no-cache",
             "sec-ch-ua", "\"Google Chrome\";v=\"131\", \"Chromium\";v=\"131\", \"Not_A Brand\";v=\"24\"",
             "sec-ch-ua-mobile", "?0",
             "sec-ch-ua-platform", "\"macOS\"",
@@ -46,8 +46,8 @@ public class UrlReadTools extends Tools {
             "sec-fetch-site", "none",
             "sec-fetch-user", "?1",
             "upgrade-insecure-requests", "1",
-            "pragma", "no-cache",
-//            "user-agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+//            "pragma", "no-cache",
+            "user-agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
     };
     private final HttpClient[] httpClients;
     private final Proxy proxy;
@@ -83,6 +83,13 @@ public class UrlReadTools extends Tools {
             httpClients[i] = client;
         }
         this.proxy = proxy;
+    }
+
+    public static String[] mergeHeader(String[] defaultHeaders, String[] headers) {
+        String[] merged = new String[defaultHeaders.length + headers.length];
+        System.arraycopy(defaultHeaders, 0, merged, 0, defaultHeaders.length);
+        System.arraycopy(headers, 0, merged, defaultHeaders.length, headers.length);
+        return merged;
     }
 
     private static ByteArrayOutputStream toByteArrayOutStream(InputStream source)
@@ -128,7 +135,7 @@ public class UrlReadTools extends Tools {
             f.completeExceptionally(e);
             return f;
         }
-        connection.setHeader("user-agent", userAgentGenerator.generateUserAgent());
+//        connection.setHeader("user-agent", userAgentGenerator.generateUserAgent());
         for (int i = 0; i < headers.length; i += 2) {
             connection.setHeader(headers[i], headers[i + 1]);
         }
@@ -180,7 +187,7 @@ public class UrlReadTools extends Tools {
         return readString(url, null, headers, max302);
     }
 
-    @Tool(name = "菜鸟无忧链接读取", value = {"当你需要获取网页内容时，使用此工具，可以获取url链接下的内容"})
+    @Tool(name = "链接读取", value = {"当你需要获取网页内容时，使用此工具，可以获取url链接下的内容"})
     public CompletableFuture<UrlReadToolExecutionResultMessage> read(
             @P(value = "URL", required = false) @Name("urlString") String urlString,
             @ToolMemoryId ToolExecutionRequest request) {

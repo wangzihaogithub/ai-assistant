@@ -2,9 +2,11 @@ package com.github.aiassistant.entity;
 
 import com.github.aiassistant.service.text.AssistantConfig;
 
+import java.io.Serializable;
+
 // @Data
 // @TableName("ai_question_classify_assistant")
-public class AiQuestionClassifyAssistant implements AssistantConfig {
+public class AiQuestionClassifyAssistant implements AssistantConfig, Serializable {
     // @TableId(value = "id", type = IdType.NONE)
     private Integer id;
     // @ApiModelProperty(value = "名称", required = true)

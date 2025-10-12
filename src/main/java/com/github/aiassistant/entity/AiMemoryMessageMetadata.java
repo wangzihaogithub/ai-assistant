@@ -1,12 +1,13 @@
 package com.github.aiassistant.entity;
 
+import java.io.Serializable;
 import java.util.*;
 import java.util.stream.Collectors;
 
 // @Data
 // @ApiModel(value = "AiMemoryMessageTool", description = "通过AiMessageString放置的元数据，用于给业务做判断")
 // @TableName("ai_memory_message_metadata")
-public class AiMemoryMessageMetadata {
+public class AiMemoryMessageMetadata implements Serializable {
 
     // @TableId(value = "id", type = IdType.AUTO)
     // @ApiModelProperty(value = "ID", example = "1")

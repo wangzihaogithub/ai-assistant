@@ -47,7 +47,7 @@ public class AiMemoryMstateServiceImpl {
             AiMemoryMstate mstate = new AiMemoryMstate();
             mstate.setAiMemoryId(aiMemoryId);
             mstate.setStateKey(StringUtils.left(entry.getKey(), 50, true));
-            mstate.setStateValue(StringUtils.left(Objects.toString(value), 65000, true));
+            mstate.setStateValue(StringUtils.left(Objects.toString(value), 16380, true));
             mstate.setUserAiMemoryMessageId(userMsg.getId());
             mstate.setUserMessageIndex(userMsg.getMessageIndex());
             mstate.setCreateTime(now);

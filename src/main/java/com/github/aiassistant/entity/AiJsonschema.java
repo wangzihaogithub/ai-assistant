@@ -1,8 +1,10 @@
 package com.github.aiassistant.entity;
 
+import java.io.Serializable;
+
 //// @Data
 //// @TableName("ai_jsonschema")
-public class AiJsonschema {
+public class AiJsonschema implements Serializable {
 
     //    // @TableId(value = "id", type = IdType.AUTO)
     private Integer id;

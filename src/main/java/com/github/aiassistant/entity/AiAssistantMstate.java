@@ -1,9 +1,10 @@
 package com.github.aiassistant.entity;
 
+import java.io.Serializable;
 import java.util.Date;
 
 //// @TableName("ai_assistant_mstate")
-public class AiAssistantMstate {
+public class AiAssistantMstate implements Serializable {
 
     private Integer id;
 

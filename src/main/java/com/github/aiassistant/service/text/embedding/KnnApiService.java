@@ -12,7 +12,8 @@ import org.apache.http.entity.ContentType;
 import org.elasticsearch.client.*;
 
 import java.util.*;
-import java.util.concurrent.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -32,12 +33,12 @@ public class KnnApiService {
     /**
      * 向量模型
      */
-    private final Map<String, OpenAiEmbeddingModel[]> modelMap = new ConcurrentHashMap<>();
+    private final Map<String, EmbeddingModelClient.Factory[]> modelMap = new ConcurrentHashMap<>();
     /**
-     * 每个智能体的向量化模型并发数量
+     * 每个智能体的向量化模型并发数量. (每个okhttp-client最大64个并发)
+     * @see okhttp3.Dispatcher#maxRequests 默认值64
      */
     private final int concurrentEmbeddingModelCount;
-    private final Executor executor;
     private final AiEmbeddingMapper aiEmbeddingMapper;
     /**
      * 取模轮训下标
@@ -49,22 +50,11 @@ public class KnnApiService {
     }
 
     public KnnApiService(RestClient embeddingStore, AiEmbeddingMapper aiEmbeddingMapper) {
-        this(embeddingStore, aiEmbeddingMapper, 10);
+        this(embeddingStore, aiEmbeddingMapper, 2);
     }
 
     public KnnApiService(RestClient embeddingStore, AiEmbeddingMapper aiEmbeddingMapper, int concurrentEmbeddingModelCount) {
-        ThreadPoolExecutor poolExecutor = new ThreadPoolExecutor(
-                concurrentEmbeddingModelCount, concurrentEmbeddingModelCount,
-                60, TimeUnit.SECONDS,
-                new SynchronousQueue<>(), target -> {
-            Thread thread = new Thread(target);
-            thread.setName("Ai-Embedding-" + thread.getId());
-            thread.setDaemon(true);
-            return thread;
-        }, new ThreadPoolExecutor.CallerRunsPolicy());
-        poolExecutor.allowCoreThreadTimeOut(true);
         this.concurrentEmbeddingModelCount = concurrentEmbeddingModelCount;
-        this.executor = poolExecutor;
         this.aiEmbeddingMapper = aiEmbeddingMapper;
 //        RestClientBuilder builder = RestClient.builder(HttpHost.create(config.getElasticsearch().getServerUrl()));
 //        if (StringUtils.hasText(config.getElasticsearch().getApiKey())) {
@@ -246,18 +236,21 @@ public class KnnApiService {
         String embeddingBaseUrl = assistant.getEmbeddingBaseUrl();
         String embeddingModelName = assistant.getEmbeddingModelName();
         Integer embeddingDimensions = assistant.getEmbeddingDimensions();
-        OpenAiEmbeddingModel[] models = modelMap.computeIfAbsent(uniqueKey(embeddingModelName, embeddingApiKey, embeddingBaseUrl, embeddingDimensions), e -> {
-            OpenAiEmbeddingModel[] arrays = new OpenAiEmbeddingModel[concurrentEmbeddingModelCount];
+        EmbeddingModelClient.Factory[] models = modelMap.computeIfAbsent(uniqueKey(embeddingModelName, embeddingApiKey, embeddingBaseUrl, embeddingDimensions), e -> {
+            EmbeddingModelClient.Factory[] arrays = new EmbeddingModelClient.Factory[concurrentEmbeddingModelCount];
             for (int i = 0; i < arrays.length; i++) {
-                arrays[i] = create(embeddingApiKey, embeddingBaseUrl, embeddingModelName, embeddingDimensions);
+                arrays[i] = EmbeddingModelClient.builder()
+                        .apiKey(embeddingApiKey)
+                        .baseUrl(embeddingBaseUrl)
+                        .modelName(embeddingModelName)
+                        .dimensions(embeddingDimensions)
+                        .maxRequestSize(assistant.getEmbeddingMaxRequestSize())
+                        .aiEmbeddingMapper(aiEmbeddingMapper)
+                        .build();
             }
             return arrays;
         });
-        return new EmbeddingModelClient(models[modelModIndex++ % models.length],
-                assistant.getEmbeddingModelName(),
-                assistant.getEmbeddingDimensions(),
-                assistant.getEmbeddingMaxRequestSize(),
-                aiEmbeddingMapper, executor);
+        return models[modelModIndex++ % models.length].get();
     }
 
 //    public static void settingIO(RestClientBuilder builder) {

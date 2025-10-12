@@ -3,7 +3,9 @@ package com.github.aiassistant.entity.model.chat;
 import dev.langchain4j.model.chat.ChatLanguageModel;
 import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
 
-public class AiModelVO {
+import java.io.Serializable;
+
+public class AiModelVO implements Serializable {
     public final String baseUrl;
     public final String modelName;
     public final ChatLanguageModel model;

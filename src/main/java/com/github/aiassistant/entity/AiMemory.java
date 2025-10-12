@@ -1,11 +1,12 @@
 package com.github.aiassistant.entity;
 
+import java.io.Serializable;
 import java.util.Date;
 
 // @Data
 // @ApiModel(description = "记忆")
 // @TableName("ai_memory")
-public class AiMemory {
+public class AiMemory implements Serializable {
     // @TableId(value = "id", type = IdType.AUTO)
     private Integer id;
     private Date createTime;

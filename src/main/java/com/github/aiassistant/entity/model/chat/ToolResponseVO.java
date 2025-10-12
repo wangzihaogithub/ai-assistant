@@ -1,6 +1,8 @@
 package com.github.aiassistant.entity.model.chat;
 
-public class ToolResponseVO {
+import java.io.Serializable;
+
+public class ToolResponseVO implements Serializable {
     private String requestId;
     private String toolName;
 

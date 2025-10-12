@@ -41,7 +41,7 @@ public class BaiduWebSearchTools extends Tools implements WebSearch {
             "sec-fetch-user", "?1",
             "upgrade-insecure-requests", "1",
             "pragma", "no-cache",
-//            "user-agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+            "user-agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
     };
 
     @Override
@@ -120,7 +120,7 @@ public class BaiduWebSearchTools extends Tools implements WebSearch {
         AiWebSearchSourceEnum.create(beanName);
     }
 
-    @Tool(name = "菜鸟无忧百度搜索", value = {"# 插件功能\n" +
+    @Tool(name = "百度搜索", value = {"# 插件功能\n" +
             "此工具可用于使用谷歌等搜索引擎进行全网搜索。特别是新闻相关\n" +
             "# 返回字段名单\n" +
             "URL\n" +

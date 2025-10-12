@@ -14,6 +14,9 @@ import java.io.OutputStream;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.ToDoubleFunction;
@@ -31,6 +34,7 @@ import java.util.stream.Collectors;
  * 接口文档 https://help.aliyun.com/zh/model-studio/text-rerank-api
  */
 public class AliyunReRankModel implements ReRankModel {
+    public static final String DEFAULT_MODEL = "gte-rerank-v2";
     private static final JsonUtil.ObjectWriter objectWriter = JsonUtil.objectWriter();
     private static final JsonUtil.ObjectReader objectReader = JsonUtil.objectReader();
     private static final MediaType mediaType = MediaType.parse("application/json");
@@ -43,7 +47,7 @@ public class AliyunReRankModel implements ReRankModel {
     /**
      * 指明需要调用的模型，仅可选择gte-rerank-v2
      */
-    private String model = "gte-rerank-v2";
+    private String model = DEFAULT_MODEL;
     private boolean destroy;
 
     public AliyunReRankModel() {
@@ -184,7 +188,7 @@ public class AliyunReRankModel implements ReRankModel {
                         }
                     } else {
                         String string = body == null ? "" : body.string();
-                        future.completeExceptionally(new IOException("rerank fail! code=" + response.code() + ", body=" + string));
+                        future.completeExceptionally(new IOException("rerank fail! code=" + response.code() + ", body=" + string + ", headers=" + response.headers()));
                     }
                 } catch (Exception e) {
                     future.completeExceptionally(e);
@@ -246,7 +250,13 @@ public class AliyunReRankModel implements ReRankModel {
                         headers.forEach(builder::addHeader);
                         return chain.proceed(builder.build());
                     });
-
+                    okHttpClientBuilder.dispatcher(new Dispatcher(new ThreadPoolExecutor(0, Integer.MAX_VALUE, 60, TimeUnit.SECONDS,
+                            new SynchronousQueue<>(), runnable -> {
+                        Thread result = new Thread(runnable);
+                        result.setName("OkHttp ai-rerank-" + result.getId());
+                        result.setDaemon(false);
+                        return result;
+                    })));
                     client = okHttpClientBuilder.build();
                 }
             }

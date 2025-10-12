@@ -1,9 +1,11 @@
 package com.github.aiassistant.entity;
 
+import java.io.Serializable;
+
 // @ApiModel(value = "AiMemorySearchDoc", description = "记忆的搜索记录文档")
 // @Data
 // @TableName("ai_memory_search_doc")
-public class AiMemorySearchDoc {
+public class AiMemorySearchDoc implements Serializable {
     // @TableId(value = "id", type = IdType.AUTO)
     private Integer id;
     /**

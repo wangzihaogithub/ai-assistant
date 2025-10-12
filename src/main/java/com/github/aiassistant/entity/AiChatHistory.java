@@ -1,11 +1,51 @@
 package com.github.aiassistant.entity;
 
+import java.io.Serializable;
 import java.util.Date;
 
 // @Data
 // @ApiModel(value = "AiChatHistory", description = "聊天记录")
 // @TableName("ai_chat_history")
-public class AiChatHistory {
+public class AiChatHistory implements Serializable {
+    // @TableId(value = "id", type = IdType.AUTO)
+    // @ApiModelProperty(value = "ID", example = "1")
+    private Integer id;
+    // @ApiModelProperty(value = "AI聊天ID", example = "101")
+    private Integer aiChatId;
+    // @ApiModelProperty(value = "创建时间", example = "2023-04-01T12:00:00")
+    private Date createTime;
+    /**
+     * 开始时间
+     */
+    private Date startTime;
+    // @ApiModelProperty(value = "删除时间，重新回答会删除", example = "2023-04-01T12:00:00")
+    private Date deleteTime;
+    // @ApiModelProperty(value = "消息类型枚举", example = "User", notes = "消息类型 User(\"User\"),\n" +
+//            "    System(\"System\"),\n" +
+//            "    ToolResult(\"ToolResult\"),\n" +
+//            "    Ai(\"Ai\");")
+    private String messageTypeEnum;
+    // @ApiModelProperty(value = "文本消息", example = "Hello, how are you?")
+    private String messageText;
+    private Integer textCharLength;
+    // @ApiModelProperty(value = "消息索引", example = "1")
+    private Integer messageIndex;
+    // @ApiModelProperty(value = "用户问题聊天ID", example = "101")
+    private Integer userChatHistoryId;
+    // @ApiModelProperty(value = "用户问题聊天追踪号", example = "101")
+    private String userQueryTraceNumber;
+    // @ApiModelProperty(value = "重新回答用户问题聊天追踪号", example = "101")
+    private String againUserQueryTraceNumber;
+    // @ApiModelProperty(value = "重新回答用户问题聊天追踪号，根问题", example = "101")
+    private String rootUserQueryTraceNumber;
+    // @ApiModelProperty(value = "数据是哪个阶段生产出来的，取值范围【Request,Response】", example = "101")
+    private String stageEnum;
+    // @ApiModelProperty(value = "是否联网", example = "101")
+    private Boolean websearchFlag;
+    private Boolean userQueryFlag; // bit(1) 类型在 Java 中通常映射为 boolean
+    // @ApiModelProperty(value = "这段文字的类型", example = "101")
+    private String stringTypeEnum;
+
     public Integer getId() {
         return id;
     }
@@ -21,6 +61,7 @@ public class AiChatHistory {
     public void setStringTypeEnum(String stringTypeEnum) {
         this.stringTypeEnum = stringTypeEnum;
     }
+
     public Integer getAiChatId() {
         return aiChatId;
     }
@@ -140,56 +181,6 @@ public class AiChatHistory {
     public void setUserQueryFlag(Boolean userQueryFlag) {
         this.userQueryFlag = userQueryFlag;
     }
-
-    // @TableId(value = "id", type = IdType.AUTO)
-    // @ApiModelProperty(value = "ID", example = "1")
-    private Integer id;
-
-    // @ApiModelProperty(value = "AI聊天ID", example = "101")
-    private Integer aiChatId;
-
-    // @ApiModelProperty(value = "创建时间", example = "2023-04-01T12:00:00")
-    private Date createTime;
-    /**
-     * 开始时间
-     */
-    private Date startTime;
-    // @ApiModelProperty(value = "删除时间，重新回答会删除", example = "2023-04-01T12:00:00")
-    private Date deleteTime;
-
-    // @ApiModelProperty(value = "消息类型枚举", example = "User", notes = "消息类型 User(\"User\"),\n" +
-//            "    System(\"System\"),\n" +
-//            "    ToolResult(\"ToolResult\"),\n" +
-//            "    Ai(\"Ai\");")
-    private String messageTypeEnum;
-
-    // @ApiModelProperty(value = "文本消息", example = "Hello, how are you?")
-    private String messageText;
-
-    private Integer textCharLength;
-
-    // @ApiModelProperty(value = "消息索引", example = "1")
-    private Integer messageIndex;
-
-    // @ApiModelProperty(value = "用户问题聊天ID", example = "101")
-    private Integer userChatHistoryId;
-
-    // @ApiModelProperty(value = "用户问题聊天追踪号", example = "101")
-    private String userQueryTraceNumber;
-
-    // @ApiModelProperty(value = "重新回答用户问题聊天追踪号", example = "101")
-    private String againUserQueryTraceNumber;
-
-    // @ApiModelProperty(value = "重新回答用户问题聊天追踪号，根问题", example = "101")
-    private String rootUserQueryTraceNumber;
-
-    // @ApiModelProperty(value = "数据是哪个阶段生产出来的，取值范围【Request,Response】", example = "101")
-    private String stageEnum;
-    // @ApiModelProperty(value = "是否联网", example = "101")
-    private Boolean websearchFlag;
-    private Boolean userQueryFlag; // bit(1) 类型在 Java 中通常映射为 boolean
-    // @ApiModelProperty(value = "这段文字的类型", example = "101")
-    private String stringTypeEnum;
 
     @Override
     public String toString() {

@@ -1,9 +1,37 @@
 package com.github.aiassistant.entity;
 
 
+import java.io.Serializable;
+
 // @Data
 // @TableName("ai_assistant_kn")
-public class AiAssistantKn {
+public class AiAssistantKn implements Serializable {
+    // @TableId(value = "id", type = IdType.NONE)
+    private Integer id;
+    // @ApiModelProperty(value = "智能体ID", required = true)
+    private String assistantId;
+    // @ApiModelProperty(value = "搜索字段", required = true)
+    private String vectorFieldName;
+    // @ApiModelProperty(value = "最小匹配度", required = true)
+    private Long minScore;
+    // @ApiModelProperty(value = "最多召回几个", required = true)
+    private Integer knLimit;
+    // @ApiModelProperty(value = "知识库数据存储es", required = true)
+    private String knIndexName;
+    // @ApiModelProperty(value = "知识库类型枚举（qa=问答，majorjob=专业，job=岗位）", required = true)
+    private String knTypeEnum;
+    // @ApiModelProperty(value = "top1分数", required = true)
+    private Long knTop1Score;
+    // @ApiModelProperty(value = "knn搜索k的系数", required = true)
+    private Integer knnFactor;
+    // @ApiModelProperty(value = "知识库提问开启最小长度", required = true)
+    private Integer knQueryMinCharLength;
+    private String embeddingApiKey;
+    private String embeddingBaseUrl;
+    private String embeddingModelName;
+    private Integer embeddingDimensions;
+    private Integer embeddingMaxRequestSize;
+
     public Integer getId() {
         return id;
     }
@@ -123,42 +151,6 @@ public class AiAssistantKn {
     public void setEmbeddingMaxRequestSize(Integer embeddingMaxRequestSize) {
         this.embeddingMaxRequestSize = embeddingMaxRequestSize;
     }
-
-    // @TableId(value = "id", type = IdType.NONE)
-    private Integer id;
-
-    // @ApiModelProperty(value = "智能体ID", required = true)
-    private String assistantId;
-
-    // @ApiModelProperty(value = "搜索字段", required = true)
-    private String vectorFieldName;
-
-    // @ApiModelProperty(value = "最小匹配度", required = true)
-    private Long minScore;
-
-    // @ApiModelProperty(value = "最多召回几个", required = true)
-    private Integer knLimit;
-
-    // @ApiModelProperty(value = "知识库数据存储es", required = true)
-    private String knIndexName;
-
-    // @ApiModelProperty(value = "知识库类型枚举（qa=问答，majorjob=专业，job=岗位）", required = true)
-    private String knTypeEnum;
-
-    // @ApiModelProperty(value = "top1分数", required = true)
-    private Long knTop1Score;
-
-    // @ApiModelProperty(value = "knn搜索k的系数", required = true)
-    private Integer knnFactor;
-
-    // @ApiModelProperty(value = "知识库提问开启最小长度", required = true)
-    private Integer knQueryMinCharLength;
-
-    private String embeddingApiKey;
-    private String embeddingBaseUrl;
-    private String embeddingModelName;
-    private Integer embeddingDimensions;
-    private Integer embeddingMaxRequestSize;
 
     @Override
     public String toString() {

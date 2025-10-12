@@ -14,6 +14,7 @@ import com.github.aiassistant.service.text.tools.Tools;
 import com.github.aiassistant.util.AiUtil;
 import com.github.aiassistant.util.FutureUtil;
 import com.github.aiassistant.util.StringUtils;
+import com.github.aiassistant.util.ThrowableUtil;
 import dev.langchain4j.agent.tool.ToolExecutionRequest;
 import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.data.message.ChatMessage;
@@ -30,6 +31,7 @@ import dev.langchain4j.model.output.TokenUsage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.reflect.InvocationTargetException;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -179,7 +181,7 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
         }
         // 解构异常
         Throwable rootError = error;
-        while (rootError instanceof CompletionException) {
+        while (rootError instanceof CompletionException || rootError instanceof InvocationTargetException) {
             rootError = rootError.getCause();
         }
         AiAssistantException assistantException;
@@ -430,7 +432,7 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
                     // 校验工具入参的代码报错了
                     List<ResultToolExecutor> exceptionallyList = toolExecutors.stream().filter(CompletableFuture::isCompletedExceptionally).collect(Collectors.toList());
                     String exceptionallyMethods = exceptionallyList.stream().map(ResultToolExecutor::toString).collect(Collectors.joining(", "));
-                    future.completeExceptionally(new ToolExecuteException(String.format("executeToolsValidation error! exceptionallyMethods = [%s], %s", exceptionallyMethods, throwable), throwable, exceptionallyList, response));
+                    future.completeExceptionally(new ToolExecuteException(String.format("executeToolsValidation error! exceptionallyMethods = [%s], %s", exceptionallyMethods, ThrowableUtil.getCause(throwable)), throwable, exceptionallyList, response));
                 } else if (validationResult != null && validationResult.isStopExecute()) {
                     // 参数验证不通过，不能调用工具，给用户返回不能调用的原因。
                     Response<AiMessage> validationResponse = new Response<>(validationResult.getAiMessage(),
@@ -460,7 +462,7 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
                                 } else {
                                     List<ResultToolExecutor> exceptionallyList = toolExecutors.stream().filter(CompletableFuture::isCompletedExceptionally).collect(Collectors.toList());
                                     String exceptionallyMethods = exceptionallyList.stream().map(ResultToolExecutor::toString).collect(Collectors.joining(", "));
-                                    future.completeExceptionally(new ToolExecuteException(String.format("executeToolsCall error! exceptionallyMethods = [%s], %s", exceptionallyMethods, throwable1), throwable1, exceptionallyList, response));
+                                    future.completeExceptionally(new ToolExecuteException(String.format("executeToolsCall error! exceptionallyMethods = [%s], %s", exceptionallyMethods, ThrowableUtil.getCause(throwable1)), throwable1, exceptionallyList, response));
                                 }
                             });
                         } catch (Throwable e) {

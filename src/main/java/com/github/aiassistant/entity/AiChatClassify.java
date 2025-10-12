@@ -1,11 +1,12 @@
 package com.github.aiassistant.entity;
 
+import java.io.Serializable;
 import java.util.Date;
 
 // @Data
 // @ApiModel(value = "AiChatClassify", description = "聊天分类")
 // @TableName("ai_chat_classify")
-public class AiChatClassify {
+public class AiChatClassify implements Serializable {
     // @TableId(value = "id", type = IdType.AUTO)
     // @ApiModelProperty(value = "ID", example = "1")
     private Integer id;

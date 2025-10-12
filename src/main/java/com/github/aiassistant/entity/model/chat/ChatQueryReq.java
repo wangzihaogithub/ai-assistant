@@ -2,8 +2,10 @@ package com.github.aiassistant.entity.model.chat;
 
 import com.github.aiassistant.util.UniqueKeyGenerator;
 
+import java.io.Serializable;
+
 // @Data
-public class ChatQueryReq {
+public class ChatQueryReq implements Serializable {
     private String question;
     private Integer chatId;
     // @ApiModelProperty("重新回答的序列号")

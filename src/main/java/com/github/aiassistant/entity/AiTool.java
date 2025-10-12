@@ -1,5 +1,6 @@
 package com.github.aiassistant.entity;
 
+import java.io.Serializable;
 import java.util.Date;
 
 /**
@@ -9,7 +10,33 @@ import java.util.Date;
  */
 // @Data
 // @TableName("ai_tool")
-public class AiTool {
+public class AiTool implements Serializable {
+    // @TableId(value = "id", type = IdType.AUTO)
+    private Integer id;
+    /**
+     * 函数名称，给AI和让用户看的名称（需要全局唯一）
+     * UNIQUE INDEX `uniq_tool_function_name`(`tool_function_name`) USING BTREE,
+     */
+    private String toolFunctionName;
+    /**
+     * 函数枚举（就是研发实现的工具类对象的方法名）
+     * UNIQUE INDEX `uniq_tool_enum_function_enum`(`tool_enum`, `tool_function_enum`) USING BTREE
+     */
+    private String toolFunctionEnum;
+    /**
+     * 工具枚举（就是研发实现的工具类在spring中的beanName）
+     * UNIQUE INDEX `uniq_tool_enum_function_enum`(`tool_enum`, `tool_function_enum`) USING BTREE
+     */
+    private String toolEnum;
+    /**
+     * 函数提示词（给AI用的）
+     */
+    private String toolFunctionDescription;
+    private Date createTime;
+    private Date updateTime;
+    private Integer createUid;
+    private Integer updateUid;
+
     public Integer getId() {
         return id;
     }
@@ -81,32 +108,6 @@ public class AiTool {
     public void setUpdateUid(Integer updateUid) {
         this.updateUid = updateUid;
     }
-
-    // @TableId(value = "id", type = IdType.AUTO)
-    private Integer id;
-    /**
-     * 函数名称，给AI和让用户看的名称（需要全局唯一）
-     * UNIQUE INDEX `uniq_tool_function_name`(`tool_function_name`) USING BTREE,
-     */
-    private String toolFunctionName;
-    /**
-     * 函数枚举（就是研发实现的工具类对象的方法名）
-     * UNIQUE INDEX `uniq_tool_enum_function_enum`(`tool_enum`, `tool_function_enum`) USING BTREE
-     */
-    private String toolFunctionEnum;
-    /**
-     * 工具枚举（就是研发实现的工具类在spring中的beanName）
-     * UNIQUE INDEX `uniq_tool_enum_function_enum`(`tool_enum`, `tool_function_enum`) USING BTREE
-     */
-    private String toolEnum;
-    /**
-     * 函数提示词（给AI用的）
-     */
-    private String toolFunctionDescription;
-    private Date createTime;
-    private Date updateTime;
-    private Integer createUid;
-    private Integer updateUid;
 
     @Override
     public String toString() {

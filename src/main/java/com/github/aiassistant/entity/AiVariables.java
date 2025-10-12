@@ -1,10 +1,19 @@
 package com.github.aiassistant.entity;
 
+import java.io.Serializable;
 import java.util.Date;
 
 // @Data
 // @TableName("ai_variables")
-public class AiVariables {
+public class AiVariables implements Serializable {
+    // @TableId(value = "id", type = IdType.AUTO)
+    private Integer id;
+    private String varKey;
+    private String varValue;
+    private Date createTime;
+    private Date updateTime;
+    private Boolean enableFlag;
+
     public Integer getId() {
         return id;
     }
@@ -52,15 +61,6 @@ public class AiVariables {
     public void setEnableFlag(Boolean enableFlag) {
         this.enableFlag = enableFlag;
     }
-
-    // @TableId(value = "id", type = IdType.AUTO)
-    private Integer id;
-    private String varKey;
-    private String varValue;
-
-    private Date createTime;
-    private Date updateTime;
-    private Boolean enableFlag;
 
     @Override
     public String toString() {

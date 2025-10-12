@@ -3,8 +3,10 @@ package com.github.aiassistant.entity.model.chat;
 import com.github.aiassistant.entity.AiAssistant;
 import com.github.aiassistant.util.BeanUtil;
 
+import java.io.Serializable;
+
 // @Data
-public class AiAssistantResp {
+public class AiAssistantResp implements Serializable {
     private String id;
     private String name;
     // @ApiModelProperty(value = "描述", required = true)

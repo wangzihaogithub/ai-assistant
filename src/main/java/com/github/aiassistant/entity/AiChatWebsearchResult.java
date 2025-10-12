@@ -1,9 +1,54 @@
 package com.github.aiassistant.entity;
 
+import java.io.Serializable;
+
 // @ApiModel(value = "AiChatWebsearchResult", description = "联网结果")
 // @Data
 // @TableName("ai_chat_websearch_result")
-public class AiChatWebsearchResult {
+public class AiChatWebsearchResult implements Serializable {
+    // @TableId(value = "id", type = IdType.AUTO)
+    private Integer id;
+    /**
+     * 聊天ID
+     */
+    private Integer aiChatId;
+    /**
+     * 用户提问的消息ID
+     */
+    private Integer userChatHistoryId;
+    /**
+     * 联网搜索id
+     */
+    private Integer aiChatWebsearchId;
+    /**
+     * 网页url
+     */
+    private String pageUrl;
+    /**
+     * 网页标题
+     */
+    private String pageTitle;
+    /**
+     * 网页时间
+     */
+    private String pageTime;
+    /**
+     * 网页来源
+     */
+    private String pageSource;
+    /**
+     * 网页正文
+     */
+    private String pageContent;
+    /**
+     * 读取内容耗时
+     */
+    private Long urlReadTimeCost;
+    /**
+     * 读取内容的代理
+     */
+    private String urlReadProxy;
+
     public Integer getId() {
         return id;
     }
@@ -91,54 +136,6 @@ public class AiChatWebsearchResult {
     public void setUrlReadProxy(String urlReadProxy) {
         this.urlReadProxy = urlReadProxy;
     }
-
-    // @TableId(value = "id", type = IdType.AUTO)
-    private Integer id;
-
-    /**
-     * 聊天ID
-     */
-    private Integer aiChatId;
-    /**
-     * 用户提问的消息ID
-     */
-    private Integer userChatHistoryId;
-    /**
-     * 联网搜索id
-     */
-    private Integer aiChatWebsearchId;
-    /**
-     * 网页url
-     */
-    private String pageUrl;
-    /**
-     * 网页标题
-     */
-    private String pageTitle;
-
-    /**
-     * 网页时间
-     */
-    private String pageTime;
-
-    /**
-     * 网页来源
-     */
-    private String pageSource;
-
-    /**
-     * 网页正文
-     */
-    private String pageContent;
-
-    /**
-     * 读取内容耗时
-     */
-    private Long urlReadTimeCost;
-    /**
-     * 读取内容的代理
-     */
-    private String urlReadProxy;
 
     @Override
     public String toString() {

@@ -136,7 +136,7 @@ public class AiChatWebsearchServiceImpl {
                     insertResult.setPageTitle(StringUtils.left(row.getTitle(), 255, true));
                     insertResult.setPageTime(StringUtils.left(row.getTime(), 50, true));
                     insertResult.setPageSource(StringUtils.left(row.getSource(), 50, true));
-                    insertResult.setPageContent(StringUtils.left(row.getContent(), 65000, true));
+                    insertResult.setPageContent(StringUtils.left(row.getContent(), 16380, true));
                     Long urlReadTimeCost = row.getUrlReadTimeCost();
                     insertResult.setUrlReadTimeCost(urlReadTimeCost == null ? 0L : urlReadTimeCost);
                     UrlReadTools.ProxyVO proxyVO = row.getProxy();

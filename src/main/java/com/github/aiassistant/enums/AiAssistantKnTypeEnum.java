@@ -16,7 +16,7 @@ public class AiAssistantKnTypeEnum {
 //    rerank("rerank", "RAG重新排序"),
 //    retrieverIndustrySalary("retrieverIndustrySalary", "召回工具(行业薪酬)"),
 //    retrieverEmployees("retrieverEmployees", "召回工具(员工信息)"),
-//    retrieverCnwy("retrieverCnwy", "召回工具(菜鸟无忧)");
+//    retrieverCnwy("retrieverCnwy", "召回工具");
 //
     private static final Map<String, AiAssistantKnTypeEnum> CODE_VALUES = Collections.synchronizedMap(new LinkedHashMap<>());
     // rerank("rerank", "RAG重新排序"),

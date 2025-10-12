@@ -90,7 +90,7 @@ public class LlmTextApiService {
     /**
      * 线程池：如果java21可以传过来虚拟线程
      */
-    private final Executor threadPoolTaskExecutor;
+    private final Executor functionCallingThreadPool;
     private final ActingService actingService;
     private final ReasoningService reasoningService;
     private final KnSettingWebsearchBlacklistServiceImpl knSettingWebsearchBlacklistService;
@@ -132,16 +132,16 @@ public class LlmTextApiService {
                              AiVariablesService aiVariablesService,
                              KnnApiService knnApiService,
                              ActingService actingService, ReasoningService reasoningService,
-                             KnSettingWebsearchBlacklistServiceImpl knSettingWebsearchBlacklistService, Executor threadPoolTaskExecutor,
+                             KnSettingWebsearchBlacklistServiceImpl knSettingWebsearchBlacklistService, Executor functionCallingThreadPool,
                              Supplier<Collection<LlmTextApiServiceIntercept>> interceptList) {
-        if (threadPoolTaskExecutor == null) {
+        if (functionCallingThreadPool == null) {
             int threads = Math.max(Runtime.getRuntime().availableProcessors() * 2, 6);
-            threadPoolTaskExecutor = new ThreadPoolExecutor(
+            functionCallingThreadPool = new ThreadPoolExecutor(
                     threads, threads,
                     60, TimeUnit.SECONDS,
                     new SynchronousQueue<>(), target -> {
                 Thread thread = new Thread(target);
-                thread.setName("Ai-Question-" + thread.getId());
+                thread.setName("Ai-functioncall-" + thread.getId());
                 thread.setDaemon(true);
                 return thread;
             }, new ThreadPoolExecutor.CallerRunsPolicy());
@@ -153,7 +153,7 @@ public class LlmTextApiService {
         this.aiQuestionClassifyService = aiQuestionClassifyService;
         this.aiVariablesService = aiVariablesService;
         this.knnApiService = knnApiService;
-        this.threadPoolTaskExecutor = threadPoolTaskExecutor;
+        this.functionCallingThreadPool = functionCallingThreadPool;
         this.actingService = actingService;
         this.reasoningService = reasoningService;
         this.knSettingWebsearchBlacklistService = knSettingWebsearchBlacklistService;
@@ -273,7 +273,7 @@ public class LlmTextApiService {
                                                                             ChatStreamingResponseHandler responseHandler) {
         try {
             // jsonschema模型
-            llmJsonSchemaApiService.addSessionJsonSchema(memoryId, memoryId.getAiAssistant().getAiJsonschemaIds(), aiAssistantJsonschemaMapper, threadPoolTaskExecutor);
+            llmJsonSchemaApiService.addSessionJsonSchema(memoryId, memoryId.getAiAssistant().getAiJsonschemaIds(), aiAssistantJsonschemaMapper, functionCallingThreadPool);
             // 持久化
             ChatStreamingResponseHandler mergeResponseHandler = new MergeChatStreamingResponseHandler(
                     Arrays.asList(responseHandler, new RepositoryChatStreamingResponseHandler(repository)),
@@ -429,7 +429,7 @@ public class LlmTextApiService {
             }
 
             // 等待结果
-            FutureUtil.allOf(webSearchResult, knnFuture, reasoningResultFuture)
+            FutureUtil.allOfs(webSearchResult, knnFuture, reasoningResultFuture)
                     .thenAccept(unused -> {
                         ActingService.Plan reasoningResult = reasoningResultFuture.getNow(null);
                         List<List<QaKnVO>> qaKnVOList = knnFuture.getNow(null);
@@ -624,7 +624,7 @@ public class LlmTextApiService {
             Boolean reasoning
     ) throws AssistantConfigException, FewshotConfigException, ToolCreateException, JsonSchemaCreateException {
         // jsonschema模型
-        llmJsonSchemaApiService.addSessionJsonSchema(memoryId, assistantConfig.getAiJsonschemaIds(), aiAssistantJsonschemaMapper, threadPoolTaskExecutor);
+        llmJsonSchemaApiService.addSessionJsonSchema(memoryId, assistantConfig.getAiJsonschemaIds(), aiAssistantJsonschemaMapper, functionCallingThreadPool);
 
         // 系统消息
         SystemMessage systemMessage = buildSystemMessage(assistantConfig.getSystemPromptText(), responseHandler, variables, assistantConfig);
@@ -687,7 +687,7 @@ public class LlmTextApiService {
                 reasoning,
                 // 切换新线程，用于退出Okhttp的事件循环线程，
                 // 防止在Okhttp的AI回复后，仍需要再次请求。这样会导致事件循环线程中又触发调用，导致阻塞父事件循环。
-                threadPoolTaskExecutor);
+                functionCallingThreadPool);
     }
 
     /**

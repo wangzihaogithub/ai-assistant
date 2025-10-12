@@ -9,7 +9,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-public class MemoryIdVO {
+public class MemoryIdVO implements Cloneable {
     /**
      * 聊天
      */
@@ -22,6 +22,16 @@ public class MemoryIdVO {
      * 知识库
      */
     private Map<String, List<AiAssistantKn>> assistantKnMap;
+
+    @Override
+    public MemoryIdVO clone() {
+        try {
+            MemoryIdVO clone = (MemoryIdVO) super.clone();
+            return clone;
+        } catch (CloneNotSupportedException e) {
+            throw new IllegalStateException(e.toString(), e);
+        }
+    }
 
     public AiChat getAiChat() {
         return aiChat;

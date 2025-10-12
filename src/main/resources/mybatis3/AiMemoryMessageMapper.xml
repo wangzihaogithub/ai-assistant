@@ -60,7 +60,7 @@
 
     <select id="selectRootAgainTraceNumberList" resultType="com.github.aiassistant.entity.AiMemoryMessage">
         select
-        if(root_user_query_trace_number = '', user_query_trace_number, root_user_query_trace_number) root_user_query_trace_number,
+        any_value(if(root_user_query_trace_number = '', user_query_trace_number, root_user_query_trace_number)) root_user_query_trace_number,
         user_query_trace_number
         from ai_memory_message
         where user_query_trace_number in

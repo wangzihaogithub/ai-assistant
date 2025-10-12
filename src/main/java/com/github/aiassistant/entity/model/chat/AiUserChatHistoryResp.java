@@ -7,12 +7,13 @@ import com.github.aiassistant.platform.JsonUtil;
 import com.github.aiassistant.util.BeanUtil;
 import com.github.aiassistant.util.StringUtils;
 
+import java.io.Serializable;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 // @Data
-public class AiUserChatHistoryResp {
+public class AiUserChatHistoryResp implements Serializable {
     // @ApiModelProperty(value = "ID", example = "1")
     private Integer id;
     // @ApiModelProperty(value = "创建时间", example = "2023-04-01T12:00:00")

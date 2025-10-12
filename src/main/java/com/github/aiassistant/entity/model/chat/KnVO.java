@@ -2,12 +2,13 @@ package com.github.aiassistant.entity.model.chat;
 
 import com.github.aiassistant.util.AiUtil;
 
+import java.io.Serializable;
 import java.util.Date;
 
 /**
  * 知识库
  */
-public class KnVO {
+public class KnVO implements Serializable {
     private String id;
     private Double score;
     private String indexName;
