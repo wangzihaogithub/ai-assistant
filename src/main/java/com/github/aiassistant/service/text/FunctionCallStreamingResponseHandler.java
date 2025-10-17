@@ -23,7 +23,7 @@ import dev.langchain4j.memory.ChatMemory;
 import dev.langchain4j.model.StreamingResponseHandler;
 import dev.langchain4j.model.openai.AudioChunk;
 import dev.langchain4j.model.openai.AudioStreamingResponseHandler;
-import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
+import dev.langchain4j.model.openai.OpenAiChatClient;
 import dev.langchain4j.model.openai.ThinkingStreamingResponseHandler;
 import dev.langchain4j.model.output.FinishReason;
 import dev.langchain4j.model.output.Response;
@@ -59,7 +59,7 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
     private final Object memoryId;
     private final ChatMemory chatMemory;
     private final String modelName;
-    private final OpenAiStreamingChatModel chatModel;
+    private final OpenAiChatClient chatModel;
     private final List<Tools.ToolMethod> toolMethodList;
     private final FunctionCallStreamingResponseHandler parent;
     private final ChatStreamingResponseHandler bizHandler;
@@ -95,7 +95,7 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
      */
     private BiConsumer<FunctionCallStreamingResponseHandler, GenerateRequest> beforeRequestConsumer;
 
-    public FunctionCallStreamingResponseHandler(String modelName, OpenAiStreamingChatModel chatModel,
+    public FunctionCallStreamingResponseHandler(String modelName, OpenAiChatClient chatModel,
                                                 ChatMemory chatMemory,
                                                 ChatStreamingResponseHandler handler,
                                                 LlmJsonSchemaApiService llmJsonSchemaApiService,
@@ -512,7 +512,7 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
 //            return CompletableFuture.completedFuture(true);
 //        }
         if (memoryId instanceof MemoryIdVO && llmJsonSchemaApiService != null) {
-            WhetherWaitingForAiJsonSchema schema = null;
+            WhetherWaitingForAiJsonSchema schema;
             try {
                 schema = llmJsonSchemaApiService.getWhetherWaitingForAiJsonSchema((MemoryIdVO) memoryId);
             } catch (JsonSchemaCreateException e) {

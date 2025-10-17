@@ -40,7 +40,7 @@ import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.Tokenizer;
 import dev.langchain4j.model.input.Prompt;
-import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
+import dev.langchain4j.model.openai.OpenAiChatClient;
 import dev.langchain4j.model.openai.OpenAiTokenizer;
 import dev.langchain4j.model.output.Response;
 import org.slf4j.Logger;
@@ -68,10 +68,6 @@ public class LlmTextApiService {
      */
     private final Map<String, AiModelVO[]> modelMap = new ConcurrentHashMap<>();
     /**
-     * 每个智能体的聊天模型并发数量
-     */
-    private final int clientModelInstanceCount = 10;
-    /**
      * JsonSchema类型的模型
      */
     private final LlmJsonSchemaApiService llmJsonSchemaApiService;
@@ -95,6 +91,10 @@ public class LlmTextApiService {
     private final ReasoningService reasoningService;
     private final KnSettingWebsearchBlacklistServiceImpl knSettingWebsearchBlacklistService;
     private final Supplier<Collection<LlmTextApiServiceIntercept>> interceptList;
+    /**
+     * 每个智能体的聊天模型并发数量
+     */
+    private final int clientModelInstanceCount = 5;
     /**
      * 最大联网兜底条数
      */
@@ -137,11 +137,11 @@ public class LlmTextApiService {
         if (functionCallingThreadPool == null) {
             int threads = Math.max(Runtime.getRuntime().availableProcessors() * 2, 6);
             functionCallingThreadPool = new ThreadPoolExecutor(
-                    threads, threads,
+                    1, threads,
                     60, TimeUnit.SECONDS,
                     new SynchronousQueue<>(), target -> {
                 Thread thread = new Thread(target);
-                thread.setName("Ai-functioncall-" + thread.getId());
+                thread.setName("ai-functioncall-" + thread.getId());
                 thread.setDaemon(true);
                 return thread;
             }, new ThreadPoolExecutor.CallerRunsPolicy());
@@ -879,8 +879,8 @@ public class LlmTextApiService {
         return modelMap.computeIfAbsent(uniqueKey(apiKey, baseUrl, modelName, temperature, maxCompletionTokens), k -> {
             AiModelVO[] arrays = new AiModelVO[clientModelInstanceCount];
             for (int i = 0; i < arrays.length; i++) {
-                OpenAiStreamingChatModel streamingChatModel = createTextModel(apiKey, baseUrl, modelName, temperature, maxCompletionTokens);
-                arrays[i] = new AiModelVO(baseUrl, modelName, null, streamingChatModel);
+                OpenAiChatClient streamingChatModel = createTextModel(apiKey, baseUrl, modelName, temperature, maxCompletionTokens);
+                arrays[i] = new AiModelVO(baseUrl, modelName, streamingChatModel);
             }
             return arrays;
         });
@@ -896,12 +896,12 @@ public class LlmTextApiService {
      * @param maxCompletionTokens maxCompletionTokens
      * @return 聊天模型
      */
-    private OpenAiStreamingChatModel createTextModel(String apiKey,
-                                                     String baseUrl,
-                                                     String modelName,
-                                                     Double temperature,
-                                                     Integer maxCompletionTokens) {
-        OpenAiStreamingChatModel.OpenAiStreamingChatModelBuilder builder = OpenAiStreamingChatModel.builder()
+    private OpenAiChatClient createTextModel(String apiKey,
+                                             String baseUrl,
+                                             String modelName,
+                                             Double temperature,
+                                             Integer maxCompletionTokens) {
+        OpenAiChatClient.Builder builder = OpenAiChatClient.builder()
                 .timeout(timeout)
                 .connectTimeout(connectTimeout)
                 .temperature(temperature)

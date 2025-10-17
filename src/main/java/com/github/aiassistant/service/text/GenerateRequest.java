@@ -399,6 +399,10 @@ public class GenerateRequest implements Cloneable {
         return messageList;
     }
 
+    public void setMessageList(List<ChatMessage> messageList) {
+        this.messageList = messageList;
+    }
+
     /**
      * 可供模型调用的工具数组，可以包含一个或多个工具对象。一次Function Calling流程模型会从中选择一个工具。
      * 目前不支持通义千问VL/Audio，也不建议用于数学和代码模型。
@@ -410,6 +414,10 @@ public class GenerateRequest implements Cloneable {
      */
     public List<ToolSpecification> getToolSpecificationList() {
         return toolSpecificationList;
+    }
+
+    public void setToolSpecificationList(List<ToolSpecification> toolSpecificationList) {
+        this.toolSpecificationList = toolSpecificationList;
     }
 
     /**

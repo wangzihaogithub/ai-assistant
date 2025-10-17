@@ -17,6 +17,7 @@ import com.github.aiassistant.service.text.tools.functioncall.UrlReadTools;
 import com.github.aiassistant.util.StringUtils;
 import com.github.aiassistant.util.ThrowableUtil;
 import com.mysql.cj.jdbc.MysqlDataSource;
+import dev.langchain4j.model.openai.OpenAiChatClient;
 import org.apache.http.Header;
 import org.apache.http.HttpHost;
 import org.apache.http.message.BasicHeader;
@@ -42,6 +43,23 @@ public class AiBuilders {
 //        assistant.setVectorFieldName("jobVector");
 //        return assistant;
 //    }
+
+    public static OpenAiChatClient openAiChatClient(String baseUrl, String apiKey, String modelName) {
+        return OpenAiChatClient.builder()
+                .apiKey(apiKey)
+                .modelName(modelName)
+                .baseUrl(baseUrl)
+                .build();
+    }
+
+    public static EmbeddingModelClient.Factory openAiEmbeddingClient(String baseUrl, String apiKey, String modelName, int dimensions) {
+        return EmbeddingModelClient.builder()
+                .apiKey(apiKey)
+                .modelName(modelName)
+                .baseUrl(baseUrl)
+                .dimensions(dimensions)
+                .build();
+    }
 
     public static EmbeddingModelClient.Factory aliyunEmbeddingV4(String apiKey, int dimensions) {
         return EmbeddingModelClient.builder()

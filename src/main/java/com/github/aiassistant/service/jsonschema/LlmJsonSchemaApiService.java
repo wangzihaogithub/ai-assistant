@@ -15,7 +15,7 @@ import com.github.aiassistant.service.text.tools.Tools;
 import com.github.aiassistant.util.AiUtil;
 import com.github.aiassistant.util.BeanUtil;
 import com.github.aiassistant.util.StringUtils;
-import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
+import dev.langchain4j.model.openai.OpenAiChatClient;
 import dev.langchain4j.service.AiServiceContext;
 import dev.langchain4j.service.AiServices;
 import dev.langchain4j.service.FunctionalInterfaceAiServices;
@@ -50,7 +50,7 @@ public class LlmJsonSchemaApiService {
     private Duration connectTimeout = Duration.ofSeconds(3);
 
     public LlmJsonSchemaApiService(AiToolServiceImpl aiToolService) {
-        this(aiToolService, 3);
+        this(aiToolService, 5);
     }
 
     public LlmJsonSchemaApiService(AiToolServiceImpl aiToolService, int schemaInstanceCount) {
@@ -136,7 +136,7 @@ public class LlmJsonSchemaApiService {
                 .anyMatch(e -> Objects.equals(jsonSchemaEnum, e.getJsonSchemaEnum()) && Boolean.TRUE.equals(e.getEnableFlag()));
     }
 
-    public AiJsonschema getJsonschema(MemoryIdVO memoryIdVO, String jsonSchemaEnum) {
+    public AiJsonschema getSessionJsonschema(MemoryIdVO memoryIdVO, String jsonSchemaEnum) {
         Session session = getSession(memoryIdVO, false);
         if (session == null) {
             return null;
@@ -160,7 +160,7 @@ public class LlmJsonSchemaApiService {
      * @return 使用了变量
      */
     public boolean existPromptVariableKey(MemoryIdVO memoryIdVO, String jsonSchemaEnum, String... varKeys) {
-        AiJsonschema jsonschema = getJsonschema(memoryIdVO, jsonSchemaEnum);
+        AiJsonschema jsonschema = getSessionJsonschema(memoryIdVO, jsonSchemaEnum);
         if (jsonschema == null) {
             return false;
         }
@@ -174,29 +174,75 @@ public class LlmJsonSchemaApiService {
     }
 
     /**
-     * 获取JsonSchema类型的模型
+     * 获取JsonSchema类型的模型（不要记忆）
      *
-     * @param memoryIdVO memoryIdVO
+     * @param jsonschema jsonschema配置
      * @param type       type
-     * @param memory     memory
      * @param <T>        类型
      * @return JsonSchema类型的模型
      * @throws JsonSchemaCreateException JsonSchema创建失败
      */
-    public <T> T getSchema(MemoryIdVO memoryIdVO, Class<T> type, boolean memory) throws JsonSchemaCreateException {
-        return getSchema(memoryIdVO, toJsonSchemaEnum(type), type, memory);
+    public <T> T getSchemaNoMemory(AiJsonschema jsonschema, Class<T> type) throws JsonSchemaCreateException {
+        return getSchema(null, jsonschema, type, false);
     }
 
+    /**
+     * 获取JsonSchema类型的模型
+     *
+     * @param memoryIdVO            memoryIdVO
+     * @param type                  type
+     * @param useChatMemoryProvider 是否给AI提供多伦对话历史记录
+     * @param <T>                   类型
+     * @return JsonSchema类型的模型
+     * @throws JsonSchemaCreateException JsonSchema创建失败
+     */
+    public <T> T getSchema(MemoryIdVO memoryIdVO, Class<T> type, boolean useChatMemoryProvider) throws JsonSchemaCreateException {
+        return getSchema(memoryIdVO, toJsonSchemaEnum(type), type, useChatMemoryProvider);
+    }
+
+    /**
+     * 获取JsonSchema类型的模型
+     *
+     * @param memoryIdVO memoryIdVO
+     * @param type       type
+     * @param <T>        类型
+     * @return JsonSchema类型的模型
+     * @throws JsonSchemaCreateException JsonSchema创建失败
+     */
     public <T> T getSchema(MemoryIdVO memoryIdVO, Class<T> type) throws JsonSchemaCreateException {
-        return getSchema(memoryIdVO, type, false);
+        return getSchema(memoryIdVO, toJsonSchemaEnum(type), type, false);
     }
 
-    public <T> T getSchema(MemoryIdVO memoryIdVO, String jsonSchemaEnum, Class<T> type, boolean memory) throws JsonSchemaCreateException {
-        AiJsonschema jsonschema = getJsonschema(memoryIdVO, jsonSchemaEnum);
+    /**
+     * 获取JsonSchema类型的模型
+     *
+     * @param memoryIdVO            memoryIdVO
+     * @param type                  type
+     * @param useChatMemoryProvider 是否给AI提供多伦对话历史记录
+     * @param <T>                   类型
+     * @return JsonSchema类型的模型
+     * @throws JsonSchemaCreateException JsonSchema创建失败
+     */
+    public <T> T getSchema(MemoryIdVO memoryIdVO, String jsonSchemaEnum, Class<T> type, boolean useChatMemoryProvider) throws JsonSchemaCreateException {
+        AiJsonschema jsonschema = getSessionJsonschema(memoryIdVO, jsonSchemaEnum);
         if (jsonschema == null) {
             return null;
         }
+        return getSchema(memoryIdVO, jsonschema, type, useChatMemoryProvider);
+    }
 
+    /**
+     * 获取JsonSchema类型的模型
+     *
+     * @param memoryIdVO            memoryIdVO
+     * @param jsonschema            jsonschema配置
+     * @param type                  type
+     * @param useChatMemoryProvider 是否给AI提供多伦对话历史记录
+     * @param <T>                   类型
+     * @return JsonSchema类型的模型
+     * @throws JsonSchemaCreateException JsonSchema创建失败
+     */
+    public <T> T getSchema(Object memoryIdVO, AiJsonschema jsonschema, Class<T> type, boolean useChatMemoryProvider) throws JsonSchemaCreateException {
         String apiKey = jsonschema.getApiKey();
         String baseUrl = jsonschema.getBaseUrl();
         String modelName = jsonschema.getModelName();
@@ -216,22 +262,21 @@ public class LlmJsonSchemaApiService {
                 });
         AtomicInteger index = schemasIndexMap.computeIfAbsent(type, e -> new AtomicInteger());
         AiModelVO aiModel = aiModels[index.getAndIncrement() % aiModels.length];
-        return newInstance(aiModel, type, memory, memoryIdVO, jsonschema, jsonSchemaEnum);
+        return newInstance(aiModel, type, useChatMemoryProvider, memoryIdVO, jsonschema);
     }
 
-    private <T> T newInstance(AiModelVO aiModel, Class<T> type, boolean memory,
-                              MemoryIdVO memoryIdVO, AiJsonschema jsonschema,
-                              String jsonSchemaEnum) throws JsonSchemaCreateException {
+    private <T> T newInstance(AiModelVO aiModel, Class<T> type, boolean useChatMemoryProvider,
+                              Object memoryIdVO, AiJsonschema jsonschema) throws JsonSchemaCreateException {
         try {
             Session session = getSession(memoryIdVO, false);
-            ChatStreamingResponseHandler responseHandler = null;
-            AiAccessUserVO user = null;
-            AiVariablesVO variables = null;
-            Map<String, Object> variablesMap = new HashMap<>();
-            Boolean websearch = null;
-            Boolean reasoning = null;
-            QuestionClassifyListVO classifyListVO = null;
-            Executor executor = null;
+            ChatStreamingResponseHandler responseHandler;
+            AiAccessUserVO user;
+            AiVariablesVO variables;
+            Map<String, Object> variablesMap;
+            Boolean websearch;
+            Boolean reasoning;
+            QuestionClassifyListVO classifyListVO;
+            Executor executor;
             if (session != null) {
                 user = session.user;
                 variables = session.variables;
@@ -240,8 +285,16 @@ public class LlmJsonSchemaApiService {
                 reasoning = session.reasoning;
                 classifyListVO = session.classifyListVO;
                 executor = session.threadPoolTaskExecutor;
-                variablesMap = BeanUtil.toMap(variables);
+            } else {
+                user = new AiAccessUserVO();
+                variables = new AiVariablesVO();
+                responseHandler = ChatStreamingResponseHandler.EMPTY;
+                websearch = null;
+                reasoning = null;
+                executor = Runnable::run;
+                classifyListVO = new QuestionClassifyListVO();
             }
+            variablesMap = BeanUtil.toMap(variables);
 
             String systemPromptText = jsonschema.getSystemPromptText();
             String userPromptText = jsonschema.getUserPromptText();
@@ -249,9 +302,8 @@ public class LlmJsonSchemaApiService {
             AiServices<T> aiServices = new FunctionalInterfaceAiServices<>(new AiServiceContext(type), systemPromptText, userPromptText,
                     variablesMap, responseHandler, toolMethodList, aiModel.isSupportChineseToolName(),
                     classifyListVO, websearch, reasoning, aiModel.modelName, memoryIdVO, executor);
-            aiServices.chatLanguageModel(aiModel.model);
-            aiServices.streamingChatLanguageModel(aiModel.streaming);
-            if (memory) {
+            aiServices.streamingChatLanguageModel(FunctionalInterfaceAiServices.adapter(aiModel.streaming));
+            if (useChatMemoryProvider) {
                 aiServices.chatMemoryProvider(this::getChatMemory);
             }
             return aiServices.build();
@@ -297,17 +349,15 @@ public class LlmJsonSchemaApiService {
      * @return 记忆
      */
     public JsonSchemaTokenWindowChatMemory getChatMemory(Object memoryIdVO) {
-        MemoryIdVO key = (MemoryIdVO) memoryIdVO;
-        Session session = memoryMap.get(key);
+        Session session = memoryMap.get(memoryIdVO);
         return session == null ? null : session.chatMemory;
     }
 
     private Session getSession(Object memoryIdVO, boolean create) {
-        MemoryIdVO key = (MemoryIdVO) memoryIdVO;
         if (create) {
-            return memoryMap.computeIfAbsent(key, k -> new Session());
+            return memoryMap.computeIfAbsent(memoryIdVO, k -> new Session());
         } else {
-            return memoryMap.get(key);
+            return memoryMap.get(memoryIdVO);
         }
     }
 
@@ -359,7 +409,7 @@ public class LlmJsonSchemaApiService {
             timeoutMs = 60_000;
         }
         // 大模型stream需要4.12.0, 大模型非stream需要okhttp3，这里舍弃非stream，保持整个项目全用stream
-        OpenAiStreamingChatModel streaming = OpenAiStreamingChatModel.builder()
+        OpenAiChatClient streaming = OpenAiChatClient.builder()
                 .topP(topP)
                 .temperature(temperature)
                 .maxCompletionTokens(maxCompletionTokens)
@@ -371,7 +421,7 @@ public class LlmJsonSchemaApiService {
                 .connectTimeout(connectTimeout)
                 .strictJsonSchema(true)
                 .build();
-        return new AiModelVO(baseUrl, modelName, null, streaming);
+        return new AiModelVO(baseUrl, modelName, streaming);
     }
 
     public Duration getConnectTimeout() {

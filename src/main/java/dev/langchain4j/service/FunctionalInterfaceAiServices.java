@@ -17,11 +17,13 @@ import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.exception.IllegalConfigurationException;
 import dev.langchain4j.memory.ChatMemory;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
+import dev.langchain4j.model.StreamingResponseHandler;
+import dev.langchain4j.model.chat.StreamingChatLanguageModel;
 import dev.langchain4j.model.input.Prompt;
 import dev.langchain4j.model.input.PromptTemplate;
 import dev.langchain4j.model.input.structured.StructuredPrompt;
 import dev.langchain4j.model.input.structured.StructuredPromptProcessor;
-import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
+import dev.langchain4j.model.openai.OpenAiChatClient;
 import dev.langchain4j.model.output.Response;
 import dev.langchain4j.rag.AugmentationRequest;
 import dev.langchain4j.rag.AugmentationResult;
@@ -35,7 +37,8 @@ import org.slf4j.LoggerFactory;
 import java.io.InputStream;
 import java.lang.reflect.*;
 import java.util.*;
-import java.util.concurrent.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
@@ -263,21 +266,15 @@ public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
         return sb.toString();
     }
 
-    private static ThreadPoolExecutor getExecutor(Class aiServiceClass) {
-        final ThreadPoolExecutor executor = new ThreadPoolExecutor(
-                1, 10,
-                60, TimeUnit.SECONDS,
-                new SynchronousQueue<>(),
-                runnable -> {
-                    int tid = threadExecutorCounter.computeIfAbsent(aiServiceClass, e -> new AtomicInteger()).incrementAndGet();
-                    Thread thread = new Thread(runnable, aiServiceClass.getSimpleName() + "-" + tid);
-                    thread.setDaemon(true);
-                    return thread;
-                },
-                new ThreadPoolExecutor.CallerRunsPolicy()
-        );
-        executor.allowCoreThreadTimeOut(true);
-        return executor;
+    public static StreamingChatLanguageModel adapter(OpenAiChatClient client) {
+        return new OpenAiStreamingChatLanguageModel(client);
+    }
+
+    public static OpenAiChatClient unAdapter(StreamingChatLanguageModel model) {
+        if (model instanceof OpenAiStreamingChatLanguageModel) {
+            return ((OpenAiStreamingChatLanguageModel) model).client;
+        }
+        throw new IllegalArgumentException("Tools are currently not supported by this model");
     }
 
     private boolean canAdaptTokenStreamTo(Type returnType) {
@@ -387,6 +384,20 @@ public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
         }
 
         throw illegalConfiguration("Error: The method '%s' does not have a user message defined.", method.getName());
+    }
+
+    private static class OpenAiStreamingChatLanguageModel implements StreamingChatLanguageModel {
+
+        private final OpenAiChatClient client;
+
+        OpenAiStreamingChatLanguageModel(OpenAiChatClient client) {
+            this.client = client;
+        }
+
+        @Override
+        public void generate(List<ChatMessage> messages, StreamingResponseHandler<AiMessage> handler) {
+            throw new IllegalArgumentException("Tools are currently not supported by this model");
+        }
     }
 
     public static class AiServiceTokenStream implements TokenStream {
@@ -573,7 +584,7 @@ public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
             messages.forEach(chatMemory::add);
             JsonschemaFunctionCallStreamingResponseHandler handler = new JsonschemaFunctionCallStreamingResponseHandler(
                     modelName,
-                    (OpenAiStreamingChatModel) context.streamingChatModel,
+                    unAdapter(context.streamingChatModel),
                     chatMemory,
                     csrh,
                     null,

@@ -9,7 +9,7 @@ import com.github.aiassistant.service.text.tools.Tools;
 import dev.langchain4j.agent.tool.ToolExecutionRequest;
 import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.memory.ChatMemory;
-import dev.langchain4j.model.openai.OpenAiStreamingChatModel;
+import dev.langchain4j.model.openai.OpenAiChatClient;
 import dev.langchain4j.model.output.Response;
 
 import java.util.List;
@@ -22,7 +22,7 @@ class JsonschemaFunctionCallStreamingResponseHandler extends FunctionCallStreami
     private final Class<?> jsonschemaClass;
 
     JsonschemaFunctionCallStreamingResponseHandler(String modelName,
-                                                   OpenAiStreamingChatModel chatModel, ChatMemory chatMemory,
+                                                   OpenAiChatClient chatModel, ChatMemory chatMemory,
                                                    ChatStreamingResponseHandler handler,
                                                    LlmJsonSchemaApiService llmJsonSchemaApiService,
                                                    List<Tools.ToolMethod> toolMethodList,

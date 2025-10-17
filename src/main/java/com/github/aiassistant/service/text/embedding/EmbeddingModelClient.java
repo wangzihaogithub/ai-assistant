@@ -89,15 +89,6 @@ public class EmbeddingModelClient {
         return DigestUtils.md5DigestAsHex(keyword.getBytes(UTF_8));
     }
 
-    private static float[] convert(List<Float> vector) {
-        float[] array = new float[vector.size()];
-        int i = 0;
-        for (Float f : vector) {
-            array[i++] = f;
-        }
-        return array;
-    }
-
     public long getCost() {
         return cost;
     }
@@ -402,11 +393,11 @@ public class EmbeddingModelClient {
     private static class Client {
         private static final MediaType mediaType = MediaType.parse("application/json");
 
-        final String baseUrl;
+        final String endpoint;
         final OkHttpClient client;
 
         private Client(String baseUrl, OkHttpClient client) {
-            this.baseUrl = baseUrl + "/embeddings";
+            this.endpoint = baseUrl + (baseUrl.endsWith("/") ? "embeddings" : "/embeddings");
             this.client = client;
         }
 
@@ -415,7 +406,7 @@ public class EmbeddingModelClient {
                                                                  JsonUtil.ObjectWriter objectWriter,
                                                                  JsonUtil.ObjectReader objectReader) {
             Request request = new Request.Builder()
-                    .url(baseUrl)
+                    .url(endpoint)
                     .post(new RequestBody() {
                         @Override
                         public MediaType contentType() {

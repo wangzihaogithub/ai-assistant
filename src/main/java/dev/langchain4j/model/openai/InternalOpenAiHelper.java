@@ -424,11 +424,12 @@ public class InternalOpenAiHelper {
     static ChatModelRequest createModelListenerRequest(ChatCompletionRequest request,
                                                        List<ChatMessage> messages,
                                                        List<ToolSpecification> toolSpecifications) {
+        Integer maxCompletionTokens = request.maxCompletionTokens();
         return ChatModelRequest.builder()
                 .model(request.model())
                 .temperature(request.temperature())
                 .topP(request.topP())
-                .maxTokens(getOrDefault(request.maxCompletionTokens(), request.maxTokens()))
+                .maxTokens(maxCompletionTokens != null ? maxCompletionTokens : request.maxTokens())
                 .messages(messages)
                 .toolSpecifications(toolSpecifications)
                 .build();
