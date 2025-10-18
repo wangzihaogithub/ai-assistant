@@ -1,5 +1,6 @@
 package com.github.aiassistant;
 
+import com.github.aiassistant.dao.AiJsonschemaMapper;
 import com.github.aiassistant.dao.AiToolMapper;
 import com.github.aiassistant.dao.AiToolParameterMapper;
 import com.github.aiassistant.platform.AliyunAppsClient;
@@ -95,19 +96,22 @@ public class AiBuilders {
         return new AliyunOpenNluModel(apiKey);
     }
 
-    public static AiToolServiceImpl aiToolService(DataSource dataSource, Function<String, Tools> toolsMap) {
-        Mybatis3DAOProvider provider = new Mybatis3DAOProvider(dataSource);
-        AiToolMapper aiToolMapper = provider.getMapper(AiToolMapper.class);
-        AiToolParameterMapper aiToolParameterMapper = provider.getMapper(AiToolParameterMapper.class);
+    public static AiToolServiceImpl aiToolService(Mybatis3DAOProvider daoProvider, Function<String, Tools> toolsMap) {
+        AiToolMapper aiToolMapper = daoProvider.getMapper(AiToolMapper.class);
+        AiToolParameterMapper aiToolParameterMapper = daoProvider.getMapper(AiToolParameterMapper.class);
         return new AiToolServiceImpl(aiToolMapper, aiToolParameterMapper, toolsMap);
     }
 
-    public static LlmJsonSchemaApiService llmJsonSchemaApiService(DataSource dataSource, Function<String, Tools> toolsMap) {
-        return new LlmJsonSchemaApiService(aiToolService(dataSource, toolsMap));
+    public static Mybatis3DAOProvider daoProvider(DataSource dataSource) {
+        return new Mybatis3DAOProvider(dataSource);
     }
 
-    public static LlmJsonSchemaApiService llmJsonSchemaApiService(AiToolServiceImpl aiToolService) {
-        return new LlmJsonSchemaApiService(aiToolService);
+    public static LlmJsonSchemaApiService jsonSchemaApiService(DataSource dataSource, Function<String, Tools> toolsMap) {
+        return jsonSchemaApiService(daoProvider(dataSource), toolsMap);
+    }
+
+    public static LlmJsonSchemaApiService jsonSchemaApiService(Mybatis3DAOProvider daoProvider, Function<String, Tools> toolsMap) {
+        return new LlmJsonSchemaApiService(daoProvider.getMapper(AiJsonschemaMapper.class), aiToolService(daoProvider, toolsMap));
     }
 
     public static KnnApiService knnApiService(String elasticsearchUrl, String apiKey) {
@@ -124,10 +128,16 @@ public class AiBuilders {
         return builder;
     }
 
+    public static AiApplication aiApplication(DAOProvider daoProvider,
+                                              RestClient embeddingStore,
+                                              Function<String, Tools> toolsMap) {
+        return new AiApplication(null, daoProvider, embeddingStore, toolsMap, null);
+    }
+
     public static AiApplication aiApplication(DataSource dataSource,
                                               RestClient embeddingStore,
                                               Function<String, Tools> toolsMap) {
-        return new AiApplication(dataSource, embeddingStore, toolsMap, null);
+        return new AiApplication(null, daoProvider(dataSource), embeddingStore, toolsMap, null);
     }
 
     public static WebSearchService webSearchService() {

@@ -1,7 +1,7 @@
 package com.github.aiassistant;
 
 import com.github.aiassistant.service.text.GenerateRequest;
-import com.github.aiassistant.service.text.StreamingResponseHandlerAdapter;
+import dev.langchain4j.model.openai.StreamingResponseHandlerAdapter;
 import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.openai.OpenAiChatClient;

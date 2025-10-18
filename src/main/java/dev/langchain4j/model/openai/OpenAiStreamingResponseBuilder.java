@@ -44,6 +44,7 @@ public class OpenAiStreamingResponseBuilder {
     private volatile String id;
     // 最后一条记录
     private volatile String sseData;
+    private okhttp3.Response httpResponse;
 
     private static AiMessage buildAiMessage(
             int state,
@@ -247,12 +248,20 @@ public class OpenAiStreamingResponseBuilder {
         Map<String, Object> meta = new HashMap<>();
         meta.put("id", id);
         meta.put("lastSseData", sseData);
+        meta.put("httpResponse", httpResponse);
         return new Response<>(
                 buildAiMessage(state, contentBuilder, reasoningContentBuilder, toolExecutionRequests),
                 tokenUsage,
                 finishReason,
                 meta
         );
+    }
+
+    public void setHttpResponse(okhttp3.Response httpResponse) {
+        this.httpResponse = httpResponse;
+        if (httpResponse != null) {
+            this.id = httpResponse.header("x-request-id");
+        }
     }
 
     private static class ToolExecutionRequestBuilder {

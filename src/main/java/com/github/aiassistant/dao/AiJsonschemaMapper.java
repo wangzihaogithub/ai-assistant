@@ -7,7 +7,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
-public interface AiAssistantJsonschemaMapper {
+public interface AiJsonschemaMapper {
     List<AiJsonschema> selectBatchIds(Collection<? extends Serializable> idList);
 
     default AiJsonschema selectById(Serializable id) {

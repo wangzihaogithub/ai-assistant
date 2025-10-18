@@ -3,7 +3,6 @@ package dev.langchain4j.model.openai;
 import com.github.aiassistant.entity.model.langchain4j.ThinkingAiMessage;
 import com.github.aiassistant.platform.JsonUtil;
 import com.github.aiassistant.service.text.GenerateRequest;
-import com.github.aiassistant.service.text.StreamingResponseHandlerAdapter;
 import dev.ai4j.openai4j.OpenAiHttpException;
 import dev.ai4j.openai4j.chat.*;
 import dev.ai4j.openai4j.shared.StreamOptions;
@@ -15,9 +14,9 @@ import dev.langchain4j.model.chat.listener.*;
 import dev.langchain4j.model.chat.request.json.JsonSchema;
 import dev.langchain4j.model.output.Response;
 import okhttp3.*;
+import okhttp3.internal.sse.RealEventSource;
 import okhttp3.sse.EventSource;
 import okhttp3.sse.EventSourceListener;
-import okhttp3.sse.EventSources;
 import okio.BufferedSink;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -366,64 +365,87 @@ public class OpenAiChatClient {
         EventSourceCompletableFuture<Response<AiMessage>> future = new EventSourceCompletableFuture<>();
         Consumer<Throwable> errorHandler = onError(future, modelListenerRequest, attributes, responseBuilder, responseId, responseModel, handler);
         Runnable streamingCompletionCallback = onComplete(future, modelListenerRequest, attributes, responseBuilder, responseId, responseModel, handler);
-        future.eventSource = EventSources.createFactory(client)
-                .newEventSource(okHttpRequest, new EventSourceListener() {
+        EventSourceListener eventSourceListener = new EventSourceListener() {
 
-                    @Override
-                    public void onEvent(EventSource eventSource1, String id, String type, String data) {
-                        if ("[DONE]".equals(data)) {
-                            streamingCompletionCallback.run();
-                            return;
-                        }
-                        responseBuilder.setSseData(data);
-                        try {
-                            ChatCompletionResponse partialResponse = objectReader.readValue(data, ChatCompletionResponse.class);
-                            handle(partialResponse, handler, responseBuilder);
-                            responseBuilder.append(partialResponse);
-                            if (isNotBlank(partialResponse.id())) {
-                                responseId.set(partialResponse.id());
-                            }
-                            if (isNotBlank(partialResponse.model())) {
-                                responseModel.set(partialResponse.model());
-                            }
-                        } catch (Throwable e) {
-                            errorHandler.accept(e);
-                        }
+            @Override
+            public void onEvent(EventSource eventSource1, String id, String type, String data) {
+                if ("[DONE]".equals(data)) {
+                    streamingCompletionCallback.run();
+                    return;
+                }
+                responseBuilder.setSseData(data);
+                try {
+                    ChatCompletionResponse partialResponse = objectReader.readValue(data, ChatCompletionResponse.class);
+                    handle(partialResponse, handler, responseBuilder);
+                    responseBuilder.append(partialResponse);
+                    if (isNotBlank(partialResponse.id())) {
+                        responseId.set(partialResponse.id());
                     }
-
-                    @Override
-                    public void onFailure(EventSource eventSource1, Throwable t, okhttp3.Response response) {
-                        // TODO remove this when migrating from okhttp
-                        if (t instanceof IllegalArgumentException && "byteCount < 0: -1".equals(t.getMessage())) {
-                            streamingCompletionCallback.run();
-                            return;
-                        }
-
-                        OpenAiHttpException openAiHttpException = null;
-                        if (response != null) {
-                            String bodyString;
-                            int code = response.code();
-                            try {
-                                bodyString = response.body().string();
-                            } catch (Exception e) {
-                                bodyString = "response.body().string() fail:" + e;
-                            }
-                            openAiHttpException = new OpenAiHttpException(code, bodyString);
-                        }
-                        if (t != null) {
-                            if (openAiHttpException != null) {
-                                openAiHttpException.initCause(t);
-                                errorHandler.accept(openAiHttpException);
-                            } else {
-                                errorHandler.accept(t);
-                            }
-                        } else if (openAiHttpException != null) {
-                            errorHandler.accept(openAiHttpException);
-                        } else {
-                            errorHandler.accept(new OpenAiHttpException(400, "onFailure"));
-                        }
+                    if (isNotBlank(partialResponse.model())) {
+                        responseModel.set(partialResponse.model());
                     }
-                });
+                } catch (Throwable e) {
+                    errorHandler.accept(e);
+                }
+            }
+
+            @Override
+            public void onFailure(EventSource eventSource1, Throwable t, okhttp3.Response response) {
+                // TODO remove this when migrating from okhttp
+                if (t instanceof IllegalArgumentException && "byteCount < 0: -1".equals(t.getMessage())) {
+                    streamingCompletionCallback.run();
+                    return;
+                }
+
+                OpenAiHttpException openAiHttpException = null;
+                if (response != null) {
+                    String bodyString;
+                    int code = response.code();
+                    try {
+                        ResponseBody body = response.body();
+                        bodyString = body != null ? body.string() : "response.body().string() is empty";
+                    } catch (Exception e) {
+                        bodyString = "response.body().string() fail:" + e;
+                    }
+                    openAiHttpException = new OpenAiHttpException(code, bodyString);
+                }
+                if (t != null) {
+                    if (openAiHttpException != null) {
+                        openAiHttpException.initCause(t);
+                        errorHandler.accept(openAiHttpException);
+                    } else {
+                        errorHandler.accept(t);
+                    }
+                } else if (openAiHttpException != null) {
+                    errorHandler.accept(openAiHttpException);
+                } else {
+                    errorHandler.accept(new OpenAiHttpException(400, "onFailure"));
+                }
+            }
+        };
+
+        RealEventSource eventSource = new RealEventSource(okHttpRequest, eventSourceListener);
+        Call call = client.newCall(okHttpRequest);
+        call.enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                eventSourceListener.onFailure(eventSource, e, null);
+            }
+
+            @Override
+            public void onResponse(Call call, okhttp3.Response response) throws IOException {
+                if (handler instanceof HttpResponseHandler) {
+                    try {
+                        ((HttpResponseHandler) handler).onHttpResponse(call, response);
+                    } catch (Throwable t) {
+                        log.warn("Exception while calling model onHttpResponse {}", t.toString(), t);
+                    }
+                }
+                responseBuilder.setHttpResponse(response);
+                eventSource.processResponse(response);
+            }
+        });
+        future.call = call;
         return future;
     }
 
@@ -554,14 +576,14 @@ public class OpenAiChatClient {
     }
 
     private static class EventSourceCompletableFuture<T> extends CompletableFuture<T> {
-        private EventSource eventSource;
+        private Call call;
 
         @Override
         public boolean cancel(boolean mayInterruptIfRunning) {
             if (isCancelled()) {
                 return false;
             }
-            EventSource eventSource = this.eventSource;
+            Call eventSource = this.call;
             if (eventSource != null) {
                 eventSource.cancel();
             }

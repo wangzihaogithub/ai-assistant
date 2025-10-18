@@ -24,7 +24,7 @@ import java.util.*;
 public class Mybatis3DAOProvider extends DAOProvider {
     public static final List<String> MAPPERS = Collections.unmodifiableList(Arrays.asList(
             "mybatis3/AiAssistantFewshotMapper.xml",
-            "mybatis3/AiAssistantJsonschemaMapper.xml",
+            "mybatis3/AiJsonschemaMapper.xml",
             "mybatis3/AiAssistantKnMapper.xml",
             "mybatis3/AiAssistantMstateMapper.xml",
             "mybatis3/AiChatAbortMapper.xml",

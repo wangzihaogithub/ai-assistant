@@ -1,6 +1,6 @@
 package com.github.aiassistant.service.jsonschema;
 
-import com.github.aiassistant.dao.AiAssistantJsonschemaMapper;
+import com.github.aiassistant.dao.AiJsonschemaMapper;
 import com.github.aiassistant.entity.AiJsonschema;
 import com.github.aiassistant.entity.model.chat.AiModelVO;
 import com.github.aiassistant.entity.model.chat.AiVariablesVO;
@@ -20,6 +20,7 @@ import dev.langchain4j.service.AiServiceContext;
 import dev.langchain4j.service.AiServices;
 import dev.langchain4j.service.FunctionalInterfaceAiServices;
 
+import java.io.Serializable;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -44,16 +45,19 @@ public class LlmJsonSchemaApiService {
     private final Map<Class, AtomicInteger> schemasIndexMap = Collections.synchronizedMap(new WeakHashMap<>());
     // @Autowired
     private final AiToolServiceImpl aiToolService;
+    private final AiJsonschemaMapper aiJsonschemaMapper;
+
     /**
      * 大模型建立socket链接超时时间
      */
     private Duration connectTimeout = Duration.ofSeconds(3);
 
-    public LlmJsonSchemaApiService(AiToolServiceImpl aiToolService) {
-        this(aiToolService, 5);
+    public LlmJsonSchemaApiService(AiJsonschemaMapper aiJsonschemaMapper, AiToolServiceImpl aiToolService) {
+        this(aiJsonschemaMapper, aiToolService, 5);
     }
 
-    public LlmJsonSchemaApiService(AiToolServiceImpl aiToolService, int schemaInstanceCount) {
+    public LlmJsonSchemaApiService(AiJsonschemaMapper aiJsonschemaMapper, AiToolServiceImpl aiToolService, int schemaInstanceCount) {
+        this.aiJsonschemaMapper = aiJsonschemaMapper;
         this.aiToolService = aiToolService;
         this.schemaInstanceCount = schemaInstanceCount;
     }
@@ -110,7 +114,7 @@ public class LlmJsonSchemaApiService {
 
     public void addSessionJsonSchema(MemoryIdVO memoryIdVO,
                                      String aiJsonschemaIds,
-                                     AiAssistantJsonschemaMapper aiAssistantJsonschemaMapper,
+                                     AiJsonschemaMapper aiJsonschemaMapper,
                                      Executor threadPoolTaskExecutor) {
         Session session = getSession(memoryIdVO, true);
         session.threadPoolTaskExecutor = threadPoolTaskExecutor;
@@ -119,7 +123,7 @@ public class LlmJsonSchemaApiService {
                 .map(e -> Arrays.asList(e.split(",")))
                 .map(e -> e.stream().filter(o -> !session.jsonschemaMap.containsKey(o)).collect(Collectors.toList()))
                 .filter(e -> !e.isEmpty())
-                .map(aiAssistantJsonschemaMapper::selectBatchIds)
+                .map(aiJsonschemaMapper::selectBatchIds)
                 .orElseGet(Collections::emptyList);
         for (AiJsonschema jsonschema : jsonschemaList) {
             session.jsonschemaMap.put(Objects.toString(jsonschema.getId(), ""), jsonschema);
@@ -183,6 +187,20 @@ public class LlmJsonSchemaApiService {
      * @throws JsonSchemaCreateException JsonSchema创建失败
      */
     public <T> T getSchemaNoMemory(AiJsonschema jsonschema, Class<T> type) throws JsonSchemaCreateException {
+        return getSchema(null, jsonschema, type, false);
+    }
+
+    /**
+     * 获取JsonSchema类型的模型（不要记忆）
+     *
+     * @param aiJsonschemaId jsonschema配置ID
+     * @param type           type
+     * @param <T>            类型
+     * @return JsonSchema类型的模型
+     * @throws JsonSchemaCreateException JsonSchema创建失败
+     */
+    public <T> T getSchemaByIdNoMemory(Integer aiJsonschemaId, Class<T> type) throws JsonSchemaCreateException {
+        AiJsonschema jsonschema = selectJsonschemaById(aiJsonschemaId);
         return getSchema(null, jsonschema, type, false);
     }
 
@@ -267,6 +285,9 @@ public class LlmJsonSchemaApiService {
 
     private <T> T newInstance(AiModelVO aiModel, Class<T> type, boolean useChatMemoryProvider,
                               Object memoryIdVO, AiJsonschema jsonschema) throws JsonSchemaCreateException {
+        if (memoryIdVO == null) {
+            memoryIdVO = MemoryIdVO.NULL;
+        }
         try {
             Session session = getSession(memoryIdVO, false);
             ChatStreamingResponseHandler responseHandler;
@@ -299,11 +320,11 @@ public class LlmJsonSchemaApiService {
             String systemPromptText = jsonschema.getSystemPromptText();
             String userPromptText = jsonschema.getUserPromptText();
             List<Tools.ToolMethod> toolMethodList = AiUtil.initTool(aiToolService.selectToolMethodList(StringUtils.split(jsonschema.getAiToolIds(), ",")), variables, user);
-            AiServices<T> aiServices = new FunctionalInterfaceAiServices<>(new AiServiceContext(type), systemPromptText, userPromptText,
+            AiServices<T> aiServices = new FunctionalInterfaceAiServices<>(new AiServiceContext(type), jsonschema.getId(), jsonschema.getJsonSchemaEnum(), systemPromptText, userPromptText,
                     variablesMap, responseHandler, toolMethodList, aiModel.isSupportChineseToolName(),
                     classifyListVO, websearch, reasoning, aiModel.modelName, memoryIdVO, executor);
             aiServices.streamingChatLanguageModel(FunctionalInterfaceAiServices.adapter(aiModel.streaming));
-            if (useChatMemoryProvider) {
+            if (useChatMemoryProvider && memoryIdVO != MemoryIdVO.NULL) {
                 aiServices.chatMemoryProvider(this::getChatMemory);
             }
             return aiServices.build();
@@ -430,6 +451,14 @@ public class LlmJsonSchemaApiService {
 
     public void setConnectTimeout(Duration connectTimeout) {
         this.connectTimeout = connectTimeout;
+    }
+
+    public AiJsonschema selectJsonschemaById(Serializable id) {
+        return aiJsonschemaMapper.selectById(id);
+    }
+
+    public List<AiJsonschema> selectJsonschemaByIds(Collection<? extends Serializable> idList) {
+        return aiJsonschemaMapper.selectBatchIds(idList);
     }
 
     public static class Session {

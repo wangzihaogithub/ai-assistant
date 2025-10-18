@@ -1,7 +1,7 @@
 package com.github.aiassistant.service.text;
 
 import com.github.aiassistant.dao.AiAssistantFewshotMapper;
-import com.github.aiassistant.dao.AiAssistantJsonschemaMapper;
+import com.github.aiassistant.dao.AiJsonschemaMapper;
 import com.github.aiassistant.entity.AiAssistantKn;
 import com.github.aiassistant.entity.model.chat.*;
 import com.github.aiassistant.entity.model.langchain4j.KnowledgeAiMessage;
@@ -77,7 +77,7 @@ public class LlmTextApiService {
      */
     private final AiVariablesService aiVariablesService;
     private final AiToolServiceImpl aiToolService;
-    private final AiAssistantJsonschemaMapper aiAssistantJsonschemaMapper;
+    private final AiJsonschemaMapper aiJsonschemaMapper;
     private final AiAssistantFewshotMapper aiAssistantFewshotMapper;
     /**
      * 向量模型服务
@@ -126,7 +126,7 @@ public class LlmTextApiService {
 
     public LlmTextApiService(LlmJsonSchemaApiService llmJsonSchemaApiService,
                              AiQuestionClassifyService aiQuestionClassifyService,
-                             AiAssistantJsonschemaMapper aiAssistantJsonschemaMapper,
+                             AiJsonschemaMapper aiJsonschemaMapper,
                              AiAssistantFewshotMapper aiAssistantFewshotMapper,
                              AiToolServiceImpl aiToolService,
                              AiVariablesService aiVariablesService,
@@ -148,7 +148,7 @@ public class LlmTextApiService {
         }
         this.aiAssistantFewshotMapper = aiAssistantFewshotMapper;
         this.aiToolService = aiToolService;
-        this.aiAssistantJsonschemaMapper = aiAssistantJsonschemaMapper;
+        this.aiJsonschemaMapper = aiJsonschemaMapper;
         this.llmJsonSchemaApiService = llmJsonSchemaApiService;
         this.aiQuestionClassifyService = aiQuestionClassifyService;
         this.aiVariablesService = aiVariablesService;
@@ -273,7 +273,7 @@ public class LlmTextApiService {
                                                                             ChatStreamingResponseHandler responseHandler) {
         try {
             // jsonschema模型
-            llmJsonSchemaApiService.addSessionJsonSchema(memoryId, memoryId.getAiAssistant().getAiJsonschemaIds(), aiAssistantJsonschemaMapper, functionCallingThreadPool);
+            llmJsonSchemaApiService.addSessionJsonSchema(memoryId, memoryId.getAiAssistant().getAiJsonschemaIds(), aiJsonschemaMapper, functionCallingThreadPool);
             // 持久化
             ChatStreamingResponseHandler mergeResponseHandler = new MergeChatStreamingResponseHandler(
                     Arrays.asList(responseHandler, new RepositoryChatStreamingResponseHandler(repository)),
@@ -624,7 +624,7 @@ public class LlmTextApiService {
             Boolean reasoning
     ) throws AssistantConfigException, FewshotConfigException, ToolCreateException, JsonSchemaCreateException {
         // jsonschema模型
-        llmJsonSchemaApiService.addSessionJsonSchema(memoryId, assistantConfig.getAiJsonschemaIds(), aiAssistantJsonschemaMapper, functionCallingThreadPool);
+        llmJsonSchemaApiService.addSessionJsonSchema(memoryId, assistantConfig.getAiJsonschemaIds(), aiJsonschemaMapper, functionCallingThreadPool);
 
         // 系统消息
         SystemMessage systemMessage = buildSystemMessage(assistantConfig.getSystemPromptText(), responseHandler, variables, assistantConfig);

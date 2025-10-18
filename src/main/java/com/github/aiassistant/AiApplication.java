@@ -52,7 +52,7 @@ public class AiApplication {
     private final AiMemorySearchDocMapper aiMemorySearchDocMapper;
     private final AiChatAbortMapper aiChatAbortMapper;
     private final AiAssistantFewshotMapper aiAssistantFewshotMapper;
-    private final AiAssistantJsonschemaMapper aiAssistantJsonschemaMapper;
+    private final AiJsonschemaMapper aiJsonschemaMapper;
     private final AiAssistantKnMapper aiAssistantKnMapper;
     private final AiAssistantMapper aiAssistantMapper;
     private final AiAssistantMstateMapper aiAssistantMstateMapper;
@@ -127,7 +127,7 @@ public class AiApplication {
         this.aiMemoryMessageToolMapper = daoProvider.getMapper(AiMemoryMessageToolMapper.class);
         this.aiChatAbortMapper = daoProvider.getMapper(AiChatAbortMapper.class);
         this.aiAssistantFewshotMapper = daoProvider.getMapper(AiAssistantFewshotMapper.class);
-        this.aiAssistantJsonschemaMapper = daoProvider.getMapper(AiAssistantJsonschemaMapper.class);
+        this.aiJsonschemaMapper = daoProvider.getMapper(AiJsonschemaMapper.class);
         this.aiAssistantKnMapper = daoProvider.getMapper(AiAssistantKnMapper.class);
         this.aiAssistantMapper = daoProvider.getMapper(AiAssistantMapper.class);
         this.aiAssistantMstateMapper = daoProvider.getMapper(AiAssistantMstateMapper.class);
@@ -145,7 +145,7 @@ public class AiApplication {
         this.aiMemorySearchMapper = daoProvider.getMapper(AiMemorySearchMapper.class);
 
         this.aiToolService = new AiToolServiceImpl(aiToolMapper, aiToolParameterMapper, toolsMap);
-        this.llmJsonSchemaApiService = new LlmJsonSchemaApiService(aiToolService);
+        this.llmJsonSchemaApiService = new LlmJsonSchemaApiService(aiJsonschemaMapper, aiToolService);
         this.actingService = new ActingService(llmJsonSchemaApiService);
         this.reasoningService = new ReasoningService(llmJsonSchemaApiService);
         this.knnApiService = new KnnApiService(embeddingStore, aiEmbeddingMapper);
@@ -167,7 +167,7 @@ public class AiApplication {
         this.aiMemorySearchService = new AiMemorySearchServiceImpl(aiMemorySearchMapper, aiMemorySearchDocMapper);
 
         this.aiVariablesService = new AiVariablesService(aiMemoryMstateService, aiVariablesMapper, getServiceInterceptSupplier(AiVariablesServiceIntercept.class, interceptMap));
-        this.llmTextApiService = new LlmTextApiService(llmJsonSchemaApiService, aiQuestionClassifyService, aiAssistantJsonschemaMapper, aiAssistantFewshotMapper, aiToolService, aiVariablesService, knnApiService, actingService, reasoningService, knSettingWebsearchBlacklistServiceImpl,
+        this.llmTextApiService = new LlmTextApiService(llmJsonSchemaApiService, aiQuestionClassifyService, aiJsonschemaMapper, aiAssistantFewshotMapper, aiToolService, aiVariablesService, knnApiService, actingService, reasoningService, knSettingWebsearchBlacklistServiceImpl,
                 functionCallThreadPool, getServiceInterceptSupplier(LlmTextApiServiceIntercept.class, interceptMap));
     }
 
@@ -261,8 +261,8 @@ public class AiApplication {
         return aiAssistantFewshotMapper;
     }
 
-    public AiAssistantJsonschemaMapper getAiAssistantJsonschemaMapper() {
-        return aiAssistantJsonschemaMapper;
+    public AiJsonschemaMapper getAiAssistantJsonschemaMapper() {
+        return aiJsonschemaMapper;
     }
 
     public AiAssistantKnMapper getAiAssistantKnMapper() {

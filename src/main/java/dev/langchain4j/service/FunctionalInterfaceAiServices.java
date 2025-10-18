@@ -37,9 +37,7 @@ import org.slf4j.LoggerFactory;
 import java.io.InputStream;
 import java.lang.reflect.*;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 import static dev.langchain4j.exception.IllegalConfigurationException.illegalConfiguration;
@@ -50,8 +48,6 @@ import static dev.langchain4j.internal.ValidationUtils.ensureNotNull;
 import static dev.langchain4j.spi.ServiceHelper.loadFactories;
 
 public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
-
-    private static final Map<Class, AtomicInteger> threadExecutorCounter = new ConcurrentHashMap<>();
     private final Logger log;
     private final ServiceOutputParser serviceOutputParser = new ServiceOutputParser();
     private final Collection<TokenStreamAdapter> tokenStreamAdapters = loadFactories(TokenStreamAdapter.class);
@@ -67,8 +63,12 @@ public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
     private final Boolean websearch;
     private final Boolean reasoning;
     private final Executor executor;
+    private final Integer jsonschemaId;
+    private final String jsonSchemaEnum;
 
-    public FunctionalInterfaceAiServices(AiServiceContext context, String systemMessage,
+    public FunctionalInterfaceAiServices(AiServiceContext context,
+                                         Integer jsonschemaId,
+                                         String jsonSchemaEnum, String systemMessage,
                                          String userMessage,
                                          Map<String, Object> variables,
                                          ChatStreamingResponseHandler responseHandler,
@@ -81,6 +81,8 @@ public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
                                          Object memoryId,
                                          Executor executor) {
         super(context);
+        this.jsonschemaId = jsonschemaId;
+        this.jsonSchemaEnum = jsonSchemaEnum;
         this.executor = executor;
         this.classifyListVO = classifyListVO;
         this.websearch = websearch;
@@ -305,7 +307,7 @@ public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
                     .apply(findTemplateVariables(systemMessageTemplate, method, args))
                     .toSystemMessage());
         } catch (Exception e) {
-            throw new JsonschemaConfigException(String.format("%s ai_jsonschema[user_prompt_text] config error! detail:%s", context.aiServiceClass.getSimpleName(), e.toString()), e, context.aiServiceClass);
+            throw new JsonschemaConfigException(String.format("Jsonschema FunctionalInterfaceAiServices ai_jsonschema[system_prompt_text] config error! ai_jsonschema_id=%s, ai_jsonschema_enum=%s, JavaClass=%s, detail:%s", jsonschemaId, jsonSchemaEnum, context.aiServiceClass.getSimpleName(), e.toString()), e, context.aiServiceClass);
         }
     }
 
@@ -348,7 +350,7 @@ public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
         try {
             prompt = PromptTemplate.from(template).apply(variables);
         } catch (IllegalArgumentException e) {
-            throw new JsonschemaConfigException(String.format("%s ai_jsonschema[user_prompt_text] config error! detail:%s", context.aiServiceClass.getSimpleName(), e.toString()), e, context.aiServiceClass);
+            throw new JsonschemaConfigException(String.format("Jsonschema FunctionalInterfaceAiServices ai_jsonschema[user_prompt_text] config error! ai_jsonschema_id=%s, ai_jsonschema_enum=%s, JavaClass=%s, detail:%s", jsonschemaId, jsonSchemaEnum, context.aiServiceClass.getSimpleName(), e.toString()), e, context.aiServiceClass);
         }
 
         Optional<String> maybeUserName = findUserName(method.getParameters(), args);

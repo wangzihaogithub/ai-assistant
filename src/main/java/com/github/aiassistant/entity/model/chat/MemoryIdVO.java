@@ -10,6 +10,25 @@ import java.util.List;
 import java.util.Map;
 
 public class MemoryIdVO implements Cloneable {
+    public static final MemoryIdVO NULL = new MemoryIdVO() {
+        @Override
+        public void setAiAssistant(AiAssistant aiAssistant) {
+        }
+
+        @Override
+        public void setAssistantKnMap(Map<String, List<AiAssistantKn>> assistantKnMap) {
+        }
+
+        @Override
+        public void setAiChat(AiChat aiChat) {
+
+        }
+
+        @Override
+        public String toString() {
+            return "NULLMemoryIdVO";
+        }
+    };
     /**
      * 聊天
      */
@@ -42,6 +61,9 @@ public class MemoryIdVO implements Cloneable {
     }
 
     public String getAiAssistantId() {
+        if (aiChat == null) {
+            return null;
+        }
         return aiChat.getAssistantId();
     }
 
@@ -67,21 +89,32 @@ public class MemoryIdVO implements Cloneable {
     }
 
     public List<AiAssistantKn> getAssistantKnList(AiAssistantKnTypeEnum name) {
+        if (assistantKnMap == null) {
+            return null;
+        }
         return assistantKnMap.getOrDefault(name.getCode(), Collections.emptyList());
     }
 
     public <T> T indexAt(T[] arrays) {
+        if (aiChat == null) {
+            return arrays[0];
+        }
         return arrays[getChatId() % arrays.length];
     }
 
     public Integer getMemoryId() {
+        if (aiChat == null) {
+            return null;
+        }
         return aiChat.getAiMemoryId();
     }
 
     public Integer getChatId() {
+        if (aiChat == null) {
+            return null;
+        }
         return aiChat.getId();
     }
-
 
     @Override
     public String toString() {
