@@ -76,14 +76,14 @@ public class AliyunAppsClient {
     private final String apiKey;
     private final String appId;
     private final ApiKeyStatus apiKeyStatus;
-    private Semaphore maxCurrentRequestCount = new Semaphore(2000);
     // 将重试请求均匀分担到未来的几秒内
     private final SecondIncr retrySecondIncr = new SecondIncr(60);
     // 将超时延迟任务合并
     private final SecondIncr autoCancelTimeoutScheduledFutureIdIncr = new SecondIncr(300);
+    private final AtomicLong futureIdIncr = new AtomicLong();
+    private Semaphore maxCurrentRequestCount = new Semaphore(2000);
     // 两分钟超时自动取消(毫秒)
     private long autoCancelTimeoutMs = 120_000;
-    private final AtomicLong futureIdIncr = new AtomicLong();
     private boolean close = false;
 
     public AliyunAppsClient(String apiKey, String appId) {
@@ -129,17 +129,18 @@ public class AliyunAppsClient {
         this.maxCurrentRequestCount = new Semaphore(maxCurrentRequestCount);
     }
 
-    public void setAutoCancelTimeoutMs(long autoCancelTimeoutMs) {
-        this.autoCancelTimeoutMs = autoCancelTimeoutMs;
-    }
-
     public long getAutoCancelTimeoutMs() {
         return autoCancelTimeoutMs;
+    }
+
+    public void setAutoCancelTimeoutMs(long autoCancelTimeoutMs) {
+        this.autoCancelTimeoutMs = autoCancelTimeoutMs;
     }
 
     /**
      * 向阿里云发起请求
      *
+     * @param userMessage   用户消息
      * @param maxRetryCount 最大重试次数
      * @return 大模型返回结果 com.alibaba.dashscope.common.DashScopeResult
      */
@@ -151,6 +152,7 @@ public class AliyunAppsClient {
     /**
      * 向阿里云发起请求
      *
+     * @param userMessage             用户消息
      * @param responseContextConsumer 用户重试逻辑
      * @param maxRetryCount           最大重试次数
      * @return 大模型返回结果 com.alibaba.dashscope.common.DashScopeResult
@@ -500,9 +502,9 @@ public class AliyunAppsClient {
      * 将重试请求均匀分担到每一秒内
      */
     private static class SecondIncr {
+        private final int futureSecond;
         private int secondIncr;
         private int lastSecond;
-        private final int futureSecond;
 
         /**
          * 分摊到未来的几秒内
@@ -538,11 +540,11 @@ public class AliyunAppsClient {
         final LinkedList<RequestListener> listeners = new LinkedList<>();
         // 当前请求未完成的数量
         final NavigableSet<TimeOutCancelCompletableFuture<DashScopeResult>> currentRequestCount = new ConcurrentSkipListSet<>(Comparator.comparing(e -> e.timestamp));
+        private final SecondIncr secondIncr = new SecondIncr(60);
         // 平均完成用户完整请求的耗时，一次用户完整请求如果出发限流会包含多次阿里云调用的耗时
         volatile long avgRequestMs = 0;
         // 平均一次阿里云调用的耗时
         volatile long avgOnceRequestMs = 0;
-        private final SecondIncr secondIncr = new SecondIncr(60);
 
         private ApiKeyStatus(String apiKey) {
             this.apiKey = apiKey;

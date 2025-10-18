@@ -116,6 +116,7 @@ public class FutureUtil {
     /**
      * 加入到原异步完成之后执行
      *
+     * @param <F>    CompletionStage
      * @param future 原异步
      * @param join   新异步
      * @param <T>    数据类型
@@ -147,6 +148,7 @@ public class FutureUtil {
      * 将装有异步的MapList的格式转为扁平格式（依次等待结果聚合为等待全部结束）
      *
      * @param map 装有异步的MapList
+     * @param <F> CompletionStage
      * @param <K> Key数据格式
      * @param <V> Value数据格式
      * @return 扁平格式（等待全部结束）
@@ -337,6 +339,7 @@ public class FutureUtil {
      * 将装有异步的List的格式转为扁平格式（依次等待结果聚合为等待全部结束）
      *
      * @param list 装有异步的List
+     * @param <F>  CompletionStage
      * @param <V>  Value数据格式
      * @return 扁平格式（等待全部结束）
      */
@@ -351,6 +354,7 @@ public class FutureUtil {
     /**
      * 将装有异步的Map的格式转为扁平格式（依次等待结果聚合为等待全部结束）
      *
+     * @param <F> CompletionStage
      * @param map 装有异步的Map
      * @param <K> Key数据格式
      * @param <V> Value数据格式

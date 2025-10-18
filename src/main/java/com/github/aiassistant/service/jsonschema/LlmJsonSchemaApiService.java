@@ -237,6 +237,7 @@ public class LlmJsonSchemaApiService {
      * @param memoryIdVO            memoryIdVO
      * @param type                  type
      * @param useChatMemoryProvider 是否给AI提供多伦对话历史记录
+     * @param jsonSchemaEnum jsonSchemaEnum
      * @param <T>                   类型
      * @return JsonSchema类型的模型
      * @throws JsonSchemaCreateException JsonSchema创建失败

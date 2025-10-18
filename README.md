@@ -16,7 +16,7 @@ AI助手jar包，可二次开发复用 (基于langchain4j的java8版本开发)
 <dependency>
     <groupId>com.github.wangzihaogithub</groupId>
     <artifactId>ai-assistant</artifactId>
-    <version>1.0.1</version>
+    <version>1.0.2</version>
 </dependency>
 
 <!-- Required Dependencies -->
