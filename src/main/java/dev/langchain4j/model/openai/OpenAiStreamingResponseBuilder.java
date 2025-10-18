@@ -42,6 +42,8 @@ public class OpenAiStreamingResponseBuilder {
     private volatile FinishReason finishReason;
     // hotfix: requestID传下来。wangzihao
     private volatile String id;
+    // 最后一条记录
+    private volatile String sseData;
 
     private static AiMessage buildAiMessage(
             int state,
@@ -109,6 +111,10 @@ public class OpenAiStreamingResponseBuilder {
 
     public boolean compareAndSet(int expect, int update) {
         return state.compareAndSet(expect, update);
+    }
+
+    public void setSseData(String sseData) {
+        this.sseData = sseData;
     }
 
     public void append(ChatCompletionResponse partialResponse) {
@@ -238,11 +244,14 @@ public class OpenAiStreamingResponseBuilder {
         } else {
             toolExecutionRequests = null;
         }
+        Map<String, Object> meta = new HashMap<>();
+        meta.put("id", id);
+        meta.put("lastSseData", sseData);
         return new Response<>(
                 buildAiMessage(state, contentBuilder, reasoningContentBuilder, toolExecutionRequests),
                 tokenUsage,
                 finishReason,
-                Collections.singletonMap("id", id)
+                meta
         );
     }
 

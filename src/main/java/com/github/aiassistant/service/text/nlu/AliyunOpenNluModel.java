@@ -53,6 +53,10 @@ public class AliyunOpenNluModel implements NluModel {
         return model;
     }
 
+    public boolean isDestroy() {
+        return destroy;
+    }
+
     @Override
     public void destroy() {
         this.destroy = true;

@@ -62,6 +62,10 @@ public class AliyunReRankModel implements ReRankModel {
         return model;
     }
 
+    public boolean isDestroy() {
+        return destroy;
+    }
+
     @Override
     public void destroy() {
         destroy = true;

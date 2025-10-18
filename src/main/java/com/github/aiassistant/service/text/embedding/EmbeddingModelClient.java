@@ -363,6 +363,7 @@ public class EmbeddingModelClient {
                 headers.put("Authorization", "Bearer " + apiKey);
             }
             headers.put("api-key", apiKey);
+            headers.put("x-api-key", apiKey);
             okHttpClientBuilder.addInterceptor(chain -> {
                 Request.Builder builder = chain.request().newBuilder();
                 headers.forEach(builder::addHeader);
@@ -387,6 +388,16 @@ public class EmbeddingModelClient {
 
         public EmbeddingModelClient get() {
             return new EmbeddingModelClient(aiEmbeddingMapper, client, modelName, dimensions, maxRequestSize);
+        }
+
+        @Override
+        public String toString() {
+            return "EmbeddingModelClient.Factory{" +
+                    ", baseUrl='" + baseUrl + '\'' +
+                    ", modelName='" + modelName + '\'' +
+                    ", dimensions=" + dimensions +
+                    ", maxRequestSize=" + maxRequestSize +
+                    '}';
         }
     }
 
@@ -539,6 +550,14 @@ public class EmbeddingModelClient {
             public void setIndex(Integer index) {
                 this.index = index;
             }
+        }
+
+        @Override
+        public String toString() {
+            return "EmbeddingModelClient.Client{" +
+                    "endpoint='" + endpoint + '\'' +
+                    ", client=" + client +
+                    '}';
         }
     }
 

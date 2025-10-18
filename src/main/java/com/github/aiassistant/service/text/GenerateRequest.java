@@ -17,13 +17,13 @@ public class GenerateRequest implements Cloneable {
      * 由历史对话组成的消息列表
      * (数据由FunctionCallStreamingResponseHandler自动维护)
      */
-    List<ChatMessage> messageList;
+    private final List<ChatMessage> messageList;
     /**
      * 可供模型调用的工具数组，可以包含一个或多个工具对象。一次Function Calling流程模型会从中选择一个工具。
      * 目前不支持通义千问VL/Audio，也不建议用于数学和代码模型。
      * (数据由FunctionCallStreamingResponseHandler自动维护)
      */
-    List<ToolSpecification> toolSpecificationList;
+    private final List<ToolSpecification> toolSpecificationList;
     /**
      * 默认情况下，模型将决定何时以及使用多少工具。您可以使用tool_choice参数强制特定行为。
      * tool_choice string 或 object （可选）默认值为 "auto"
@@ -93,6 +93,29 @@ public class GenerateRequest implements Cloneable {
      */
     private Boolean parallelToolCalls;
     private Double temperature;
+
+    public GenerateRequest(List<ChatMessage> messageList) {
+        this.messageList = messageList;
+        this.toolSpecificationList = null;
+    }
+
+    public GenerateRequest(List<ChatMessage> messageList, List<ToolSpecification> toolSpecificationList) {
+        this.messageList = messageList;
+        this.toolSpecificationList = toolSpecificationList;
+    }
+
+    public static void copyTo(GenerateRequest source, GenerateRequest dist) {
+        dist.toolChoiceRequired = source.toolChoiceRequired;
+        dist.enableSearch = source.enableSearch;
+        dist.searchOptions = source.searchOptions;
+        dist.enableThinking = source.enableThinking;
+        dist.thinkingBudget = source.thinkingBudget;
+        dist.modalities = source.modalities;
+        dist.audio = source.audio;
+        dist.jsonSchema = source.jsonSchema;
+        dist.parallelToolCalls = source.parallelToolCalls;
+        dist.temperature = source.temperature;
+    }
 
     public Double getTemperature() {
         return temperature;
@@ -399,10 +422,6 @@ public class GenerateRequest implements Cloneable {
         return messageList;
     }
 
-    public void setMessageList(List<ChatMessage> messageList) {
-        this.messageList = messageList;
-    }
-
     /**
      * 可供模型调用的工具数组，可以包含一个或多个工具对象。一次Function Calling流程模型会从中选择一个工具。
      * 目前不支持通义千问VL/Audio，也不建议用于数学和代码模型。
@@ -414,10 +433,6 @@ public class GenerateRequest implements Cloneable {
      */
     public List<ToolSpecification> getToolSpecificationList() {
         return toolSpecificationList;
-    }
-
-    public void setToolSpecificationList(List<ToolSpecification> toolSpecificationList) {
-        this.toolSpecificationList = toolSpecificationList;
     }
 
     /**

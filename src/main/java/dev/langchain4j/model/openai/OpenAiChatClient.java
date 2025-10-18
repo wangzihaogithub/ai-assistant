@@ -3,6 +3,7 @@ package dev.langchain4j.model.openai;
 import com.github.aiassistant.entity.model.langchain4j.ThinkingAiMessage;
 import com.github.aiassistant.platform.JsonUtil;
 import com.github.aiassistant.service.text.GenerateRequest;
+import com.github.aiassistant.service.text.StreamingResponseHandlerAdapter;
 import dev.ai4j.openai4j.OpenAiHttpException;
 import dev.ai4j.openai4j.chat.*;
 import dev.ai4j.openai4j.shared.StreamOptions;
@@ -26,10 +27,7 @@ import java.io.OutputStream;
 import java.net.Proxy;
 import java.time.Duration;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.SynchronousQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -67,13 +65,13 @@ public class OpenAiChatClient {
                             Double topP,
                             List<String> stop,
                             /**
-                         * 本次请求返回的最大 Token 数。
-                         * max_tokens 的设置不会影响大模型的生成过程，如果模型生成的 Token 数超过max_tokens，本次请求会返回截断后的内容。
-                         * 默认值和最大值都是模型的最大输出长度。关于各模型的最大输出长度，请参见模型列表。
-                         * max_tokens参数适用于需要限制字数（如生成摘要、关键词）、控制成本或减少响应时间的场景。
-                         * 对于qwen-vl-ocr-2025-04-13、qwen-vl-ocr-latest模型，max_tokens默认值为2048，最大值为8192。
-                         * 对于 QwQ、QVQ 与开启思考模式的 Qwen3 模型，max_tokens会限制回复内容的长度，不限制深度思考内容的长度。
-                         */
+                             * 本次请求返回的最大 Token 数。
+                             * max_tokens 的设置不会影响大模型的生成过程，如果模型生成的 Token 数超过max_tokens，本次请求会返回截断后的内容。
+                             * 默认值和最大值都是模型的最大输出长度。关于各模型的最大输出长度，请参见模型列表。
+                             * max_tokens参数适用于需要限制字数（如生成摘要、关键词）、控制成本或减少响应时间的场景。
+                             * 对于qwen-vl-ocr-2025-04-13、qwen-vl-ocr-latest模型，max_tokens默认值为2048，最大值为8192。
+                             * 对于 QwQ、QVQ 与开启思考模式的 Qwen3 模型，max_tokens会限制回复内容的长度，不限制深度思考内容的长度。
+                             */
                             Integer maxCompletionTokens,
                             /**
                              * 控制模型生成文本时的内容重复度。
@@ -133,6 +131,7 @@ public class OpenAiChatClient {
             headers.put("Authorization", "Bearer " + apiKey);
         }
         headers.put("api-key", apiKey);
+        headers.put("x-api-key", apiKey);
         okHttpClientBuilder.addInterceptor(chain -> {
             Request.Builder builder = chain.request().newBuilder();
             headers.forEach(builder::addHeader);
@@ -151,7 +150,7 @@ public class OpenAiChatClient {
         this.client = okHttpClientBuilder.build();
 
         this.modelName = modelName;
-        this.responseFormat = ResponseFormatType.valueOf(responseFormat.toUpperCase(Locale.ROOT));
+        this.responseFormat = responseFormat != null ? ResponseFormatType.valueOf(responseFormat.toUpperCase(Locale.ROOT)) : null;
         this.strictTools = strictTools != null && strictTools;
         this.strictJsonSchema = strictJsonSchema;
         this.listeners = listeners == null ? emptyList() : new ArrayList<>(listeners);
@@ -226,14 +225,21 @@ public class OpenAiChatClient {
         return new Builder();
     }
 
-    private static boolean isNullOrBlank(String string) {
-        return string == null || string.trim().isEmpty();
+    private static boolean isNotBlank(String string) {
+        return string != null && !string.trim().isEmpty();
+    }
+
+    public boolean isDestroy() {
+        return destroy;
     }
 
     public void destroy() {
-        destroy = true;
+        if (destroy) {
+            return;
+        }
         OkHttpClient client = this.client;
         if (client != null) {
+            destroy = true;
             try {
                 client.connectionPool().evictAll();
             } catch (Exception e) {
@@ -259,10 +265,22 @@ public class OpenAiChatClient {
      *
      * @param handler 回掉函数
      * @param request 供应商支持的接口参数
-     * @return ResponseHandle 客户端取消处理
+     * @return CompletableFuture Response AI回复，调用cancel=关闭sse链接
      */
-    public Cancellable request(StreamingResponseHandler<AiMessage> handler,
-                               GenerateRequest request) {
+    public CompletableFuture<Response<AiMessage>> request(StreamingResponseHandlerAdapter handler,
+                                                          GenerateRequest request) {
+        return request((StreamingResponseHandler) handler, request);
+    }
+
+    /**
+     * 生成AI回复
+     *
+     * @param handler 回掉函数
+     * @param request 供应商支持的接口参数
+     * @return CompletableFuture Response AI回复，调用cancel=关闭sse链接
+     */
+    public CompletableFuture<Response<AiMessage>> request(StreamingResponseHandler<AiMessage> handler,
+                                                          GenerateRequest request) {
         if (destroy) {
             throw new IllegalStateException("ai-assistant OpenAiClient(" + modelName + ") is destroy!");
         }
@@ -312,24 +330,30 @@ public class OpenAiChatClient {
             openAiResponseFormatType = null;
             jsonSchema = null;
         }
-        ResponseFormat openAiResponseFormat = toOpenAiResponseFormat(dev.langchain4j.model.chat.request.ResponseFormat.builder()
-                .type(openAiResponseFormatType)
-                .jsonSchema(jsonSchema)
-                .build(), strictJsonSchema);
-        builder.responseFormat(openAiResponseFormat);
+        if (openAiResponseFormatType != null) {
+            ResponseFormat openAiResponseFormat = toOpenAiResponseFormat(dev.langchain4j.model.chat.request.ResponseFormat.builder()
+                    .type(openAiResponseFormatType)
+                    .jsonSchema(jsonSchema)
+                    .build(), strictJsonSchema);
+            builder.responseFormat(openAiResponseFormat);
+        }
 
         ChatCompletionRequest completionRequest = builder.build();
 
-        ChatModelRequest modelListenerRequest = createModelListenerRequest(completionRequest, messages, toolSpecifications);
-        Map<Object, Object> attributes = new ConcurrentHashMap<>();
-        ChatModelRequestContext requestContext = new ChatModelRequestContext(modelListenerRequest, attributes);
-        listeners.forEach(listener -> {
-            try {
-                listener.onRequest(requestContext);
-            } catch (Exception e) {
-                log.warn("Exception while calling model listener", e);
+        ChatModelRequest modelListenerRequest = null;
+        Map<Object, Object> attributes = null;
+        if (!listeners.isEmpty()) {
+            modelListenerRequest = createModelListenerRequest(completionRequest, messages, toolSpecifications);
+            attributes = new ConcurrentHashMap<>();
+            ChatModelRequestContext requestContext = new ChatModelRequestContext(modelListenerRequest, attributes);
+            for (ChatModelListener listener : listeners) {
+                try {
+                    listener.onRequest(requestContext);
+                } catch (Exception e) {
+                    log.warn("Exception while calling model listener", e);
+                }
             }
-        });
+        }
 
         OpenAiStreamingResponseBuilder responseBuilder = new OpenAiStreamingResponseBuilder();
         AtomicReference<String> responseId = new AtomicReference<>();
@@ -337,53 +361,29 @@ public class OpenAiChatClient {
 
         Request okHttpRequest = new Request.Builder()
                 .url(endpoint)
-                .post(new RequestBody() {
-                    @Override
-                    public MediaType contentType() {
-                        return mediaType;
-                    }
-
-                    @Override
-                    public void writeTo(BufferedSink sink) throws IOException {
-                        objectWriter.writeValue(new OutputStream() {
-                            @Override
-                            public void write(int b) throws IOException {
-                                sink.write(new byte[]{(byte) b}, 0, 1);
-                            }
-
-                            @Override
-                            public void write(byte[] b, int off, int len) throws IOException {
-                                sink.write(b, off, len);
-                            }
-
-                            @Override
-                            public void flush() throws IOException {
-                                sink.flush();
-                            }
-                        }, completionRequest);
-                    }
-                })
+                .post(requestBody(completionRequest))
                 .build();
-        Consumer<Throwable> errorHandler = onError(modelListenerRequest, attributes, responseBuilder, responseId, responseModel, handler);
-        Runnable streamingCompletionCallback = onComplete(modelListenerRequest, attributes, responseBuilder, responseId, responseModel, handler);
-        EventSource eventSource = EventSources.createFactory(client)
+        EventSourceCompletableFuture<Response<AiMessage>> future = new EventSourceCompletableFuture<>();
+        Consumer<Throwable> errorHandler = onError(future, modelListenerRequest, attributes, responseBuilder, responseId, responseModel, handler);
+        Runnable streamingCompletionCallback = onComplete(future, modelListenerRequest, attributes, responseBuilder, responseId, responseModel, handler);
+        future.eventSource = EventSources.createFactory(client)
                 .newEventSource(okHttpRequest, new EventSourceListener() {
 
                     @Override
-                    public void onEvent(EventSource eventSource, String id, String type, String data) {
+                    public void onEvent(EventSource eventSource1, String id, String type, String data) {
                         if ("[DONE]".equals(data)) {
                             streamingCompletionCallback.run();
                             return;
                         }
-
+                        responseBuilder.setSseData(data);
                         try {
                             ChatCompletionResponse partialResponse = objectReader.readValue(data, ChatCompletionResponse.class);
                             handle(partialResponse, handler, responseBuilder);
                             responseBuilder.append(partialResponse);
-                            if (!isNullOrBlank(partialResponse.id())) {
+                            if (isNotBlank(partialResponse.id())) {
                                 responseId.set(partialResponse.id());
                             }
-                            if (!isNullOrBlank(partialResponse.model())) {
+                            if (isNotBlank(partialResponse.model())) {
                                 responseModel.set(partialResponse.model());
                             }
                         } catch (Throwable e) {
@@ -392,7 +392,7 @@ public class OpenAiChatClient {
                     }
 
                     @Override
-                    public void onFailure(EventSource eventSource, Throwable t, okhttp3.Response response) {
+                    public void onFailure(EventSource eventSource1, Throwable t, okhttp3.Response response) {
                         // TODO remove this when migrating from okhttp
                         if (t instanceof IllegalArgumentException && "byteCount < 0: -1".equals(t.getMessage())) {
                             streamingCompletionCallback.run();
@@ -424,10 +424,40 @@ public class OpenAiChatClient {
                         }
                     }
                 });
-        return new Cancellable(eventSource);
+        return future;
     }
 
-    private Runnable onComplete(ChatModelRequest modelListenerRequest,
+    private RequestBody requestBody(Object body) {
+        return new RequestBody() {
+            @Override
+            public MediaType contentType() {
+                return mediaType;
+            }
+
+            @Override
+            public void writeTo(BufferedSink sink) throws IOException {
+                objectWriter.writeValue(new OutputStream() {
+                    @Override
+                    public void write(int b) throws IOException {
+                        sink.write(new byte[]{(byte) b}, 0, 1);
+                    }
+
+                    @Override
+                    public void write(byte[] b, int off, int len) throws IOException {
+                        sink.write(b, off, len);
+                    }
+
+                    @Override
+                    public void flush() throws IOException {
+                        sink.flush();
+                    }
+                }, body);
+            }
+        };
+    }
+
+    private Runnable onComplete(EventSourceCompletableFuture<Response<AiMessage>> future,
+                                ChatModelRequest modelListenerRequest,
                                 Map<Object, Object> attributes,
                                 OpenAiStreamingResponseBuilder responseBuilder,
                                 AtomicReference<String> responseId,
@@ -435,67 +465,108 @@ public class OpenAiChatClient {
                                 StreamingResponseHandler<AiMessage> handler) {
         return () -> {
             Response<AiMessage> response = responseBuilder.build(OpenAiStreamingResponseBuilder.STATE_OUTPUT);
+            try {
+                future.complete(response);
+            } catch (Throwable t) {
+                log.warn("Exception while calling model onComplete EventSourceCompletableFuture {}", t.toString(), t);
+            }
             if (handler instanceof ThinkingStreamingResponseHandler && response.content() instanceof ThinkingAiMessage) {
                 ThinkingStreamingResponseHandler h = ((ThinkingStreamingResponseHandler) handler);
-                h.onCompleteThinking(response);
-            }
-            ChatModelResponse modelListenerResponse = createModelListenerResponse(
-                    responseId.get(),
-                    responseModel.get(),
-                    response
-            );
-            ChatModelResponseContext responseContext = new ChatModelResponseContext(
-                    modelListenerResponse,
-                    modelListenerRequest,
-                    attributes
-            );
-            listeners.forEach(listener -> {
                 try {
-                    listener.onResponse(responseContext);
-                } catch (Exception e) {
-                    log.warn("Exception while calling model listener", e);
+                    h.onCompleteThinking(response);
+                } catch (Throwable t) {
+                    log.warn("Exception while calling model onCompleteThinking {}", t.toString(), t);
                 }
-            });
-
+            }
+            if (!listeners.isEmpty() && modelListenerRequest != null) {
+                ChatModelResponse modelListenerResponse = createModelListenerResponse(
+                        responseId.get(),
+                        responseModel.get(),
+                        response
+                );
+                ChatModelResponseContext responseContext = new ChatModelResponseContext(
+                        modelListenerResponse,
+                        modelListenerRequest,
+                        attributes
+                );
+                for (ChatModelListener listener : listeners) {
+                    try {
+                        listener.onResponse(responseContext);
+                    } catch (Exception e) {
+                        log.warn("Exception while calling model listener", e);
+                    }
+                }
+            }
             handler.onComplete(response);
         };
     }
 
     private Consumer<Throwable> onError(
+            EventSourceCompletableFuture<Response<AiMessage>> future,
             ChatModelRequest modelListenerRequest,
             Map<Object, Object> attributes,
-
             OpenAiStreamingResponseBuilder responseBuilder,
             AtomicReference<String> responseId,
             AtomicReference<String> responseModel,
             StreamingResponseHandler<AiMessage> handler
     ) {
         return error -> {
+            try {
+                future.completeExceptionally(error);
+            } catch (Throwable t) {
+                log.warn("Exception while calling model onError EventSourceCompletableFuture {}", t.toString(), t);
+            }
             Response<AiMessage> response = responseBuilder.build(OpenAiStreamingResponseBuilder.STATE_OUTPUT);
 
-            ChatModelResponse modelListenerPartialResponse = createModelListenerResponse(
-                    responseId.get(),
-                    responseModel.get(),
-                    response
-            );
-
-            ChatModelErrorContext errorContext = new ChatModelErrorContext(
-                    error,
-                    modelListenerRequest,
-                    modelListenerPartialResponse,
-                    attributes
-            );
-
-            listeners.forEach(listener -> {
-                try {
-                    listener.onError(errorContext);
-                } catch (Exception e) {
-                    log.warn("Exception while calling model listener", e);
+            if (!listeners.isEmpty() && modelListenerRequest != null) {
+                ChatModelResponse modelListenerPartialResponse = createModelListenerResponse(
+                        responseId.get(),
+                        responseModel.get(),
+                        response
+                );
+                ChatModelErrorContext errorContext = new ChatModelErrorContext(
+                        error,
+                        modelListenerRequest,
+                        modelListenerPartialResponse,
+                        attributes
+                );
+                for (ChatModelListener listener : listeners) {
+                    try {
+                        listener.onError(errorContext);
+                    } catch (Exception e) {
+                        log.warn("Exception while calling model listener", e);
+                    }
                 }
-            });
+            }
 
             handler.onError(error);
         };
+    }
+
+    @Override
+    public String toString() {
+        return "OpenAiChatClient{" +
+                "modelName='" + modelName + '\'' +
+                ", responseFormat=" + responseFormat +
+                ", endpoint='" + endpoint + '\'' +
+                ", destroy=" + destroy +
+                '}';
+    }
+
+    private static class EventSourceCompletableFuture<T> extends CompletableFuture<T> {
+        private EventSource eventSource;
+
+        @Override
+        public boolean cancel(boolean mayInterruptIfRunning) {
+            if (isCancelled()) {
+                return false;
+            }
+            EventSource eventSource = this.eventSource;
+            if (eventSource != null) {
+                eventSource.cancel();
+            }
+            return super.cancel(mayInterruptIfRunning);
+        }
     }
 
     public static class Builder {
@@ -656,15 +727,5 @@ public class OpenAiChatClient {
         public void cancel() {
             eventSource.cancel();
         }
-    }
-
-    @Override
-    public String toString() {
-        return "OpenAiChatClient{" +
-                "modelName='" + modelName + '\'' +
-                ", responseFormat=" + responseFormat +
-                ", endpoint='" + endpoint + '\'' +
-                ", destroy=" + destroy +
-                '}';
     }
 }

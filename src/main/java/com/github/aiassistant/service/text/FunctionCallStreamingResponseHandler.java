@@ -81,7 +81,7 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
     /**
      * 供应商支持的接口参数
      */
-    private final GenerateRequest request;
+    private GenerateRequest request;
     private Tools.ParamValidationResult validationResult;
     private Response<AiMessage> lastResponse;
     private volatile long lastReadTimestamp;
@@ -125,13 +125,13 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
         this.baseMessageIndex = baseMessageIndex;
         this.classifyListVO = classifyListVO;
         this.websearch = websearch;
-        this.request = new GenerateRequest();
         this.reasoning = reasoning;
         this.addMessageCount = new AtomicInteger(addMessageCount);
         this.generateRemaining = MAX_GENERATE_COUNT;
     }
 
     protected FunctionCallStreamingResponseHandler(FunctionCallStreamingResponseHandler parent) {
+        this.parent = parent;
         this.readTimeoutMs = parent.readTimeoutMs;
         this.modelName = parent.modelName;
         this.memoryId = parent.memoryId;
@@ -140,7 +140,6 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
         this.executor = parent.executor;
         this.chatModel = parent.chatModel;
         this.chatMemory = parent.chatMemory;
-        this.parent = parent;
         this.bizHandler = parent.bizHandler;
         this.baseMessageIndex = parent.baseMessageIndex;
         this.addMessageCount = parent.addMessageCount;
@@ -152,7 +151,6 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
         this.validationResult = parent.validationResult;
         this.lastResponse = parent.lastResponse;
         this.beforeRequestConsumer = parent.beforeRequestConsumer;
-        this.request = parent.request.clone();
     }
 
     /**
@@ -569,10 +567,17 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
         // 如果没完成，且没请求过
         if (!isDone() && generate.compareAndSet(false, true)) {
             try {
-                // 过滤重复消息
-                request.messageList = new ArrayList<>(AiUtil.beforeGenerate(chatMemory.messages()));
-                // 工具
-                request.toolSpecificationList = toolMethodList.stream().map(e -> e.toRequest(isSupportChineseToolName)).collect(Collectors.toList());
+                request = new GenerateRequest(
+                        // 过滤重复消息
+                        new ArrayList<>(AiUtil.beforeGenerate(chatMemory.messages())),
+                        // 工具
+                        toolMethodList.stream().map(e -> e.toRequest(isSupportChineseToolName)).collect(Collectors.toList())
+                );
+                // 继承上一次请求的参数
+                if (parent != null && parent.request != null) {
+                    GenerateRequest.copyTo(parent.request, request);
+                }
+
                 // 用户可以自定义填充参数
                 if (beforeRequestConsumer != null) {
                     beforeRequestConsumer.accept(this, request);
