@@ -143,7 +143,7 @@ public class OpenAiChatClient {
                 new SynchronousQueue<>(), runnable -> {
             Thread result = new Thread(runnable);
             result.setName("OkHttp ai-chat-" + result.getId());
-            result.setDaemon(false);
+            result.setDaemon(true);
             return result;
         })));
         this.client = okHttpClientBuilder.build();

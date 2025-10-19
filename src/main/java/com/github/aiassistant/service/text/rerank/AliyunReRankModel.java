@@ -258,7 +258,7 @@ public class AliyunReRankModel implements ReRankModel {
                             new SynchronousQueue<>(), runnable -> {
                         Thread result = new Thread(runnable);
                         result.setName("OkHttp ai-rerank-" + result.getId());
-                        result.setDaemon(false);
+                        result.setDaemon(true);
                         return result;
                     })));
                     client = okHttpClientBuilder.build();

@@ -376,7 +376,7 @@ public class EmbeddingModelClient {
                     new SynchronousQueue<>(), runnable -> {
                 Thread result = new Thread(runnable);
                 result.setName("OkHttp ai-embedding-" + result.getId());
-                result.setDaemon(false);
+                result.setDaemon(true);
                 return result;
             })));
             this.client = new Client(baseUrl, okHttpClientBuilder.build());
@@ -393,7 +393,7 @@ public class EmbeddingModelClient {
         @Override
         public String toString() {
             return "EmbeddingModelClient.Factory{" +
-                    ", baseUrl='" + baseUrl + '\'' +
+                    "baseUrl='" + baseUrl + '\'' +
                     ", modelName='" + modelName + '\'' +
                     ", dimensions=" + dimensions +
                     ", maxRequestSize=" + maxRequestSize +
@@ -483,6 +483,13 @@ public class EmbeddingModelClient {
             return future;
         }
 
+        @Override
+        public String toString() {
+            return "EmbeddingModelClient.Client{" +
+                    endpoint +
+                    '}';
+        }
+
         @JsonInclude(JsonInclude.Include.NON_NULL)
         @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
         public static class EmbeddingRequest {
@@ -550,14 +557,6 @@ public class EmbeddingModelClient {
             public void setIndex(Integer index) {
                 this.index = index;
             }
-        }
-
-        @Override
-        public String toString() {
-            return "EmbeddingModelClient.Client{" +
-                    "endpoint='" + endpoint + '\'' +
-                    ", client=" + client +
-                    '}';
         }
     }
 

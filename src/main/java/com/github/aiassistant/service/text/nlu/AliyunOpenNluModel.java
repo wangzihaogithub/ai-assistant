@@ -224,7 +224,7 @@ public class AliyunOpenNluModel implements NluModel {
                             new SynchronousQueue<>(), runnable -> {
                         Thread result = new Thread(runnable);
                         result.setName("OkHttp ai-nlu-" + result.getId());
-                        result.setDaemon(false);
+                        result.setDaemon(true);
                         return result;
                     })));
                     client = okHttpClientBuilder.build();
