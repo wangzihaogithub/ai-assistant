@@ -23,17 +23,21 @@ public class WebSearchService {
     private int urlReadToolsIndex = 0;
 
     public WebSearchService() {
-        this(Collections.emptyList());
+        this(Collections.emptyList(), new Builder());
     }
 
     public WebSearchService(List<Proxy> proxyList) {
+        this(proxyList, new Builder());
+    }
+
+    private WebSearchService(List<Proxy> proxyList, Builder builder) {
         if (proxyList == null || proxyList.isEmpty()) {
             urlReadTools.add(new UrlReadTools(
-                    System.getProperty("aiassistant.WebSearchService.threadNamePrefix", "link-read"),
-                    Integer.getInteger("aiassistant.WebSearchService.clients", 6),
-                    Integer.getInteger("aiassistant.WebSearchService.connectTimeout", 200),
-                    Integer.getInteger("aiassistant.WebSearchService.readTimeout", 500),
-                    Integer.getInteger("aiassistant.WebSearchService.max302", 1),
+                    builder.threadNamePrefix,
+                    builder.clients,
+                    builder.connectTimeout,
+                    builder.readTimeout,
+                    builder.max302,
                     null
             ));
         } else {
@@ -41,17 +45,21 @@ public class WebSearchService {
                 String name = Optional.ofNullable(proxy)
                         .map(HttpClient::parseAddress)
                         .map(e -> e.getHostString() + "_" + e.getPort())
-                        .map(e -> "link-read-" + e)
-                        .orElse("link-read");
+                        .map(e -> builder.threadNamePrefix + e)
+                        .orElse(builder.threadNamePrefix);
                 urlReadTools.add(new UrlReadTools(
-                        System.getProperty("aiassistant.WebSearchService.threadNamePrefix", name),
-                        Integer.getInteger("aiassistant.WebSearchService.clients", 6),
-                        Integer.getInteger("aiassistant.WebSearchService.connectTimeout", 200),
-                        Integer.getInteger("aiassistant.WebSearchService.readTimeout", 500),
-                        Integer.getInteger("aiassistant.WebSearchService.max302", 1),
+                        name,
+                        builder.clients,
+                        builder.connectTimeout,
+                        builder.readTimeout,
+                        builder.max302,
                         proxy));
             }
         }
+    }
+
+    public static Builder builder() {
+        return new Builder();
     }
 
     private static String mergeContent(String before, String after) {
@@ -177,6 +185,73 @@ public class WebSearchService {
 
         default void afterUrlRead(String providerName, String question, UrlReadTools urlReadTools, WebSearchResultVO.Row row, String content, String merge, long cost) throws AiAssistantException {
 
+        }
+    }
+
+    public static class Builder {
+        private String threadNamePrefix = System.getProperty("aiassistant.WebSearchService.threadNamePrefix", "link-read");
+        private int clients = Integer.getInteger("aiassistant.WebSearchService.clients", 6);
+        private int connectTimeout = Integer.getInteger("aiassistant.WebSearchService.connectTimeout", 200);
+        private int readTimeout = Integer.getInteger("aiassistant.WebSearchService.readTimeout", 500);
+        private int max302 = Integer.getInteger("aiassistant.WebSearchService.max302", 1);
+        private List<Proxy> proxyList;
+
+        public Builder threadNamePrefix(String threadNamePrefix) {
+            this.threadNamePrefix = threadNamePrefix;
+            return this;
+        }
+
+        public Builder clients(int clients) {
+            this.clients = clients;
+            return this;
+        }
+
+        public Builder connectTimeout(int connectTimeout) {
+            this.connectTimeout = connectTimeout;
+            return this;
+        }
+
+        public Builder readTimeout(int readTimeout) {
+            this.readTimeout = readTimeout;
+            return this;
+        }
+
+        public Builder max302(int max302) {
+            this.max302 = max302;
+            return this;
+        }
+
+        public Builder proxyList(List<Proxy> proxyList) {
+            this.proxyList = proxyList;
+            return this;
+        }
+
+        public String threadNamePrefix() {
+            return threadNamePrefix;
+        }
+
+        public int clients() {
+            return clients;
+        }
+
+        public int connectTimeout() {
+            return connectTimeout;
+        }
+
+        public int readTimeout() {
+            return readTimeout;
+        }
+
+        public int max302() {
+            return max302;
+        }
+
+        public List<Proxy> proxyList() {
+            return proxyList;
+        }
+
+        public WebSearchService build() {
+            return new WebSearchService(proxyList, this);
         }
     }
 }

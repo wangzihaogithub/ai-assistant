@@ -122,15 +122,15 @@ public class OpenAiChatClient {
                 .writeTimeout(timeout);
 
         Map<String, String> headers = new HashMap<>();
-        headers.put("User-Agent", "langchain4j-openai");
+        headers.putIfAbsent("User-Agent", "langchain4j-openai");
         if (customHeaders != null) {
             headers.putAll(customHeaders);
         }
         if (apiKey != null && !apiKey.isEmpty()) {
             headers.put("Authorization", "Bearer " + apiKey);
         }
-        headers.put("api-key", apiKey);
-        headers.put("x-api-key", apiKey);
+        headers.putIfAbsent("api-key", apiKey);
+        headers.putIfAbsent("x-api-key", apiKey);
         okHttpClientBuilder.addInterceptor(chain -> {
             Request.Builder builder = chain.request().newBuilder();
             headers.forEach(builder::addHeader);
@@ -228,6 +228,17 @@ public class OpenAiChatClient {
         return string != null && !string.trim().isEmpty();
     }
 
+    public static List<Message> toOpenAiMessages(List<ChatMessage> messages, Boolean partialMode) {
+        int i = 1;
+        int size = messages.size();
+        List<Message> result = new ArrayList<>(size);
+        for (ChatMessage message : messages) {
+            result.add(InternalOpenAiHelper.toOpenAiMessage(message, i == size && Boolean.TRUE.equals(partialMode)));
+            i++;
+        }
+        return result;
+    }
+
     public boolean isDestroy() {
         return destroy;
     }
@@ -236,9 +247,14 @@ public class OpenAiChatClient {
         if (destroy) {
             return;
         }
+        destroy = true;
         OkHttpClient client = this.client;
         if (client != null) {
-            destroy = true;
+            try {
+                client.dispatcher().executorService().shutdown();
+            } catch (Exception e) {
+                // ignore
+            }
             try {
                 client.connectionPool().evictAll();
             } catch (Exception e) {
@@ -287,6 +303,15 @@ public class OpenAiChatClient {
         List<ToolSpecification> toolSpecifications = request.getToolSpecificationList();
 
         ChatCompletionRequest.Builder builder = requestBuilder.get();
+        Integer seed = request.getSeed();
+        Integer n = request.getN();
+        Double topP = request.getTopP();
+        Integer topK = request.getTopK();
+        Boolean enableCodeInterpreter = request.getEnableCodeInterpreter();
+        Boolean partialMode = request.getPartialMode();
+        Boolean vlHighResolutionImages = request.getVlHighResolutionImages();
+        Double presencePenalty = request.getPresencePenalty();
+        String dashScopeDataInspection = request.getDashScopeDataInspection();
         Boolean parallelToolCalls = request.getParallelToolCalls();
         if (parallelToolCalls != null) {
             builder.parallelToolCalls(parallelToolCalls);
@@ -301,7 +326,28 @@ public class OpenAiChatClient {
         builder.thinkingBudget(request.getThinkingBudget());
         builder.modalities(request.getModalities());
         builder.audio(request.getAudio());
-        builder.messages(toOpenAiMessages(messages));
+        builder.messages(toOpenAiMessages(messages, partialMode));
+        if (seed != null) {
+            builder.seed(seed);
+        }
+        if (n != null) {
+            builder.n(n);
+        }
+        if (topP != null) {
+            builder.topP(topP);
+        }
+        if (topK != null) {
+            builder.topK(topK);
+        }
+        if (enableCodeInterpreter != null) {
+            builder.enableCodeInterpreter(enableCodeInterpreter);
+        }
+        if (vlHighResolutionImages != null) {
+            builder.vlHighResolutionImages(vlHighResolutionImages);
+        }
+        if (presencePenalty != null) {
+            builder.presencePenalty(presencePenalty);
+        }
         if (toolSpecifications != null && !toolSpecifications.isEmpty()) {
             if (Boolean.TRUE.equals(request.getToolChoiceRequired())) {
                 ToolSpecification first = toolSpecifications.iterator().next();
@@ -357,11 +403,13 @@ public class OpenAiChatClient {
         OpenAiStreamingResponseBuilder responseBuilder = new OpenAiStreamingResponseBuilder();
         AtomicReference<String> responseId = new AtomicReference<>();
         AtomicReference<String> responseModel = new AtomicReference<>();
-
-        Request okHttpRequest = new Request.Builder()
+        Request.Builder requestBuilder = new Request.Builder()
                 .url(endpoint)
-                .post(requestBody(completionRequest))
-                .build();
+                .post(requestBody(completionRequest));
+        if (dashScopeDataInspection != null) {
+            requestBuilder.header("X-DashScope-DataInspection", dashScopeDataInspection);
+        }
+        Request okHttpRequest = requestBuilder.build();
         EventSourceCompletableFuture<Response<AiMessage>> future = new EventSourceCompletableFuture<>();
         Consumer<Throwable> errorHandler = onError(future, modelListenerRequest, attributes, responseBuilder, responseId, responseModel, handler);
         Runnable streamingCompletionCallback = onComplete(future, modelListenerRequest, attributes, responseBuilder, responseId, responseModel, handler);
@@ -738,16 +786,4 @@ public class OpenAiChatClient {
         }
     }
 
-    public static class Cancellable {
-
-        final EventSource eventSource;
-
-        public Cancellable(EventSource eventSource) {
-            this.eventSource = eventSource;
-        }
-
-        public void cancel() {
-            eventSource.cancel();
-        }
-    }
 }

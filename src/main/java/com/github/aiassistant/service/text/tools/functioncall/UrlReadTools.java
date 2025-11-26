@@ -1,8 +1,8 @@
 package com.github.aiassistant.service.text.tools.functioncall;
 
 import com.github.aiassistant.entity.model.langchain4j.UrlReadToolExecutionResultMessage;
-import com.github.aiassistant.platform.ApacheHttpClient;
 import com.github.aiassistant.platform.HtmlQuery;
+import com.github.aiassistant.platform.OkHttp3Client;
 import com.github.aiassistant.platform.PlatformDependentUtil;
 import com.github.aiassistant.service.text.tools.Tools;
 import com.github.aiassistant.util.*;
@@ -29,7 +29,7 @@ import java.util.zip.GZIPInputStream;
  */
 public class UrlReadTools extends Tools {
     public static final String NO_PROXY = "NO_PROXY";
-//    private static final UserAgentGenerator userAgentGenerator = new UserAgentGenerator();
+    //    private static final UserAgentGenerator userAgentGenerator = new UserAgentGenerator();
     public static Proxy PROXY1 = null;
     public static Proxy PROXY2 = null;
     private final int max302;
@@ -68,12 +68,7 @@ public class UrlReadTools extends Tools {
         this.max302 = max302;
         this.httpClients = new HttpClient[clients];
         for (int i = 0; i < httpClients.length; i++) {
-            HttpClient client;
-            if (PlatformDependentUtil.isSupportApacheHttpClient()) {
-                client = new ApacheHttpClient(threadNamePrefix, max302);
-            } else {
-                client = new JdkHttpClient();
-            }
+            HttpClient client = new OkHttp3Client(threadNamePrefix);
             client.setReadTimeout(readTimeout);
             client.setConnectTimeout(connectTimeout);
             client.ignoreHttpsValidation();

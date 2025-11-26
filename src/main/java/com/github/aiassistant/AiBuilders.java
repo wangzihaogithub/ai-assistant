@@ -15,15 +15,9 @@ import com.github.aiassistant.service.text.tools.AiToolServiceImpl;
 import com.github.aiassistant.service.text.tools.Tools;
 import com.github.aiassistant.service.text.tools.WebSearchService;
 import com.github.aiassistant.service.text.tools.functioncall.UrlReadTools;
-import com.github.aiassistant.util.StringUtils;
 import com.github.aiassistant.util.ThrowableUtil;
 import com.mysql.cj.jdbc.MysqlDataSource;
 import dev.langchain4j.model.openai.OpenAiChatClient;
-import org.apache.http.Header;
-import org.apache.http.HttpHost;
-import org.apache.http.message.BasicHeader;
-import org.elasticsearch.client.RestClient;
-import org.elasticsearch.client.RestClientBuilder;
 
 import javax.sql.DataSource;
 import java.util.function.Function;
@@ -114,30 +108,16 @@ public class AiBuilders {
         return new LlmJsonSchemaApiService(daoProvider.getMapper(AiJsonschemaMapper.class), aiToolService(daoProvider, toolsMap));
     }
 
-    public static KnnApiService knnApiService(String elasticsearchUrl, String apiKey) {
-        return new KnnApiService(elasticsearchClient(elasticsearchUrl, apiKey).build());
-    }
-
-    public static RestClientBuilder elasticsearchClient(String url, String apiKey) {
-        RestClientBuilder builder = RestClient.builder(HttpHost.create(url));
-        if (StringUtils.hasText(apiKey)) {
-            builder.setDefaultHeaders(new Header[]{
-                    new BasicHeader("Authorization", "ApiKey " + apiKey)
-            });
-        }
-        return builder;
-    }
-
     public static AiApplication aiApplication(DAOProvider daoProvider,
-                                              RestClient embeddingStore,
+                                              KnnApiService knnApiService,
                                               Function<String, Tools> toolsMap) {
-        return new AiApplication(null, daoProvider, embeddingStore, toolsMap, null);
+        return new AiApplication(null, daoProvider, knnApiService, toolsMap, null);
     }
 
     public static AiApplication aiApplication(DataSource dataSource,
-                                              RestClient embeddingStore,
+                                              KnnApiService knnApiService,
                                               Function<String, Tools> toolsMap) {
-        return new AiApplication(null, daoProvider(dataSource), embeddingStore, toolsMap, null);
+        return new AiApplication(null, daoProvider(dataSource), knnApiService, toolsMap, null);
     }
 
     public static WebSearchService webSearchService() {

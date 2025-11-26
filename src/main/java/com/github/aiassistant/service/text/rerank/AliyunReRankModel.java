@@ -68,10 +68,18 @@ public class AliyunReRankModel implements ReRankModel {
 
     @Override
     public void destroy() {
+        if (destroy) {
+            return;
+        }
         destroy = true;
         OkHttpClient client = this.client;
         this.client = null;
         if (client != null) {
+            try {
+                client.dispatcher().executorService().shutdown();
+            } catch (Exception e) {
+                // ignore
+            }
             try {
                 client.connectionPool().evictAll();
             } catch (Exception e) {

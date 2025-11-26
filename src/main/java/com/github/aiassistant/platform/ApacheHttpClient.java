@@ -106,8 +106,6 @@ public class ApacheHttpClient implements HttpClient {
                 });
                 return future;
             }
-
-            ;
         };
     }
 

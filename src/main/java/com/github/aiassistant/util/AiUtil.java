@@ -2,6 +2,7 @@ package com.github.aiassistant.util;
 
 import com.github.aiassistant.entity.AiAssistantFewshot;
 import com.github.aiassistant.entity.AiMemoryMessage;
+import com.github.aiassistant.entity.AiMemoryMessageTool;
 import com.github.aiassistant.entity.model.chat.AiVariablesVO;
 import com.github.aiassistant.entity.model.langchain4j.Fewshot;
 import com.github.aiassistant.entity.model.langchain4j.KnowledgeAiMessage;
@@ -14,6 +15,7 @@ import com.github.aiassistant.platform.JsonUtil;
 import com.github.aiassistant.service.text.tools.Tools;
 import com.github.aiassistant.service.text.tools.WebSearch;
 import com.github.aiassistant.service.text.tools.functioncall.WebSearchTools;
+import dev.langchain4j.agent.tool.ToolExecutionRequest;
 import dev.langchain4j.data.message.*;
 import dev.langchain4j.model.input.Prompt;
 import dev.langchain4j.model.input.PromptTemplate;
@@ -460,12 +462,14 @@ public class AiUtil {
         return list;
     }
 
-    public static List<ChatMessage> deserializeMemory(List<AiMemoryMessage> dbList) {
+    public static List<ChatMessage> deserializeMemory(List<AiMemoryMessage> dbList, List<AiMemoryMessageTool> toolList, boolean retainFunctionCall) {
+        Map<Integer, List<AiMemoryMessageTool>> toolMap = toolList.stream().collect(Collectors.groupingBy(e -> e.getAiMemoryMessageId()));
         List<ChatMessage> list = new ArrayList<>();
         for (AiMemoryMessage db : dbList) {
             String messageTypeEnum = db.getMessageTypeEnum();
             MessageTypeEnum typeEnum = MessageTypeEnum.getByCode(messageTypeEnum);
             String text = db.getMessageText();
+            Integer id = db.getId();
             ChatMessage message;
             switch (typeEnum) {
                 case User: {
@@ -473,8 +477,33 @@ public class AiUtil {
                     break;
                 }
                 case Ai: {
-                    if (StringUtils.hasText(text)) {
+                    List<ToolExecutionRequest> messageToolList;
+                    if (retainFunctionCall) {
+                        messageToolList = toolMap.getOrDefault(id, Collections.emptyList()).stream()
+                                .map(e -> ToolExecutionRequest.builder()
+                                        .id(e.getToolRequestId())
+                                        .arguments(e.getToolArguments())
+                                        .name(e.getToolName())
+                                        .build())
+                                .collect(Collectors.toList());
+                    } else {
+                        messageToolList = Collections.emptyList();
+                    }
+                    boolean hasText = StringUtils.hasText(text);
+                    if (hasText && !messageToolList.isEmpty()) {
+                        message = new AiMessage(text, messageToolList);
+                    } else if (hasText) {
                         message = new AiMessage(text);
+                    } else if (!messageToolList.isEmpty()) {
+                        message = new AiMessage(messageToolList);
+                    } else {
+                        message = NULL;
+                    }
+                    break;
+                }
+                case ToolResult: {
+                    if (retainFunctionCall) {
+                        message = new ToolExecutionResultMessage(db.getReplyToolRequestId(), db.getReplyToolName(), text);
                     } else {
                         message = NULL;
                     }
@@ -483,7 +512,6 @@ public class AiUtil {
                 case MState:
                 case Knowledge:
                 case System:
-                case ToolResult:
                 case Thinking:
                 case LangChainUser: {
                     message = NULL;

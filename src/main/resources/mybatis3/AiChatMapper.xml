@@ -3,10 +3,10 @@
 <mapper namespace="com.github.aiassistant.dao.AiChatMapper">
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO `ai_chat`
-        (`ai_memory_id`,`assistant_id`,`create_time`,`create_uid`,`delete_time`,`id`,`last_chat_time`,`last_websearch_flag`,`name`,`uid_type`,`update_time`, `chat_source_enum`)
+        (`ai_memory_id`,`assistant_id`,`create_time`,`create_uid`,`create_uid_int`, `delete_time`,`id`,`last_chat_time`,`last_websearch_flag`,`name`,`uid_type`,`update_time`, `chat_source_enum`)
         VALUES
             (
-                #{aiMemoryId},  #{assistantId},  #{createTime},  #{createUid},  #{deleteTime},  #{id},  #{lastChatTime},  #{lastWebsearchFlag},  #{name},  #{uidType},  #{updateTime}, #{chatSourceEnum}
+                #{aiMemoryId},  #{assistantId},  #{createTime},  #{createUid}, #{createUidInt},  #{deleteTime},  #{id},  #{lastChatTime},  #{lastWebsearchFlag},  #{name},  #{uidType},  #{updateTime}, #{chatSourceEnum}
             )
     </insert>
 

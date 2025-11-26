@@ -78,9 +78,10 @@ public class AiMemoryMessageServiceImpl {
      *
      * @param memoryId                  memoryId
      * @param againUserQueryTraceNumber againUserQueryTraceNumber
+     * @param retainFunctionCall        是否保留函数调用过程的记忆
      * @return 记忆
      */
-    public List<ChatMessage> selectHistoryList(Integer memoryId, String againUserQueryTraceNumber) {
+    public List<ChatMessage> selectHistoryList(Integer memoryId, String againUserQueryTraceNumber, boolean retainFunctionCall) {
         String rootAgainUserQueryTraceNumber;
         if (StringUtils.hasText(againUserQueryTraceNumber)) {
             // 多次终止并重新回答，需要找到原始问题 rootAgainUserQueryTraceNumber
@@ -89,7 +90,8 @@ public class AiMemoryMessageServiceImpl {
             rootAgainUserQueryTraceNumber = null;
         }
         List<AiMemoryMessage> messageList = aiMemoryMessageMapper.selectListByMemoryId(memoryId, rootAgainUserQueryTraceNumber);
-        return AiUtil.deserializeMemory(messageList);
+        List<AiMemoryMessageTool> toolList = retainFunctionCall && !messageList.isEmpty() ? aiMemoryMessageToolMapper.selectListByMessageIds(messageList.stream().map(AiMemoryMessage::getId).collect(Collectors.toList())) : Collections.emptyList();
+        return AiUtil.deserializeMemory(messageList, toolList, retainFunctionCall);
     }
 
     /**

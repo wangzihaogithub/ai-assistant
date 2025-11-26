@@ -1,6 +1,7 @@
 package com.github.aiassistant.service.text;
 
 import com.github.aiassistant.entity.model.chat.*;
+import com.github.aiassistant.entity.model.user.AiAccessUserVO;
 import com.github.aiassistant.enums.AiWebSearchSourceEnum;
 import com.github.aiassistant.enums.UserTriggerEventEnum;
 import com.github.aiassistant.service.jsonschema.ReasoningJsonSchema;
@@ -12,10 +13,7 @@ import com.github.aiassistant.service.text.tools.WebSearchService;
 import com.github.aiassistant.service.text.tools.functioncall.UrlReadTools;
 import com.github.aiassistant.util.ResponseHandlerWebSearchEventListener;
 import dev.langchain4j.agent.tool.ToolExecutionRequest;
-import dev.langchain4j.data.message.AiMessage;
-import dev.langchain4j.data.message.SystemMessage;
-import dev.langchain4j.data.message.ToolExecutionResultMessage;
-import dev.langchain4j.data.message.UserMessage;
+import dev.langchain4j.data.message.*;
 import dev.langchain4j.model.openai.AudioChunk;
 import dev.langchain4j.model.output.Response;
 
@@ -32,6 +30,28 @@ public interface ChatStreamingResponseHandler {
 
     default ChatStreamingResponseHandler getUserHandler() {
         return this;
+    }
+
+    default List<ChatMessage> onBeforeUsedMessageList(
+            List<ChatMessage> messageList,
+            AiAccessUserVO user,
+            AiVariablesVO variables,
+            MemoryIdVO memoryId,
+            Boolean websearch,
+            Boolean reasoning,
+            String question) {
+        return messageList;
+    }
+
+    default AiVariablesVO onBeforeUsedVariables(AiVariablesVO variables,
+                                                AiAccessUserVO currentUser, List<ChatMessage> historyList,
+                                                String lastQuestion, MemoryIdVO memoryId, Boolean websearch) {
+//        // 员工
+//        setterEmployees(variables.getEmployees()); // 学生
+//        setterStudent(variables.getStudent(), currentUser);      // 竞争对手
+//        setterRival(variables.getRival());
+//        return variables;
+        return variables;
     }
 
     default void onAudio(AudioChunk audioChunk) {

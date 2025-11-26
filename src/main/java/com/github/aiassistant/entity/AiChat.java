@@ -13,7 +13,9 @@ public class AiChat implements Serializable {
     private Date updateTime;
     private Date lastChatTime;
     private Boolean lastWebsearchFlag;
-    private Integer createUid;
+    private String createUid;
+    private Long createUidInt;
+
     private Integer aiMemoryId;
     private Date deleteTime;
     private String assistantId;
@@ -76,12 +78,20 @@ public class AiChat implements Serializable {
         this.lastWebsearchFlag = lastWebsearchFlag;
     }
 
-    public Integer getCreateUid() {
+    public String getCreateUid() {
         return createUid;
     }
 
-    public void setCreateUid(Integer createUid) {
+    public void setCreateUid(String createUid) {
         this.createUid = createUid;
+    }
+
+    public Long getCreateUidInt() {
+        return createUidInt;
+    }
+
+    public void setCreateUidInt(Long createUidInt) {
+        this.createUidInt = createUidInt;
     }
 
     public Integer getAiMemoryId() {

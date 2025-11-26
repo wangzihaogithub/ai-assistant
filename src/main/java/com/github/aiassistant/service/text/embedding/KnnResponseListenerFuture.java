@@ -2,39 +2,28 @@ package com.github.aiassistant.service.text.embedding;
 
 import com.github.aiassistant.entity.model.chat.KnVO;
 import com.github.aiassistant.exception.KnnApiException;
-import com.github.aiassistant.platform.JsonUtil;
-import com.github.aiassistant.util.BeanUtil;
-import org.elasticsearch.client.Cancellable;
-import org.elasticsearch.client.Response;
 
-import java.io.IOException;
-import java.util.*;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.BiFunction;
 
 public class KnnResponseListenerFuture<T extends KnVO> extends CompletableFuture<List<T>> {
     private final KnnQueryBuilderFuture<T> requestBodyFuture;
     private final CompletableFuture<Request> requestBytesFuture = new CompletableFuture<>();
-    private final double minScore;
-    private final Double knTop1Score;
     private final String indexName;
     private final long createTime = System.currentTimeMillis();
-    private Response response;
 
-    KnnResponseListenerFuture(double minScore,
-                              Double knTop1Score, KnnQueryBuilderFuture<T> requestBodyFuture, String indexName) {
-        this.minScore = minScore;
-        this.knTop1Score = knTop1Score;
+    KnnResponseListenerFuture(KnnQueryBuilderFuture<T> requestBodyFuture, String indexName) {
         this.requestBodyFuture = requestBodyFuture;
         this.indexName = indexName;
     }
 
-    void setRequest(Cancellable cancellable,
-                    byte[] requestBody) {
+    void setRequest(Request request) {
         if (isCancelled()) {
-            cancellable.cancel();
+            request.cancel();
         }
-        requestBytesFuture.complete(new Request(cancellable, requestBody));
+        requestBytesFuture.complete(request);
     }
 
     public long getCreateTime() {
@@ -47,61 +36,10 @@ public class KnnResponseListenerFuture<T extends KnVO> extends CompletableFuture
         if (b && requestBytesFuture.isDone()) {
             Request request = requestBytesFuture.getNow(null);
             if (request != null) {
-                request.cancellable.cancel();
+                request.cancel();
             }
         }
         return b;
-    }
-
-    void onSuccess(Response response) {
-        this.response = response;
-        try {
-            List<T> result = map(response);
-            complete(result);
-        } catch (Exception e) {
-            completeExceptionally(e);
-        }
-    }
-
-    private List<T> map(Response response) throws IOException {
-        // response
-        Map content = JsonUtil.objectReader().readValue(response.getEntity().getContent(), Map.class);
-        Map hits = (Map) content.get("hits");
-        List<Map> hitsList = (List<Map>) hits.get("hits");
-        List<T> list = new ArrayList<>();
-
-        Class<T> type = requestBodyFuture.getType();
-        for (Map hit : hitsList) {
-            double score = ((Number) hit.get("_score")).doubleValue();
-            T source = BeanUtil.toBean((Map<String, Object>) hit.get("_source"), type);
-            source.setId(Objects.toString(hit.get("_id"), null));
-            source.setScore(score);
-            source.setIndexName(Objects.toString(hit.get("_index"), null));
-            list.add(source);
-        }
-
-        List<T> l = list;
-        List<BiFunction<List<T>, Map, List<T>>> afterList = requestBodyFuture.getResponseAfterList();
-        if (afterList != null) {
-            for (BiFunction<List<T>, Map, List<T>> after : afterList) {
-                l = after.apply(l, content);
-            }
-        }
-        return filter(l);
-    }
-
-    private List<T> filter(List<T> list) {
-        List<T> result = new ArrayList<>(list.size());
-        for (T hit : list) {
-            Double score = hit.getScore();
-            if (minScore == 0 || score >= minScore) {
-                if (knTop1Score != null && score >= knTop1Score) {
-                    return new ArrayList<>(Collections.singletonList(hit));
-                }
-                result.add(hit);
-            }
-        }
-        return result;
     }
 
     @Override
@@ -109,7 +47,7 @@ public class KnnResponseListenerFuture<T extends KnVO> extends CompletableFuture
         if (isDone()) {
             return false;
         }
-        byte[] requestBody = requestBytesFuture.isCompletedExceptionally() ? null : Optional.ofNullable(requestBytesFuture.getNow(null)).map(e -> e.requestBody).orElse(null);
+        byte[] requestBody = requestBytesFuture.isCompletedExceptionally() ? null : Optional.ofNullable(requestBytesFuture.getNow(null)).map(e -> e.getRequestBodyBytes()).orElse(null);
         if (!requestBytesFuture.isDone()) {
             requestBytesFuture.completeExceptionally(ex);
         }
@@ -118,7 +56,7 @@ public class KnnResponseListenerFuture<T extends KnVO> extends CompletableFuture
     }
 
     public CompletableFuture<byte[]> getRequestBodyBytesFuture() {
-        return requestBytesFuture.thenApply(request -> request.requestBody);
+        return requestBytesFuture.thenApply(request -> request.getRequestBodyBytes());
     }
 
     public KnnQueryBuilderFuture<T> getRequestBodyFuture() {
@@ -129,7 +67,7 @@ public class KnnResponseListenerFuture<T extends KnVO> extends CompletableFuture
         if (requestBytesFuture.isCompletedExceptionally()) {
             return null;
         }
-        return Optional.ofNullable(requestBytesFuture.getNow(null)).map(e -> e.requestBody).orElse(null);
+        return Optional.ofNullable(requestBytesFuture.getNow(null)).map(e -> e.getRequestBodyBytes()).orElse(null);
     }
 
     public Map<String, Object> getRequestBody() {
@@ -140,13 +78,9 @@ public class KnnResponseListenerFuture<T extends KnVO> extends CompletableFuture
         return indexName;
     }
 
-    private static class Request {
-        final Cancellable cancellable;
-        final byte[] requestBody;
+    public interface Request {
+        byte[] getRequestBodyBytes();
 
-        private Request(Cancellable cancellable, byte[] requestBody) {
-            this.cancellable = cancellable;
-            this.requestBody = requestBody;
-        }
+        void cancel();
     }
 }

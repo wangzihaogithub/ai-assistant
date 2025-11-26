@@ -13,4 +13,10 @@
         </foreach>
     </insert>
 
+    <select id="selectListByMessageIds" resultType="com.github.aiassistant.entity.AiMemoryMessageTool">
+        SELECT * FROM `ai_memory_message_tool` WHERE `ai_memory_message_id` IN
+        <foreach collection="arg0" item="item" open="(" separator="," close=")">
+            #{item}
+        </foreach>
+    </select>
 </mapper>

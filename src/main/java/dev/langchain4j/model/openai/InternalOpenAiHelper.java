@@ -59,6 +59,10 @@ public class InternalOpenAiHelper {
     }
 
     public static Message toOpenAiMessage(ChatMessage message) {
+        return toOpenAiMessage(message, false);
+    }
+
+    public static Message toOpenAiMessage(ChatMessage message, boolean partialMode) {
         if (message instanceof SystemMessage) {
             return dev.ai4j.openai4j.chat.SystemMessage.from(((SystemMessage) message).text());
         }
@@ -68,7 +72,7 @@ public class InternalOpenAiHelper {
 
             if (userMessage.hasSingleText()) {
                 return dev.ai4j.openai4j.chat.UserMessage.builder()
-                        .content(userMessage.text())
+                        .content(userMessage.singleText())
                         .name(userMessage.name())
                         .build();
             } else {
@@ -83,37 +87,32 @@ public class InternalOpenAiHelper {
 
         if (message instanceof AiMessage) {
             AiMessage aiMessage = (AiMessage) message;
-
-            if (!aiMessage.hasToolExecutionRequests()) {
-                return AssistantMessage.from(aiMessage.text());
+            String text = aiMessage.text();
+            AssistantMessage.Builder builder = AssistantMessage.builder();
+            if (text != null && !text.isEmpty()) {
+                builder.content(text);
             }
-
-            ToolExecutionRequest toolExecutionRequest = aiMessage.toolExecutionRequests().get(0);
-            if (toolExecutionRequest.id() == null) {
-                FunctionCall functionCall = FunctionCall.builder()
-                        .name(toolExecutionRequest.name())
-                        .arguments(toolExecutionRequest.arguments())
-                        .build();
-
-                return AssistantMessage.builder()
-                        .functionCall(functionCall)
-                        .build();
-            }
-
-            List<ToolCall> toolCalls = aiMessage.toolExecutionRequests().stream()
-                    .map(it -> ToolCall.builder()
+            if (aiMessage.hasToolExecutionRequests()) {
+                int i = 0;
+                List<ToolExecutionRequest> executionRequestList = aiMessage.toolExecutionRequests();
+                List<ToolCall> toolCalls = new ArrayList<>(executionRequestList.size());
+                for (ToolExecutionRequest it : executionRequestList) {
+                    toolCalls.add(ToolCall.builder()
                             .id(it.id())
                             .type(FUNCTION)
                             .function(FunctionCall.builder()
                                     .name(it.name())
                                     .arguments(it.arguments())
                                     .build())
-                            .build())
-                    .collect(toList());
-
-            return AssistantMessage.builder()
-                    .toolCalls(toolCalls)
-                    .build();
+                            .index(i++)
+                            .build());
+                }
+                builder.toolCalls(toolCalls);
+            }
+            if (partialMode) {
+                builder.partial(Boolean.TRUE);
+            }
+            return builder.build();
         }
 
         if (message instanceof ToolExecutionResultMessage) {

@@ -9,6 +9,7 @@ import com.github.aiassistant.entity.model.chat.QaKnVO;
 import com.github.aiassistant.entity.model.user.AiAccessUserVO;
 import com.github.aiassistant.service.jsonschema.QuestionClassifySchema;
 import com.github.aiassistant.service.text.AssistantConfig;
+import com.github.aiassistant.service.text.ChatStreamingResponseHandler;
 import com.github.aiassistant.service.text.acting.ActingService;
 import com.github.aiassistant.service.text.memory.AiMemoryMstateServiceImpl;
 import com.github.aiassistant.service.text.repository.JsonSchemaTokenWindowChatMemory;
@@ -106,22 +107,24 @@ public class AiVariablesService {
      * @return 提示词
      */
     public String prompt(String promptMessage, AiAccessUserVO currentUser, MemoryIdVO memoryId) {
-        AiVariablesVO aiVariables = selectVariables(currentUser, new ArrayList<>(), null, memoryId, false);
+        AiVariablesVO aiVariables = selectVariables(currentUser, new ArrayList<>(), null, memoryId, false, null);
         return AiUtil.toPrompt(promptMessage, aiVariables).text();
     }
 
     /**
      * 查询变量
      *
-     * @param currentUser  currentUser
-     * @param historyList  historyList
-     * @param lastQuestion lastQuestion
-     * @param memoryId     memoryId
-     * @param websearch    websearch
+     * @param currentUser     currentUser
+     * @param historyList     historyList
+     * @param lastQuestion    lastQuestion
+     * @param memoryId        memoryId
+     * @param websearch       websearch
+     * @param responseHandler 响应处理
      * @return 变量
      */
     public AiVariablesVO selectVariables(AiAccessUserVO currentUser, List<ChatMessage> historyList,
-                                         String lastQuestion, MemoryIdVO memoryId, Boolean websearch) {
+                                         String lastQuestion, MemoryIdVO memoryId, Boolean websearch,
+                                         ChatStreamingResponseHandler responseHandler) {
         AiVariablesVO variables = new AiVariablesVO();
 
         // 智能体
@@ -135,12 +138,15 @@ public class AiVariablesService {
         // 系统变量
         setterSys(variables.getSys());
         // 用户请求
-        setterRequest(variables.getRequest(), websearch);        // 变量
+        setterRequest(variables.getRequest(), websearch);
         // 变量
         setterVar(variables.getVar());
 
         for (AiVariablesServiceIntercept intercept : interceptList.get()) {
             variables = intercept.afterAiVariables(variables, currentUser, historyList, lastQuestion, memoryId, websearch);
+        }
+        if (responseHandler != null) {
+            variables = responseHandler.onBeforeUsedVariables(variables, currentUser, historyList, lastQuestion, memoryId, websearch);
         }
         return variables;
     }

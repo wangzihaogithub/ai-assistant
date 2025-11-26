@@ -9,6 +9,7 @@ import com.github.aiassistant.enums.AiAssistantStatusEnum;
 import com.github.aiassistant.enums.AiChatUidTypeEnum;
 import com.github.aiassistant.platform.SpringWebSseEmitterResponseHandler;
 import com.github.aiassistant.service.text.FunctionCallStreamingResponseHandler;
+import com.github.aiassistant.service.text.embedding.KnnApiService;
 import com.github.aiassistant.service.text.repository.JdbcSessionMessageRepository;
 import com.github.aiassistant.service.text.sseemitter.AiMessageString;
 import com.github.aiassistant.service.text.tools.Tools;
@@ -62,7 +63,7 @@ public class AiApplicationTest {
                 if (aClass == AccessUserServiceIntercept.class) {
                     return Arrays.asList(new AccessUserServiceIntercept() {
                         @Override
-                        public Serializable getCurrentUserId() {
+                        public Integer getCurrentUserId() {
                             return 1;
                         }
                     });
@@ -77,7 +78,7 @@ public class AiApplicationTest {
         RestClient embeddingStore = embeddingStore();
         Function<String, Tools> toolsMap = toolsMap();
         Function<Class<? extends ServiceIntercept>, Collection<ServiceIntercept>> interceptMap = interceptMap();
-        return new AiApplication(dataSource, embeddingStore, toolsMap, interceptMap);
+        return new AiApplication(dataSource, new KnnApiService(embeddingStore), toolsMap, interceptMap);
     }
 
     public static void main(String[] args) throws Exception {

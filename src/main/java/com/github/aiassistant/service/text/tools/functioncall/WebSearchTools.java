@@ -6,8 +6,8 @@ import com.github.aiassistant.entity.model.langchain4j.WebSearchToolExecutionRes
 import com.github.aiassistant.enums.AiAssistantKnTypeEnum;
 import com.github.aiassistant.enums.AiWebSearchSourceEnum;
 import com.github.aiassistant.service.text.ChatStreamingResponseHandler;
+import com.github.aiassistant.service.text.embedding.EmbeddingModelPool;
 import com.github.aiassistant.service.text.rerank.EmbeddingReRankModel;
-import com.github.aiassistant.service.text.embedding.KnnApiService;
 import com.github.aiassistant.service.text.rerank.ReRankModel;
 import com.github.aiassistant.service.text.tools.Tools;
 import com.github.aiassistant.service.text.tools.WebSearchService;
@@ -33,15 +33,15 @@ public class WebSearchTools extends Tools {
         this.reRankModelGetter = null;
     }
 
-    public WebSearchTools(Supplier<KnnApiService> knnApiServiceSupplier) {
-        if (knnApiServiceSupplier == null) {
+    public WebSearchTools(Supplier<EmbeddingModelPool> embeddingModelPoolSupplier) {
+        if (embeddingModelPoolSupplier == null) {
             this.reRankModelGetter = null;
         } else {
             this.reRankModelGetter = memoryIdVO -> Optional.of(memoryIdVO)
-                    .map(e -> e.getAssistantKn(AiAssistantKnTypeEnum.rerank))
+                    .map(e -> e.getAssistantKn(AiAssistantKnTypeEnum.embedding))
                     .map(e -> {
-                        KnnApiService knnApiService = knnApiServiceSupplier.get();
-                        return knnApiService == null ? null : knnApiService.getModel(e);
+                        EmbeddingModelPool modelPool = embeddingModelPoolSupplier.get();
+                        return modelPool == null ? null : modelPool.getModel(e);
                     })
                     .map(EmbeddingReRankModel::new)
                     .orElse(null);
@@ -52,29 +52,15 @@ public class WebSearchTools extends Tools {
         this.reRankModelGetter = reRankModelGetter;
     }
 
-    @Override
-    public void setBeanName(String beanName) {
-        super.setBeanName(beanName);
-        AiWebSearchSourceEnum.create(beanName);
-    }
-
-    @Tool(name = "联网搜索", value = {"# 插件功能\n" +
-            "此工具可用于使用谷歌等搜索引擎进行全网搜索。特别是新闻相关\n" +
-            "# 返回字段名单\n" +
-            "URL\n" +
-            "标题\n" +
-            "摘要\n" +
-            "来源"})
-    public Object search(
-            @P(value = "搜索内容", required = true) @Name("q") List<String> q,
-            @ToolMemoryId ToolExecutionRequest request,
-            @ToolMemoryId MemoryIdVO memoryIdVO) {
-        AiWebSearchSourceEnum sourceEnum = AiWebSearchSourceEnum.valueOf(getBeanName());
-
-        ChatStreamingResponseHandler handler = getStreamingResponseHandler();
+    public static CompletableFuture<WebSearchToolExecutionResultMessage> search(
+            List<String> q,
+            ToolExecutionRequest request,
+            ChatStreamingResponseHandler handler,
+            WebSearchService webSearchService,
+            ReRankModel reRankModelClient,
+            AiWebSearchSourceEnum sourceEnum) {
         CompletableFuture<WebSearchResultVO> read = webSearchService.webSearchRead(q, 1, 10000, false, handler.adapterWebSearch(sourceEnum));
         CompletableFuture<CompletableFuture<WebSearchToolExecutionResultMessage>> f = read.thenApply(ws -> {
-            ReRankModel reRankModelClient = newReRankModel(memoryIdVO);
             CompletableFuture<WebSearchResultVO> wsf;
             if (reRankModelClient != null) {
                 List<CompletableFuture<List<WebSearchResultVO.Row>>> topNList = new ArrayList<>();
@@ -92,6 +78,26 @@ public class WebSearchTools extends Tools {
             });
         });
         return FutureUtil.allOf(f);
+    }
+
+    @Override
+    public void setBeanName(String beanName) {
+        super.setBeanName(beanName);
+        AiWebSearchSourceEnum.create(beanName);
+    }
+
+    @Tool(name = "联网搜索", value = {"# 插件功能\n" +
+            "此工具可用于使用谷歌等搜索引擎进行全网搜索。特别是新闻相关\n" +
+            "# 返回字段名单\n" +
+            "URL\n" +
+            "标题\n" +
+            "摘要\n" +
+            "来源"})
+    public CompletableFuture<WebSearchToolExecutionResultMessage> search(
+            @P(value = "搜索内容", required = true) @Name("q") List<String> q,
+            @ToolMemoryId ToolExecutionRequest request,
+            @ToolMemoryId MemoryIdVO memoryIdVO) {
+        return search(q, request, getStreamingResponseHandler(), webSearchService, newReRankModel(memoryIdVO), AiWebSearchSourceEnum.valueOf(getBeanName()));
     }
 
     private ReRankModel newReRankModel(MemoryIdVO memoryIdVO) {

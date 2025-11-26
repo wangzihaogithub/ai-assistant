@@ -127,7 +127,7 @@ public class AiChatReasoningServiceImpl {
 
                 request.setAiChatId(user.getId());
                 request.setQuestion(StringUtils.left(request.question, 3950, true));
-                request.setNeedSplittingFlag(request.reason.needSplitting);
+                request.setNeedSplittingFlag(Optional.ofNullable(request.reason).map(e -> e.needSplitting).orElse(Boolean.FALSE));
                 request.setUserChatHistoryId(userChatHistoryId);
                 if (request.plan != null) {
                     request.setCreateTime(request.plan.getCreateTime());

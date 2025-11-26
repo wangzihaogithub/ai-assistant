@@ -59,10 +59,18 @@ public class AliyunOpenNluModel implements NluModel {
 
     @Override
     public void destroy() {
-        this.destroy = true;
+        if (destroy) {
+            return;
+        }
+        destroy = true;
         OkHttpClient client = this.client;
         this.client = null;
         if (client != null) {
+            try {
+                client.dispatcher().executorService().shutdown();
+            } catch (Exception e) {
+                // ignore
+            }
             try {
                 client.connectionPool().evictAll();
             } catch (Exception e) {

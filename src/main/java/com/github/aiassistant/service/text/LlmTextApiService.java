@@ -15,10 +15,7 @@ import com.github.aiassistant.service.jsonschema.LlmJsonSchemaApiService;
 import com.github.aiassistant.service.jsonschema.ReasoningJsonSchema;
 import com.github.aiassistant.service.jsonschema.WebsearchReduceJsonSchema;
 import com.github.aiassistant.service.text.acting.ActingService;
-import com.github.aiassistant.service.text.embedding.EmbeddingModelClient;
-import com.github.aiassistant.service.text.embedding.KnSettingWebsearchBlacklistServiceImpl;
-import com.github.aiassistant.service.text.embedding.KnnApiService;
-import com.github.aiassistant.service.text.embedding.KnnResponseListenerFuture;
+import com.github.aiassistant.service.text.embedding.*;
 import com.github.aiassistant.service.text.reasoning.ReasoningService;
 import com.github.aiassistant.service.text.repository.ConsumerTokenWindowChatMemory;
 import com.github.aiassistant.service.text.repository.JsonSchemaTokenWindowChatMemory;
@@ -87,6 +84,7 @@ public class LlmTextApiService {
      * 线程池：如果java21可以传过来虚拟线程
      */
     private final Executor functionCallingThreadPool;
+    private final EmbeddingModelPool embeddingModelPool;
     private final ActingService actingService;
     private final ReasoningService reasoningService;
     private final KnSettingWebsearchBlacklistServiceImpl knSettingWebsearchBlacklistService;
@@ -124,7 +122,7 @@ public class LlmTextApiService {
      */
     private Duration connectTimeout = Duration.ofSeconds(3);
 
-    public LlmTextApiService(LlmJsonSchemaApiService llmJsonSchemaApiService,
+    public LlmTextApiService(EmbeddingModelPool embeddingModelPool, LlmJsonSchemaApiService llmJsonSchemaApiService,
                              AiQuestionClassifyService aiQuestionClassifyService,
                              AiJsonschemaMapper aiJsonschemaMapper,
                              AiAssistantFewshotMapper aiAssistantFewshotMapper,
@@ -146,6 +144,7 @@ public class LlmTextApiService {
                 return thread;
             }, new ThreadPoolExecutor.CallerRunsPolicy());
         }
+        this.embeddingModelPool = embeddingModelPool;
         this.aiAssistantFewshotMapper = aiAssistantFewshotMapper;
         this.aiToolService = aiToolService;
         this.aiJsonschemaMapper = aiJsonschemaMapper;
@@ -296,7 +295,7 @@ public class LlmTextApiService {
             // 初始化
             mergeResponseHandler.onTokenBegin(baseMessageIndex, addMessageCount, 0);
             // 查询变量
-            AiVariablesVO variables = aiVariablesService.selectVariables(user, historyList, lastQuestion, memoryId, websearch);
+            AiVariablesVO variables = aiVariablesService.selectVariables(user, historyList, lastQuestion, memoryId, websearch, mergeResponseHandler);
             // 绑定会话钩子
             llmJsonSchemaApiService.putSessionVariables(memoryId, variables);
             // 进行问题分类
@@ -416,7 +415,7 @@ public class LlmTextApiService {
                 webSearchResult = CompletableFuture.completedFuture(null);
             }
             // 2.查询知识库
-            CompletableFuture<List<List<QaKnVO>>> knnFuture = classifyListVO.isQa() ? selectKnList(assistantConfig, knPromptText, memoryId.getAssistantKnList(AiAssistantKnTypeEnum.qa), lastQuestion, responseHandler) : CompletableFuture.completedFuture(Collections.emptyList());
+            CompletableFuture<List<List<QaKnVO>>> knnFuture = classifyListVO.isQa() && knnApiService != null ? selectKnList(assistantConfig, knPromptText, memoryId.getAssistantKnList(AiAssistantKnTypeEnum.qa), lastQuestion, responseHandler) : CompletableFuture.completedFuture(Collections.emptyList());
             // 3.思考并行动
             CompletableFuture<ActingService.Plan> reasoningResultFuture;
             boolean reasoningAndActing = !interrupt && classifyListVO.isWtcj() && isEnableReasoning(reasoning, assistantConfig, knPromptText, mstatePromptText, lastQuestion);
@@ -650,12 +649,13 @@ public class LlmTextApiService {
 
         // 合并消息请求大模型
         List<ChatMessage> questionList = mergeMessageList(userMessage, knowledge, mstate);
-        int addMessageCount = questionList.size() + rootAddMessageCount;
-        questionList.forEach(chatMemory::add);
+        List<ChatMessage> useQuestionList = responseHandler.onBeforeUsedMessageList(questionList, user, variables, memoryId, websearch, reasoning, question);
+        int addMessageCount = useQuestionList.size() + rootAddMessageCount;
+        useQuestionList.forEach(chatMemory::add);
 
         // 插入用户的提问
         if (repository != null) {
-            repository.addUserQuestion(questionList).exceptionally(throwable -> {
+            repository.addUserQuestion(useQuestionList).exceptionally(throwable -> {
                 // 插入失败，返回错误消息
                 responseHandler.onError(throwable, baseMessageIndex, addMessageCount, 0);
                 return null;
@@ -809,13 +809,13 @@ public class LlmTextApiService {
             return websearchReduceJsonSchema.reduce(flattedWebSearchResult, question);
         } else {
             WebSearchResultVO merge = WebSearchResultVO.merge(flattedWebSearchResult);
-            AiAssistantKn assistantKn = memoryIdVO.getAssistantKn(AiAssistantKnTypeEnum.rerank);
+            AiAssistantKn assistantKn = memoryIdVO.getAssistantKn(AiAssistantKnTypeEnum.embedding);
             if (assistantKn == null) {
                 // 全部都要
                 return CompletableFuture.completedFuture(merge);
             } else {
                 // rerank TopN
-                EmbeddingModelClient embeddingModelClient = knnApiService.getModel(assistantKn);
+                EmbeddingModelClient embeddingModelClient = embeddingModelPool.getModel(assistantKn);
                 EmbeddingReRankModel reRankModelClient = new EmbeddingReRankModel(embeddingModelClient);
                 CompletableFuture<List<WebSearchResultVO.Row>> future = reRankModelClient.topN(question, merge.getList(), WebSearchResultVO.Row::reRankKey, topN, createWebSearchFilter());
                 return future.thenApply(rows -> {
@@ -983,7 +983,7 @@ public class LlmTextApiService {
                 f = CompletableFuture.completedFuture(Collections.emptyList());
             } else {
                 // 知识库提问
-                EmbeddingModelClient model = knnApiService.getModel(assistantKn);
+                EmbeddingModelClient model = embeddingModelPool.getModel(assistantKn);
                 CompletableFuture<Map<String, Object>> body = QueryBuilderUtil.buildQaEsQuery(
                         assistantKn.getVectorFieldName(),
                         Collections.singletonList(question),

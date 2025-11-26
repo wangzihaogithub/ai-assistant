@@ -17,17 +17,17 @@ public interface AccessUserServiceIntercept extends ServiceIntercept {
         return memoryIdVO;
     }
 
-    default Serializable getCurrentUserId() {
+    default <T extends Serializable> T getCurrentUserId() {
 //        return StpUtil.getLoginIdAsInt();
         return null;
     }
 
-    default AiAccessUserVO getCurrentUser() {
+    default <T extends AiAccessUserVO> T getCurrentUser() {
         return Optional.ofNullable(getCurrentUserId())
                 .map(e -> {
                     AiAccessUserVO user = new AiAccessUserVO();
                     user.setId(getCurrentUserId());
-                    return user;
+                    return (T) user;
                 })
                 .orElse(null);
     }

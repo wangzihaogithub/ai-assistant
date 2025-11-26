@@ -18,6 +18,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -57,8 +58,17 @@ public class AiChatServiceImpl {
                              Serializable createUid, AiChatUidTypeEnum uidTypeEnum,
                              AiChatSourceEnum chatSourceEnum) {
         Date now = new Date();
-
-        Integer createUidInt = createUid == null || "".equals(createUid) ? null : Integer.valueOf(createUid.toString());
+        String createUidString = Objects.toString(createUid, "");
+        Long createUidInt;
+        try {
+            if (StringUtils.isPositiveNumeric(createUidString)) {
+                createUidInt = Long.valueOf(createUidString);
+            } else {
+                createUidInt = null;
+            }
+        } catch (NumberFormatException e) {
+            createUidInt = null;
+        }
 
         AiMemory aiMemory = aiMemoryService.insert(now);
 
@@ -70,7 +80,8 @@ public class AiChatServiceImpl {
         }
         aiChat.setCreateTime(now);
         aiChat.setUpdateTime(now);
-        aiChat.setCreateUid(createUidInt);
+        aiChat.setCreateUid(createUidString);
+        aiChat.setCreateUidInt(createUidInt);
         aiChat.setAiMemoryId(aiMemory.getId());
         aiChat.setDeleteTime(null);
         aiChat.setAssistantId(assistantId);

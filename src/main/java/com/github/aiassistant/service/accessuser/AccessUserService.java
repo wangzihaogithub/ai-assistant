@@ -147,9 +147,9 @@ public class AccessUserService {
      *
      * @return 用户ID
      */
-    public Serializable getCurrentUserId() {
+    public <T extends Serializable> T getCurrentUserId() {
         for (AccessUserServiceIntercept intercept : interceptList.get()) {
-            Serializable currentUserId = intercept.getCurrentUserId();
+            T currentUserId = intercept.getCurrentUserId();
             if (currentUserId != null) {
                 return currentUserId;
             }
@@ -162,9 +162,9 @@ public class AccessUserService {
      *
      * @return 用户
      */
-    public AiAccessUserVO getCurrentUser() {
+    public <T extends AiAccessUserVO> T getCurrentUser() {
         for (AccessUserServiceIntercept intercept : interceptList.get()) {
-            AiAccessUserVO currentUser = intercept.getCurrentUser();
+            T currentUser = intercept.getCurrentUser();
             if (currentUser != null) {
                 return currentUser;
             }

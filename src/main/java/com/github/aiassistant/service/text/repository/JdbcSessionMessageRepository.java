@@ -58,6 +58,10 @@ public class JdbcSessionMessageRepository extends AbstractSessionMessageReposito
     // @Resource
     private final AiChatClassifyServiceImpl aiChatClassifyService;
     private final AiMemorySearchServiceImpl aiMemorySearchService;
+    /**
+     * 是否保留函数调用过程的记忆
+     */
+    private final boolean retainFunctionCall;
     private MStateAiParseVO mStateAiParseVO;
     private boolean mock;
     private CompletableFuture<AiMemoryMessageServiceImpl.AiMemoryVO> userMemory;
@@ -73,7 +77,7 @@ public class JdbcSessionMessageRepository extends AbstractSessionMessageReposito
                                         AiChatWebsearchServiceImpl aiChatWebsearchService,
                                         AiMemoryErrorServiceImpl aiMemoryErrorService,
                                         AiChatClassifyServiceImpl aiChatClassifyService,
-                                        AiMemorySearchServiceImpl aiMemorySearchService) {
+                                        AiMemorySearchServiceImpl aiMemorySearchService, boolean retainFunctionCall) {
         super(memoryId, user, chatQueryRequest.userQueryTraceNumber(), chatQueryRequest.timestamp());
         this.chatQueryRequest = chatQueryRequest;
         this.aiMemorySearchService = aiMemorySearchService;
@@ -86,6 +90,7 @@ public class JdbcSessionMessageRepository extends AbstractSessionMessageReposito
         this.aiChatWebsearchService = aiChatWebsearchService;
         this.aiMemoryErrorService = aiMemoryErrorService;
         this.aiChatClassifyService = aiChatClassifyService;
+        this.retainFunctionCall = retainFunctionCall;
     }
 
     public static String getMstateJsonPrompt(Collection<AiAssistantMstate> mstateList) {
@@ -154,7 +159,7 @@ public class JdbcSessionMessageRepository extends AbstractSessionMessageReposito
      */
     @Override
     protected List<ChatMessage> getHistoryList(MemoryIdVO memoryId, AiAccessUserVO user) {
-        return aiMemoryMessageService.selectHistoryList(memoryId.getMemoryId(), chatQueryRequest.getAgainUserQueryTraceNumber());
+        return aiMemoryMessageService.selectHistoryList(memoryId.getMemoryId(), chatQueryRequest.getAgainUserQueryTraceNumber(), retainFunctionCall);
     }
 
     /**
@@ -292,4 +297,11 @@ public class JdbcSessionMessageRepository extends AbstractSessionMessageReposito
         aiMemoryErrorService.insertByInner(throwable, baseMessageIndex, addMessageCount, generateCount, requestTrace, chatQueryRequest);
     }
 
+    public boolean isRetainFunctionCall() {
+        return retainFunctionCall;
+    }
+
+    public boolean isMock() {
+        return mock;
+    }
 }

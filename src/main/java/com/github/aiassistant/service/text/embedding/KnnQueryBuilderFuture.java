@@ -8,25 +8,25 @@ import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
 public class KnnQueryBuilderFuture<T> extends CompletableFuture<Map<String, Object>> implements Cloneable {
-    private final Class<T> type;
+    private final Class<T> responseType;
     private final List<BiFunction<List<T>, Map, List<T>>> responseAfterList;
     private final List<Consumer<Map<String, Object>>> completeBeforeList;
 
-    public KnnQueryBuilderFuture(Class<T> type) {
-        this(type, new ArrayList<>(), new ArrayList<>());
+    public KnnQueryBuilderFuture(Class<T> responseType) {
+        this(responseType, new ArrayList<>(), new ArrayList<>());
     }
 
-    public KnnQueryBuilderFuture(Class<T> type,
+    public KnnQueryBuilderFuture(Class<T> responseType,
                                  List<BiFunction<List<T>, Map, List<T>>> responseAfterList,
                                  List<Consumer<Map<String, Object>>> completeBeforeList) {
-        this.type = type;
+        this.responseType = responseType;
         this.completeBeforeList = completeBeforeList;
         this.responseAfterList = responseAfterList;
     }
 
-    public static <T> KnnQueryBuilderFuture<T> completedFuture(Class<T> type, CompletableFuture<Map<String, Object>> body) {
-        KnnQueryBuilderFuture<T> future = new KnnQueryBuilderFuture<>(type);
-        body.thenAccept(future::complete)
+    public static <T> KnnQueryBuilderFuture<T> completedFuture(Class<T> responseType, CompletableFuture<Map<String, Object>> requestBody) {
+        KnnQueryBuilderFuture<T> future = new KnnQueryBuilderFuture<>(responseType);
+        requestBody.thenAccept(future::complete)
                 .exceptionally(throwable -> {
                     future.completeExceptionally(throwable);
                     return null;
@@ -55,7 +55,7 @@ public class KnnQueryBuilderFuture<T> extends CompletableFuture<Map<String, Obje
     }
 
     public KnnQueryBuilderFuture<T> fork() {
-        return new KnnQueryBuilderFuture<>(type, responseAfterList, completeBeforeList);
+        return new KnnQueryBuilderFuture<>(responseType, responseAfterList, completeBeforeList);
     }
 
     public KnnQueryBuilderFuture<T> addListenerCompleteBefore(Consumer<Map<String, Object>> completeBefore) {
@@ -76,7 +76,7 @@ public class KnnQueryBuilderFuture<T> extends CompletableFuture<Map<String, Obje
         return responseAfterList;
     }
 
-    public Class<T> getType() {
-        return type;
+    public Class<T> getResponseType() {
+        return responseType;
     }
 }

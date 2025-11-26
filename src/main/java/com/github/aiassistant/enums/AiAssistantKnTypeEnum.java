@@ -21,6 +21,8 @@ public class AiAssistantKnTypeEnum {
     private static final Map<String, AiAssistantKnTypeEnum> CODE_VALUES = Collections.synchronizedMap(new LinkedHashMap<>());
     // rerank("rerank", "RAG重新排序"),
     public static final AiAssistantKnTypeEnum rerank = create("rerank");
+    // embedding("embedding", "嵌入"),
+    public static final AiAssistantKnTypeEnum embedding = create("embedding");
     // qa("qa", "问答"),
     public static final AiAssistantKnTypeEnum qa = create("qa");
     private final String code;

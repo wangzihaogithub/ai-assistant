@@ -14,6 +14,7 @@ import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
 import dev.langchain4j.agent.tool.ToolExecutionRequest;
 import dev.langchain4j.agent.tool.ToolMemoryId;
+import org.jsoup.nodes.Element;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -82,11 +83,20 @@ public class BaiduWebSearchTools extends Tools implements WebSearch {
                     // 查询class="c-gap-top-small"的元素
                     List<HtmlQuery<?>> list = htmlQuery.selectList(".result");
                     List<WebSearchResultVO.Row> rows = list.stream().map(e -> {
+                                HtmlQuery<Element> time = e.selectElement("[class^='cosc-source-caption']", 0);
+                                if (time.isEmpty()) {
+                                    time = e.selectElement("[class^='cos-space-mr']", 1);
+                                }
+                                HtmlQuery<Element> title = e.selectElement("[class^='title-wrapper']", 0);
+                                HtmlQuery<Element> content = e.selectElement("[class^='content-gap']", 0);
+                                if (content.isEmpty()) {
+                                    content = title;
+                                }
                                 WebSearchResultVO.Row vo = new WebSearchResultVO.Row();
-                                vo.setContent(e.selectElement("[class^='content-right']", 0).text());
-                                vo.setSource(e.selectElement(".c-color-gray", 0).text());
-                                vo.setTitle(e.selectElement(".c-title", 0).text());
-                                vo.setTime(e.selectElement(".c-color-gray2", 0).text());
+                                vo.setContent(content.text());
+                                vo.setSource(e.selectElement("[class^='cosc-source-text']", 0).text());
+                                vo.setTitle(title.text());
+                                vo.setTime(time.text());
                                 String url;
 
                                 String mu = e.attr("mu");

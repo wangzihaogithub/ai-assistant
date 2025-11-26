@@ -14,7 +14,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import static dev.ai4j.openai4j.chat.ChatCompletionModel.GPT_3_5_TURBO;
 import static java.util.Arrays.asList;
 import static java.util.Collections.unmodifiableList;
 import static java.util.Collections.unmodifiableMap;
@@ -74,6 +73,12 @@ public final class ChatCompletionRequest {
     private final Map<String, Object> searchOptions;
     @JsonProperty
     private final Audio audio;
+    @JsonProperty
+    private final Boolean enableCodeInterpreter;
+    @JsonProperty
+    private final Integer topK;
+    @JsonProperty
+    private final Boolean vlHighResolutionImages;
 
     private ChatCompletionRequest(Builder builder) {
         this.model = builder.model;
@@ -101,6 +106,9 @@ public final class ChatCompletionRequest {
         this.thinkingBudget = builder.thinkingBudget;
         this.searchOptions = builder.searchOptions;
         this.audio = builder.audio;
+        this.enableCodeInterpreter = builder.enableCodeInterpreter;
+        this.topK = builder.topK;
+        this.vlHighResolutionImages = builder.vlHighResolutionImages;
     }
 
     public static Builder builder() {
@@ -199,12 +207,28 @@ public final class ChatCompletionRequest {
         return parallelToolCalls;
     }
 
+    public Boolean enableCodeInterpreter() {
+        return enableCodeInterpreter;
+    }
+
+    public Integer topK() {
+        return topK;
+    }
+
+    public Boolean vlHighResolutionImages() {
+        return vlHighResolutionImages;
+    }
+
+    public Audio audio() {
+        return audio;
+    }
+
     @JsonPOJOBuilder(withPrefix = "")
     @JsonIgnoreProperties(ignoreUnknown = true)
     @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
     public static final class Builder {
 
-        private String model = GPT_3_5_TURBO.toString();
+        private String model;
         private List<Message> messages;
         private Double temperature;
         private Double topP;
@@ -228,6 +252,10 @@ public final class ChatCompletionRequest {
         private List<String> modalities;
         private Map<String, Object> searchOptions;
         private Audio audio;
+        private Boolean enableCodeInterpreter;
+        private Integer topK;
+        private Boolean vlHighResolutionImages;
+
         private Builder() {
         }
 
@@ -262,6 +290,24 @@ public final class ChatCompletionRequest {
             thinkingBudget(instance.thinkingBudget);
             searchOptions(instance.searchOptions);
             audio(instance.audio);
+            enableCodeInterpreter(instance.enableCodeInterpreter);
+            topK(instance.topK);
+            vlHighResolutionImages(instance.vlHighResolutionImages);
+            return this;
+        }
+
+        public Builder enableCodeInterpreter(Boolean enableCodeInterpreter) {
+            this.enableCodeInterpreter = enableCodeInterpreter;
+            return this;
+        }
+
+        public Builder topK(Integer topK) {
+            this.topK = topK;
+            return this;
+        }
+
+        public Builder vlHighResolutionImages(Boolean vlHighResolutionImages) {
+            this.vlHighResolutionImages = vlHighResolutionImages;
             return this;
         }
 

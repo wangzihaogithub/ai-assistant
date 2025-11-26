@@ -12,6 +12,7 @@ import com.github.aiassistant.service.text.AiQuestionClassifyService;
 import com.github.aiassistant.service.text.LlmTextApiService;
 import com.github.aiassistant.service.text.acting.ActingService;
 import com.github.aiassistant.service.text.chat.*;
+import com.github.aiassistant.service.text.embedding.EmbeddingModelPool;
 import com.github.aiassistant.service.text.embedding.KnSettingWebsearchBlacklistServiceImpl;
 import com.github.aiassistant.service.text.embedding.KnnApiService;
 import com.github.aiassistant.service.text.memory.*;
@@ -21,7 +22,6 @@ import com.github.aiassistant.service.text.tools.AiToolServiceImpl;
 import com.github.aiassistant.service.text.tools.Tools;
 import com.github.aiassistant.service.text.variables.AiVariablesService;
 import com.github.aiassistant.serviceintercept.*;
-import org.elasticsearch.client.RestClient;
 
 import javax.sql.DataSource;
 import java.util.Collection;
@@ -31,7 +31,6 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 public class AiApplication {
-    private final RestClient embeddingStore;
     private final Function<String, Tools> toolsMap;
     private final Function<Class<? extends ServiceIntercept>, Collection<ServiceIntercept>> interceptMap;
     private final DAOProvider daoProvider;
@@ -65,6 +64,7 @@ public class AiApplication {
     private final AiMemoryErrorMapper aiMemoryErrorMapper;
     private final AiMemoryMstateMapper aiMemoryMstateMapper;
 
+    private final EmbeddingModelPool embeddingModelPool;
     private final AccessUserService accessUserService;
     private final LlmJsonSchemaApiService llmJsonSchemaApiService;
     private final KnnApiService knnApiService;
@@ -91,26 +91,25 @@ public class AiApplication {
     private final AiVariablesService aiVariablesService;
 
     public AiApplication(DataSource dataSource,
-                         RestClient embeddingStore,
+                         KnnApiService knnApiService,
                          Function<String, Tools> toolsMap,
                          Function<Class<? extends ServiceIntercept>, Collection<ServiceIntercept>> interceptMap) {
-        this(null, new Mybatis3DAOProvider(dataSource), embeddingStore, toolsMap, interceptMap);
+        this(null, new Mybatis3DAOProvider(dataSource), knnApiService, toolsMap, interceptMap);
     }
 
     public AiApplication(Executor functionCallThreadPool,
                          DataSource dataSource,
-                         RestClient embeddingStore,
+                         KnnApiService knnApiService,
                          Function<String, Tools> toolsMap,
                          Function<Class<? extends ServiceIntercept>, Collection<ServiceIntercept>> interceptMap) {
-        this(functionCallThreadPool, new Mybatis3DAOProvider(dataSource), embeddingStore, toolsMap, interceptMap);
+        this(functionCallThreadPool, new Mybatis3DAOProvider(dataSource), knnApiService, toolsMap, interceptMap);
     }
 
     public AiApplication(Executor functionCallThreadPool,
                          DAOProvider daoProvider,
-                         RestClient embeddingStore,
+                         KnnApiService knnApiService,
                          Function<String, Tools> toolsMap,
                          Function<Class<? extends ServiceIntercept>, Collection<ServiceIntercept>> interceptMap) {
-        this.embeddingStore = embeddingStore;
         this.toolsMap = toolsMap;
         this.interceptMap = interceptMap;
         this.daoProvider = daoProvider;
@@ -144,11 +143,12 @@ public class AiApplication {
         this.aiMemorySearchDocMapper = daoProvider.getMapper(AiMemorySearchDocMapper.class);
         this.aiMemorySearchMapper = daoProvider.getMapper(AiMemorySearchMapper.class);
 
+        this.embeddingModelPool = new EmbeddingModelPool(aiEmbeddingMapper);
         this.aiToolService = new AiToolServiceImpl(aiToolMapper, aiToolParameterMapper, toolsMap);
         this.llmJsonSchemaApiService = new LlmJsonSchemaApiService(aiJsonschemaMapper, aiToolService);
         this.actingService = new ActingService(llmJsonSchemaApiService);
         this.reasoningService = new ReasoningService(llmJsonSchemaApiService);
-        this.knnApiService = new KnnApiService(embeddingStore, aiEmbeddingMapper);
+        this.knnApiService = knnApiService;
         this.aiQuestionClassifyService = new AiQuestionClassifyService(aiQuestionClassifyMapper, aiQuestionClassifyAssistantMapper, llmJsonSchemaApiService);
         this.knSettingWebsearchBlacklistServiceImpl = new KnSettingWebsearchBlacklistServiceImpl(knSettingWebsearchBlacklistMapper);
         this.aiMemoryService = new AiMemoryServiceImpl(aiMemoryMapper);
@@ -167,7 +167,7 @@ public class AiApplication {
         this.aiMemorySearchService = new AiMemorySearchServiceImpl(aiMemorySearchMapper, aiMemorySearchDocMapper);
 
         this.aiVariablesService = new AiVariablesService(aiMemoryMstateService, aiVariablesMapper, getServiceInterceptSupplier(AiVariablesServiceIntercept.class, interceptMap));
-        this.llmTextApiService = new LlmTextApiService(llmJsonSchemaApiService, aiQuestionClassifyService, aiJsonschemaMapper, aiAssistantFewshotMapper, aiToolService, aiVariablesService, knnApiService, actingService, reasoningService, knSettingWebsearchBlacklistServiceImpl,
+        this.llmTextApiService = new LlmTextApiService(embeddingModelPool,llmJsonSchemaApiService, aiQuestionClassifyService, aiJsonschemaMapper, aiAssistantFewshotMapper, aiToolService, aiVariablesService, this.knnApiService, actingService, reasoningService, knSettingWebsearchBlacklistServiceImpl,
                 functionCallThreadPool, getServiceInterceptSupplier(LlmTextApiServiceIntercept.class, interceptMap));
     }
 
@@ -181,8 +181,12 @@ public class AiApplication {
         };
     }
 
-    public RestClient getEmbeddingStore() {
-        return embeddingStore;
+    public AiJsonschemaMapper getAiJsonschemaMapper() {
+        return aiJsonschemaMapper;
+    }
+
+    public EmbeddingModelPool getEmbeddingModelPool() {
+        return embeddingModelPool;
     }
 
     public Function<String, Tools> getToolsMap() {
@@ -259,10 +263,6 @@ public class AiApplication {
 
     public AiAssistantFewshotMapper getAiAssistantFewshotMapper() {
         return aiAssistantFewshotMapper;
-    }
-
-    public AiJsonschemaMapper getAiAssistantJsonschemaMapper() {
-        return aiJsonschemaMapper;
     }
 
     public AiAssistantKnMapper getAiAssistantKnMapper() {
@@ -403,11 +403,17 @@ public class AiApplication {
 
     public JdbcSessionMessageRepository newJdbcSessionMessageRepository(ChatQueryReq chatQueryRequest,
                                                                         MemoryIdVO memoryId, AiAccessUserVO user) {
+        return newJdbcSessionMessageRepository(chatQueryRequest, memoryId, user, true);
+    }
+
+    public JdbcSessionMessageRepository newJdbcSessionMessageRepository(ChatQueryReq chatQueryRequest,
+                                                                        MemoryIdVO memoryId, AiAccessUserVO user,
+                                                                        boolean retainFunctionCall) {
         return new JdbcSessionMessageRepository(chatQueryRequest, memoryId, user,
                 aiAssistantMstateMapper,
                 aiMemoryMessageService, aiChatHistoryService,
                 llmJsonSchemaApiService, aiMemoryMstateService,
                 aiChatReasoningService, aiChatWebsearchService,
-                aiMemoryErrorService, aiChatClassifyService, aiMemorySearchService);
+                aiMemoryErrorService, aiChatClassifyService, aiMemorySearchService, retainFunctionCall);
     }
 }
