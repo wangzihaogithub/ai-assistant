@@ -55,7 +55,7 @@ public class AiToolServiceImpl {
 
     public List<Tools.ToolMethod> selectToolMethodList(Collection<? extends Serializable> ids) throws ToolCreateException {
         if (ids == null || ids.isEmpty()) {
-            return Collections.emptyList();
+            return new ArrayList<>();
         }
         Map<String, Tools.ToolMethod> result = new HashMap<>();
         Map<Integer, Map<String, AiToolParameter>> parameters = new LinkedHashMap<>();

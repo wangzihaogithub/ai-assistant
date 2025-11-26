@@ -146,7 +146,7 @@ public class AiVariablesService {
             variables = intercept.afterAiVariables(variables, currentUser, historyList, lastQuestion, memoryId, websearch);
         }
         if (responseHandler != null) {
-            variables = responseHandler.onBeforeUsedVariables(variables, currentUser, historyList, lastQuestion, memoryId, websearch);
+            variables = responseHandler.onAfterSelectVariables(variables, currentUser, historyList, lastQuestion, memoryId, websearch);
         }
         return variables;
     }

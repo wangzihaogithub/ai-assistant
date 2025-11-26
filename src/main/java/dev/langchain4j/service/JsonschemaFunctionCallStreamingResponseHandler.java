@@ -14,6 +14,7 @@ import dev.langchain4j.model.output.Response;
 
 import java.util.List;
 import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Jsonschema工具调用
@@ -27,14 +28,14 @@ class JsonschemaFunctionCallStreamingResponseHandler extends FunctionCallStreami
                                                    LlmJsonSchemaApiService llmJsonSchemaApiService,
                                                    List<Tools.ToolMethod> toolMethodList,
                                                    boolean isSupportChineseToolName,
-                                                   int baseMessageIndex, int addMessageCount, Long readTimeoutMs,
+                                                   int baseMessageIndex, AtomicInteger addMessageCount, Long readTimeoutMs,
                                                    QuestionClassifyListVO classifyListVO,
                                                    Boolean websearch,
                                                    Boolean reasoning,
                                                    Executor executor,
                                                    Class<?> jsonschemaClass) {
         super(modelName, chatModel, chatMemory, handler, llmJsonSchemaApiService,
-                toolMethodList, isSupportChineseToolName, baseMessageIndex, addMessageCount, readTimeoutMs, classifyListVO, websearch, reasoning, executor);
+                toolMethodList, isSupportChineseToolName, baseMessageIndex, addMessageCount, readTimeoutMs, classifyListVO, websearch, reasoning, executor, null);
         this.jsonschemaClass = jsonschemaClass;
     }
 

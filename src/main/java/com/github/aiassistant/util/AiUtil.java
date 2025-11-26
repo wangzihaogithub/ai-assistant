@@ -49,7 +49,7 @@ public class AiUtil {
 
     public static List<Tools.ToolMethod> initTool(List<Tools.ToolMethod> toolMethodList, AiVariablesVO variables, AiAccessUserVO user) {
         boolean websearch = Optional.ofNullable(variables).map(AiVariablesVO::getRequest).map(AiVariablesVO.Request::getWebsearch).orElse(true);
-        List<Tools.ToolMethod> resultList = new ArrayList<>();
+        List<Tools.ToolMethod> resultList = new ArrayList<>(toolMethodList.size());
         for (Tools.ToolMethod toolMethod : toolMethodList) {
             Tools tool = toolMethod.tool();
             // 过滤联网

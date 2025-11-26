@@ -1,20 +1,19 @@
 package com.github.aiassistant.util;
 
 import com.github.aiassistant.entity.model.chat.*;
+import com.github.aiassistant.entity.model.user.AiAccessUserVO;
 import com.github.aiassistant.enums.AiWebSearchSourceEnum;
 import com.github.aiassistant.enums.UserTriggerEventEnum;
 import com.github.aiassistant.service.jsonschema.ReasoningJsonSchema;
 import com.github.aiassistant.service.text.ChatStreamingResponseHandler;
+import com.github.aiassistant.service.text.RequestBuilder;
 import com.github.aiassistant.service.text.acting.ActingService;
 import com.github.aiassistant.service.text.embedding.KnnResponseListenerFuture;
 import com.github.aiassistant.service.text.sseemitter.AiMessageString;
 import com.github.aiassistant.service.text.sseemitter.SseHttpResponse;
 import com.github.aiassistant.service.text.tools.functioncall.UrlReadTools;
 import dev.langchain4j.agent.tool.ToolExecutionRequest;
-import dev.langchain4j.data.message.AiMessage;
-import dev.langchain4j.data.message.SystemMessage;
-import dev.langchain4j.data.message.ToolExecutionResultMessage;
-import dev.langchain4j.data.message.UserMessage;
+import dev.langchain4j.data.message.*;
 import dev.langchain4j.model.openai.AudioChunk;
 import dev.langchain4j.model.output.Response;
 
@@ -34,6 +33,24 @@ public class MergeChatStreamingResponseHandler implements ChatStreamingResponseH
     public ChatStreamingResponseHandler getUserHandler() {
         return userHandler;
     }
+
+    @Override
+    public AiVariablesVO onAfterSelectVariables(AiVariablesVO variables, AiAccessUserVO currentUser, List<ChatMessage> historyList, String lastQuestion, MemoryIdVO memoryId, Boolean websearch) {
+        return getUserHandler().onAfterSelectVariables(variables, currentUser, historyList, lastQuestion, memoryId, websearch);
+    }
+
+    @Override
+    public List<ChatMessage> onAfterSelectHistoryList(List<ChatMessage> repositoryHistoryList, AiAccessUserVO user, MemoryIdVO memoryId, Boolean websearch, Boolean reasoning, String question) {
+        return getUserHandler().onAfterSelectHistoryList(repositoryHistoryList, user, memoryId, websearch, reasoning, question);
+    }
+
+    @Override
+    public void onBeforeBuildRequest(RequestBuilder requestBuilder, List<ChatMessage> historyList, AiAccessUserVO user, AiVariablesVO variables, MemoryIdVO memoryId, Boolean websearch, Boolean reasoning, String question) {
+        for (ChatStreamingResponseHandler h : list) {
+            h.onBeforeBuildRequest(requestBuilder, historyList, user, variables, memoryId, websearch, reasoning, question);
+        }
+    }
+
 
     @Override
     public void onAudio(AudioChunk audioChunk) {
@@ -264,5 +281,9 @@ public class MergeChatStreamingResponseHandler implements ChatStreamingResponseH
         for (ChatStreamingResponseHandler h : list) {
             h.onBeforeQuestionLlm(question);
         }
+    }
+
+    public List<ChatStreamingResponseHandler> list() {
+        return list;
     }
 }

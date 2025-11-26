@@ -38,11 +38,11 @@ import java.io.InputStream;
 import java.lang.reflect.*;
 import java.util.*;
 import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 import static dev.langchain4j.exception.IllegalConfigurationException.illegalConfiguration;
 import static dev.langchain4j.internal.Exceptions.illegalArgument;
-import static dev.langchain4j.internal.Utils.isNotNullOrBlank;
 import static dev.langchain4j.internal.ValidationUtils.ensureNotEmpty;
 import static dev.langchain4j.internal.ValidationUtils.ensureNotNull;
 import static dev.langchain4j.spi.ServiceHelper.loadFactories;
@@ -592,7 +592,7 @@ public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
                     null,
                     toolMethodList,
                     isSupportChineseToolName,
-                    0, 0, null,
+                    0, new AtomicInteger(), null,
                     classifyListVO, websearch, reasoning, executor, context.aiServiceClass);
 
             if (contentsHandler != null && retrievedContents != null) {
@@ -600,17 +600,17 @@ public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
             }
             handler.generate((handler1, request) -> {
                 // JsonSchema默认不开启思考
-                request.setEnableThinking(false);
+                request.clone().getOptions().setEnableThinking(Boolean.FALSE);
                 if (proxy instanceof JsonSchemaApi) {
                     JsonSchemaApi api = (JsonSchemaApi) proxy;
-                    request.setJsonSchema(api.getJsonSchema());
+                    request.getOptions().setJsonSchema(api.getJsonSchema());
                     api.config(handler1, request);
                 }
             });
         }
 
         private void validateConfiguration() {
-            if (onNextInvoked != 1) {
+            if (onNextInvoked > 1) {
                 throw new IllegalConfigurationException("onNext must be invoked exactly 1 time");
             }
 
@@ -706,17 +706,6 @@ public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
                 }
             }
             throw new IllegalStateException("Can't find suitable TokenStreamAdapter");
-        }
-
-        private UserMessage appendOutputFormatInstructions(Type returnType, UserMessage userMessage) {
-            String outputFormatInstructions = serviceOutputParser.outputFormatInstructions(returnType);
-            String text = userMessage.singleText() + outputFormatInstructions;
-            if (isNotNullOrBlank(userMessage.name())) {
-                userMessage = UserMessage.from(userMessage.name(), text);
-            } else {
-                userMessage = UserMessage.from(text);
-            }
-            return userMessage;
         }
 
     }

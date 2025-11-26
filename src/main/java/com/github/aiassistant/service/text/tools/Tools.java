@@ -149,6 +149,10 @@ public abstract class Tools {
             return parameterDefaultValueMap;
         }
 
+        public String description() {
+            return toolSpecification.description();
+        }
+
         public ToolSpecification toRequest(boolean isSupportChineseToolName) {
             if (isSupportChineseToolName) {
                 return toolSpecification;

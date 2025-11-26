@@ -78,6 +78,7 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
     private final Boolean websearch;
     private final Boolean reasoning;
     private final AtomicBoolean generate = new AtomicBoolean(false);
+    private final GenerateRequest.Options options;
     /**
      * 供应商支持的接口参数
      */
@@ -102,12 +103,13 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
                                                 List<Tools.ToolMethod> toolMethodList,
                                                 boolean isSupportChineseToolName,
                                                 int baseMessageIndex,
-                                                int addMessageCount,
+                                                AtomicInteger addMessageCount,
                                                 Long readTimeoutMs,
                                                 QuestionClassifyListVO classifyListVO,
                                                 Boolean websearch,
                                                 Boolean reasoning,
-                                                Executor executor) {
+                                                Executor executor,
+                                                GenerateRequest.Options options) {
         this.readTimeoutMs = readTimeoutMs;
         this.modelName = modelName;
         for (Tools.ToolMethod toolMethod : toolMethodList) {
@@ -126,8 +128,9 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
         this.classifyListVO = classifyListVO;
         this.websearch = websearch;
         this.reasoning = reasoning;
-        this.addMessageCount = new AtomicInteger(addMessageCount);
+        this.addMessageCount = addMessageCount;
         this.generateRemaining = MAX_GENERATE_COUNT;
+        this.options = options;
     }
 
     protected FunctionCallStreamingResponseHandler(FunctionCallStreamingResponseHandler parent) {
@@ -151,6 +154,7 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
         this.validationResult = parent.validationResult;
         this.lastResponse = parent.lastResponse;
         this.beforeRequestConsumer = parent.beforeRequestConsumer;
+        this.options = parent.request.getOptions();
     }
 
     /**
@@ -574,8 +578,8 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
                         toolMethodList.stream().map(e -> e.toRequest(isSupportChineseToolName)).collect(Collectors.toList())
                 );
                 // 继承上一次请求的参数
-                if (parent != null && parent.request != null) {
-                    GenerateRequest.copyTo(parent.request, request);
+                if (options != null) {
+                    GenerateRequest.copyTo(options, request.getOptions());
                 }
 
                 // 用户可以自定义填充参数
@@ -793,6 +797,12 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
         }
 
         private void write0(AiMessageString messageString) {
+            if (handler.isDone()) {
+                if (log.isWarnEnabled()) {
+                    log.warn("FunctionCallStreamingResponseHandler has been closed, write: {}", messageString);
+                }
+                return;
+            }
             if (messageString == null || messageString.isEmpty()) {
                 return;
             }
@@ -833,6 +843,12 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
                 throw new IllegalStateException("close() has already been called");
             }
             flush();
+            if (handler.isDone()) {
+                if (log.isWarnEnabled()) {
+                    log.warn("FunctionCallStreamingResponseHandler has been closed");
+                }
+                return;
+            }
             if (tokenEnd == null && chatStringBuilder.length() > 0) {
                 AiMessage aiMessage = new AiMessage(chatStringBuilder.toString());
                 TokenUsage tokenUsage;

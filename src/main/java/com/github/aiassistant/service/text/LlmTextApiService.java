@@ -46,7 +46,9 @@ import org.slf4j.LoggerFactory;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -93,6 +95,7 @@ public class LlmTextApiService {
      * 每个智能体的聊天模型并发数量
      */
     private final int clientModelInstanceCount = 5;
+    private final AtomicInteger modelIndex = new AtomicInteger();
     /**
      * 最大联网兜底条数
      */
@@ -282,8 +285,9 @@ public class LlmTextApiService {
             Collection<LlmTextApiServiceIntercept> intercepts = interceptList.get();
 
             // 历史记录
-            List<ChatMessage> historyList = interceptHistoryList(repository.getHistoryList(),
+            List<ChatMessage> repositoryHistoryList = interceptHistoryList(repository.getHistoryList(),
                     user, memoryId, websearch, reasoning, responseHandler, question, intercepts);
+            List<ChatMessage> historyList = responseHandler.onAfterSelectHistoryList(repositoryHistoryList, user, memoryId, websearch, reasoning, question);
 
             int baseMessageIndex = historyList.size();//起始消息下标
             int addMessageCount = 1;// 为什么是1？因为第0个是内置的SystemMessage，所以至少要有一个。
@@ -438,10 +442,10 @@ public class LlmTextApiService {
                         responseHandler.onKnowledge(qaKnVOList, lastQuestion);
 
                         // ToolCallStreamingResponseHandler
-                        FunctionCallStreamingResponseHandler handler;
+                        CompletableFuture<FunctionCallStreamingResponseHandler> h;
                         try {
                             // 构造出支持工具调用的回调函数(对接底层模型)
-                            handler = newFunctionCallStreamingResponseHandler(
+                            h = newFunctionCallStreamingResponseHandler(
                                     classifyListVO,
                                     assistantConfig,
                                     mstatePromptText,
@@ -467,32 +471,43 @@ public class LlmTextApiService {
                             responseHandler.onError(e, baseMessageIndex, addMessageCount, 0);
                             return;
                         }
-                        // 完毕前
-                        responseHandler.onBeforeQuestionLlm(lastQuestion);
-                        // 无法回答
-                        if (classifyListVO.isWfhd()) {
-                            SseHttpResponse response = handler.toResponse();
-                            responseHandler.onBlacklistQuestion(response, lastQuestion, classifyListVO);
-                            if (response.isEmpty()) {
-                                DataInspectionFailedException inspectionFailedException = new DataInspectionFailedException(
-                                        String.format("无法回答问题'%s', '%s'", lastQuestion, classifyListVO), lastQuestion, classifyListVO);
-                                handlerFuture.completeExceptionally(inspectionFailedException);
-                                responseHandler.onError(inspectionFailedException, baseMessageIndex, addMessageCount, 0);
-                                return;
-                            }
-                        }
-                        CompletableFuture<Void> interruptAfter = null;
-                        if (interceptRepository != null) {
-                            interruptAfter = interceptRepository.apply(handler);
-                        } else if (interceptQuestion != null) {
-                            interruptAfter = interceptQuestion.apply(handler);
-                        }
-                        // 构建完毕
-                        if (interruptAfter != null) {
-                            interruptAfter.thenAccept(unused1 -> handlerFuture.complete(handler));
-                        } else {
-                            handlerFuture.complete(handler);
-                        }
+                        h.thenAccept(new Consumer<FunctionCallStreamingResponseHandler>() {
+                                    @Override
+                                    public void accept(FunctionCallStreamingResponseHandler handler) {
+                                        // 完毕前
+                                        responseHandler.onBeforeQuestionLlm(lastQuestion);
+                                        // 无法回答
+                                        if (classifyListVO.isWfhd()) {
+                                            SseHttpResponse response = handler.toResponse();
+                                            responseHandler.onBlacklistQuestion(response, lastQuestion, classifyListVO);
+                                            if (response.isEmpty()) {
+                                                DataInspectionFailedException inspectionFailedException = new DataInspectionFailedException(
+                                                        String.format("无法回答问题'%s', '%s'", lastQuestion, classifyListVO), lastQuestion, classifyListVO);
+                                                handlerFuture.completeExceptionally(inspectionFailedException);
+                                                responseHandler.onError(inspectionFailedException, baseMessageIndex, addMessageCount, 0);
+                                                return;
+                                            }
+                                        }
+                                        CompletableFuture<Void> interruptAfter = null;
+                                        if (interceptRepository != null) {
+                                            interruptAfter = interceptRepository.apply(handler);
+                                        } else if (interceptQuestion != null) {
+                                            interruptAfter = interceptQuestion.apply(handler);
+                                        }
+                                        // 构建完毕
+                                        if (interruptAfter != null) {
+                                            interruptAfter.thenAccept(unused1 -> handlerFuture.complete(handler));
+                                        } else {
+                                            handlerFuture.complete(handler);
+                                        }
+                                    }
+                                })
+                                .exceptionally(throwable -> {
+                                    handlerFuture.completeExceptionally(throwable);
+                                    responseHandler.onError(throwable, baseMessageIndex, addMessageCount, 0);
+                                    return null;
+                                });
+
                     })
                     .exceptionally(throwable -> {
                         handlerFuture.completeExceptionally(throwable);
@@ -603,7 +618,7 @@ public class LlmTextApiService {
      * @throws ToolCreateException       工具创建异常
      * @throws JsonSchemaCreateException JsonSchema创建出现错误
      */
-    private FunctionCallStreamingResponseHandler newFunctionCallStreamingResponseHandler(
+    private CompletableFuture<FunctionCallStreamingResponseHandler> newFunctionCallStreamingResponseHandler(
             QuestionClassifyListVO classifyListVO,
             AssistantConfig assistantConfig,
             String mstatePromptText,
@@ -649,32 +664,25 @@ public class LlmTextApiService {
 
         // 合并消息请求大模型
         List<ChatMessage> questionList = mergeMessageList(userMessage, knowledge, mstate);
-        List<ChatMessage> useQuestionList = responseHandler.onBeforeUsedMessageList(questionList, user, variables, memoryId, websearch, reasoning, question);
-        int addMessageCount = useQuestionList.size() + rootAddMessageCount;
-        useQuestionList.forEach(chatMemory::add);
-
-        // 插入用户的提问
-        if (repository != null) {
-            repository.addUserQuestion(useQuestionList).exceptionally(throwable -> {
-                // 插入失败，返回错误消息
-                responseHandler.onError(throwable, baseMessageIndex, addMessageCount, 0);
-                return null;
-            });
-        }
-
-        // 获取模型
-        AiModelVO aiModel = memoryId.indexAt(getModels(assistantConfig));
         // 可用工具集
         List<Tools.ToolMethod> toolMethodList = AiUtil.initTool(aiToolService.selectToolMethodList(StringUtils.split(assistantConfig.getAiToolIds(), ",")), variables, user);
+
+        AtomicInteger addMessageCount = new AtomicInteger();
+
+        // 获取模型
+        AiModelVO[] models = getModels(assistantConfig);
+        AiModelVO model = models[modelIndex.getAndIncrement() % models.length];
+
         // 构造出支持工具调用的回调函数(对接底层模型) 处理异步回调
-        return new FunctionCallStreamingResponseHandler(
+        GenerateRequest.Options options = new GenerateRequest.Options();
+        FunctionCallStreamingResponseHandler handler = new FunctionCallStreamingResponseHandler(
                 // 模型名称，流模型，聊天记忆，业务回调钩子
-                aiModel.modelName, aiModel.streaming, chatMemory, responseHandler,
+                model.modelName, model.streaming, chatMemory, responseHandler,
                 llmJsonSchemaApiService,
                 // 工具集合，
                 toolMethodList,
                 // 是否支持中文工具名称（因为deepseek仅支持英文名称）
-                aiModel.isSupportChineseToolName(),
+                model.isSupportChineseToolName(),
                 // 消息下标
                 baseMessageIndex, addMessageCount,
                 // 读取超时时间
@@ -687,7 +695,33 @@ public class LlmTextApiService {
                 reasoning,
                 // 切换新线程，用于退出Okhttp的事件循环线程，
                 // 防止在Okhttp的AI回复后，仍需要再次请求。这样会导致事件循环线程中又触发调用，导致阻塞父事件循环。
-                functionCallingThreadPool);
+                functionCallingThreadPool, options);
+
+        CompletableFuture<FunctionCallStreamingResponseHandler> future = new CompletableFuture<>();
+        Runnable complete = () -> {
+            addMessageCount.set(questionList.size() + rootAddMessageCount);
+            questionList.forEach(chatMemory::add);
+
+            // 插入用户的提问
+            if (repository != null) {
+                repository.addUserQuestion(questionList).exceptionally(throwable -> {
+                    // 插入失败，返回错误消息
+                    responseHandler.onError(throwable, baseMessageIndex, addMessageCount.intValue(), 0);
+                    return null;
+                });
+            }
+            future.complete(handler);
+        };
+        RequestBuilder requestBuilder = new RequestBuilder(questionList, toolMethodList, options) {
+            @Override
+            public void complete() {
+                complete.run();
+            }
+        };
+        // 构建请求前，回调函数
+        responseHandler.onBeforeBuildRequest(requestBuilder,
+                Collections.unmodifiableList(historyList), user, variables, memoryId, websearch, reasoning, question);
+        return future;
     }
 
     /**

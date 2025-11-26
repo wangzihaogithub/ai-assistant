@@ -95,13 +95,6 @@ public class MemoryIdVO implements Cloneable {
         return assistantKnMap.getOrDefault(name.getCode(), Collections.emptyList());
     }
 
-    public <T> T indexAt(T[] arrays) {
-        if (aiChat == null) {
-            return arrays[0];
-        }
-        return arrays[getChatId() % arrays.length];
-    }
-
     public Integer getMemoryId() {
         if (aiChat == null) {
             return null;

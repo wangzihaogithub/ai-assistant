@@ -301,31 +301,33 @@ public class OpenAiChatClient {
         }
         List<ChatMessage> messages = request.getMessageList();
         List<ToolSpecification> toolSpecifications = request.getToolSpecificationList();
+        GenerateRequest.Options options = request.getOptions();
+
+        Integer seed = options.getSeed();
+        Integer n = options.getN();
+        Double topP = options.getTopP();
+        Integer topK = options.getTopK();
+        Boolean enableCodeInterpreter = options.getEnableCodeInterpreter();
+        Boolean partialMode = options.getPartialMode();
+        Boolean vlHighResolutionImages = options.getVlHighResolutionImages();
+        Double presencePenalty = options.getPresencePenalty();
+        String dashScopeDataInspection = options.getDashScopeDataInspection();
+        Boolean parallelToolCalls = options.getParallelToolCalls();
 
         ChatCompletionRequest.Builder builder = requestBuilder.get();
-        Integer seed = request.getSeed();
-        Integer n = request.getN();
-        Double topP = request.getTopP();
-        Integer topK = request.getTopK();
-        Boolean enableCodeInterpreter = request.getEnableCodeInterpreter();
-        Boolean partialMode = request.getPartialMode();
-        Boolean vlHighResolutionImages = request.getVlHighResolutionImages();
-        Double presencePenalty = request.getPresencePenalty();
-        String dashScopeDataInspection = request.getDashScopeDataInspection();
-        Boolean parallelToolCalls = request.getParallelToolCalls();
         if (parallelToolCalls != null) {
             builder.parallelToolCalls(parallelToolCalls);
         }
-        Double temperature = request.getTemperature();
+        Double temperature = options.getTemperature();
         if (temperature != null) {
             builder.temperature(temperature);
         }
-        builder.enableSearch(request.getEnableSearch());
-        builder.searchOptions(request.getSearchOptions());
-        builder.enableThinking(request.getEnableThinking());
-        builder.thinkingBudget(request.getThinkingBudget());
-        builder.modalities(request.getModalities());
-        builder.audio(request.getAudio());
+        builder.enableSearch(options.getEnableSearch());
+        builder.searchOptions(options.getSearchOptions());
+        builder.enableThinking(options.getEnableThinking());
+        builder.thinkingBudget(options.getThinkingBudget());
+        builder.modalities(options.getModalities());
+        builder.audio(options.getAudio());
         builder.messages(toOpenAiMessages(messages, partialMode));
         if (seed != null) {
             builder.seed(seed);
@@ -349,7 +351,7 @@ public class OpenAiChatClient {
             builder.presencePenalty(presencePenalty);
         }
         if (toolSpecifications != null && !toolSpecifications.isEmpty()) {
-            if (Boolean.TRUE.equals(request.getToolChoiceRequired())) {
+            if (Boolean.TRUE.equals(options.getToolChoiceRequired())) {
                 ToolSpecification first = toolSpecifications.iterator().next();
                 builder.toolChoice(toTool(first, strictTools));
                 builder.tools(toTools(Collections.singletonList(first), strictTools));
@@ -367,7 +369,7 @@ public class OpenAiChatClient {
             jsonSchema = null;
         } else if (responseFormat == ResponseFormatType.JSON_SCHEMA) {
             openAiResponseFormatType = dev.langchain4j.model.chat.request.ResponseFormatType.JSON;
-            jsonSchema = request.getJsonSchema();
+            jsonSchema = options.getJsonSchema();
         } else if (responseFormat == ResponseFormatType.TEXT) {
             openAiResponseFormatType = dev.langchain4j.model.chat.request.ResponseFormatType.TEXT;
             jsonSchema = null;

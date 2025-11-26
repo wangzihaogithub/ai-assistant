@@ -32,20 +32,25 @@ public interface ChatStreamingResponseHandler {
         return this;
     }
 
-    default List<ChatMessage> onBeforeUsedMessageList(
-            List<ChatMessage> messageList,
-            AiAccessUserVO user,
-            AiVariablesVO variables,
-            MemoryIdVO memoryId,
-            Boolean websearch,
-            Boolean reasoning,
-            String question) {
-        return messageList;
+    /**
+     * 构建请求前调用,完成后必须调用 {@link RequestBuilder#complete()} 方法
+     *
+     * @param requestBuilder 请求构建器
+     * @param historyList    历史消息列表
+     * @param user           当前用户
+     * @param variables      变量
+     * @param memoryId       内存ID
+     * @param websearch      是否开启联网搜索
+     * @param reasoning      是否开启推理
+     * @param question       问题
+     */
+    default void onBeforeBuildRequest(RequestBuilder requestBuilder, List<ChatMessage> historyList, AiAccessUserVO user, AiVariablesVO variables, MemoryIdVO memoryId, Boolean websearch, Boolean reasoning, String question) {
+        requestBuilder.complete();
     }
 
-    default AiVariablesVO onBeforeUsedVariables(AiVariablesVO variables,
-                                                AiAccessUserVO currentUser, List<ChatMessage> historyList,
-                                                String lastQuestion, MemoryIdVO memoryId, Boolean websearch) {
+    default AiVariablesVO onAfterSelectVariables(AiVariablesVO variables,
+                                                 AiAccessUserVO currentUser, List<ChatMessage> historyList,
+                                                 String lastQuestion, MemoryIdVO memoryId, Boolean websearch) {
 //        // 员工
 //        setterEmployees(variables.getEmployees()); // 学生
 //        setterStudent(variables.getStudent(), currentUser);      // 竞争对手
@@ -185,4 +190,7 @@ public interface ChatStreamingResponseHandler {
         return new ResponseHandlerWebSearchEventListener(this, sourceEnum);
     }
 
+    default List<ChatMessage> onAfterSelectHistoryList(List<ChatMessage> repositoryHistoryList, AiAccessUserVO user, MemoryIdVO memoryId, Boolean websearch, Boolean reasoning, String question) {
+        return repositoryHistoryList;
+    }
 }

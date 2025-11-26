@@ -144,7 +144,7 @@ public class AccessUserService {
 
     /**
      * 获取用户ID
-     *
+     * @param <T> 用户ID类型
      * @return 用户ID
      */
     public <T extends Serializable> T getCurrentUserId() {
@@ -159,7 +159,7 @@ public class AccessUserService {
 
     /**
      * 获取用户
-     *
+     * @param <T> 用户类型
      * @return 用户
      */
     public <T extends AiAccessUserVO> T getCurrentUser() {
