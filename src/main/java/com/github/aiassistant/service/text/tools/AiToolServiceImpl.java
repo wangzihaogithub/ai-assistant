@@ -5,9 +5,11 @@ import com.github.aiassistant.dao.AiToolParameterMapper;
 import com.github.aiassistant.entity.AiTool;
 import com.github.aiassistant.entity.AiToolParameter;
 import com.github.aiassistant.exception.ToolCreateException;
+import com.github.aiassistant.util.AiUtil;
 import com.github.aiassistant.util.ParameterNamesUtil;
 import com.github.aiassistant.util.StringUtils;
 import dev.langchain4j.agent.tool.*;
+import dev.langchain4j.model.input.Prompt;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,7 +55,7 @@ public class AiToolServiceImpl {
         return toolsMap.apply(toolName);
     }
 
-    public List<Tools.ToolMethod> selectToolMethodList(Collection<? extends Serializable> ids) throws ToolCreateException {
+    public List<Tools.ToolMethod> selectToolMethodList(Collection<? extends Serializable> ids, Map<String, Object> variablesMap) throws ToolCreateException {
         if (ids == null || ids.isEmpty()) {
             return new ArrayList<>();
         }
@@ -87,10 +89,11 @@ public class AiToolServiceImpl {
                 parameterMap.forEach((k, v) -> parameterDefaultValueMap.put(k, v.getDefaultValue()));
             }
 
-            ToolParameters toolParameters = convert(parameterMap, functionMethod, methodParameterNames);
+            ToolParameters toolParameters = convert(parameterMap, functionMethod, methodParameterNames, variablesMap);
+            Prompt descriptionPrompt = AiUtil.toPrompt(aiTool.getToolFunctionDescription(), variablesMap);
             ToolSpecification rewriteToolSpecification = ToolSpecification.builder()
                     .name(toolFunctionName)
-                    .description(aiTool.getToolFunctionDescription())
+                    .description(descriptionPrompt.text())
                     .parameters(toolParameters)
                     .build();
             Tools.ToolMethod toolMethod = new Tools.ToolMethod(tool, rewriteToolSpecification, englishName, methodParameterNames, functionMethod, parameterDefaultValueMap);
@@ -116,7 +119,7 @@ public class AiToolServiceImpl {
         return toolList;
     }
 
-    private ToolParameters convert(Map<String, AiToolParameter> dbParameterMap, Method method, String[] methodParameterNames) {
+    private ToolParameters convert(Map<String, AiToolParameter> dbParameterMap, Method method, String[] methodParameterNames, Map<String, Object> variablesMap) {
         if (dbParameterMap == null || dbParameterMap.isEmpty()) {
             return null;
         }
@@ -125,6 +128,10 @@ public class AiToolServiceImpl {
         Set<String> disabledSet = dbParameterMap.values().stream().filter(e -> !Boolean.TRUE.equals(e.getEnableFlag())).map(AiToolParameter::getParameterEnum).collect(Collectors.toSet());
         Set<String> requiredSet = dbParameterMap.values().stream().filter(e -> Boolean.TRUE.equals(e.getRequiredFlag())).map(AiToolParameter::getParameterEnum).collect(Collectors.toSet());
         Map<String, String> parameterDescriptions = dbParameterMap.values().stream().filter(e -> StringUtils.hasText(e.getParameterDescription())).collect(Collectors.toMap(AiToolParameter::getParameterEnum, AiToolParameter::getParameterDescription));
+        parameterDescriptions.replaceAll((k, v) -> {
+            Prompt prompt = AiUtil.toPrompt(v, variablesMap);
+            return prompt.text();
+        });
         return ToolSpecificationsUtil.toolParameters(method, requiredSet, disabledSet, methodParameterNames, parameterDescriptions, dbAddParamNames);
     }
 }

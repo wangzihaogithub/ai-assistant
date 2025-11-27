@@ -665,7 +665,8 @@ public class LlmTextApiService {
         // 合并消息请求大模型
         List<ChatMessage> questionList = mergeMessageList(userMessage, knowledge, mstate);
         // 可用工具集
-        List<Tools.ToolMethod> toolMethodList = AiUtil.initTool(aiToolService.selectToolMethodList(StringUtils.split(assistantConfig.getAiToolIds(), ",")), variables, user);
+        Map<String, Object> variablesMap = BeanUtil.toMap(variables);
+        List<Tools.ToolMethod> toolMethodList = AiUtil.initTool(aiToolService.selectToolMethodList(StringUtils.split(assistantConfig.getAiToolIds(), ","), variablesMap), variables, user);
 
         AtomicInteger addMessageCount = new AtomicInteger();
 

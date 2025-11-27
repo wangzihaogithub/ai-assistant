@@ -320,7 +320,7 @@ public class LlmJsonSchemaApiService {
 
             String systemPromptText = jsonschema.getSystemPromptText();
             String userPromptText = jsonschema.getUserPromptText();
-            List<Tools.ToolMethod> toolMethodList = AiUtil.initTool(aiToolService.selectToolMethodList(StringUtils.split(jsonschema.getAiToolIds(), ",")), variables, user);
+            List<Tools.ToolMethod> toolMethodList = AiUtil.initTool(aiToolService.selectToolMethodList(StringUtils.split(jsonschema.getAiToolIds(), ","), variablesMap), variables, user);
             AiServices<T> aiServices = new FunctionalInterfaceAiServices<>(new AiServiceContext(type), jsonschema.getId(), jsonschema.getJsonSchemaEnum(), systemPromptText, userPromptText,
                     variablesMap, responseHandler, toolMethodList, aiModel.isSupportChineseToolName(),
                     classifyListVO, websearch, reasoning, aiModel.modelName, memoryIdVO, executor);
