@@ -46,6 +46,7 @@ import org.slf4j.LoggerFactory;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
@@ -713,10 +714,13 @@ public class LlmTextApiService {
             }
             future.complete(handler);
         };
+        AtomicBoolean completed = new AtomicBoolean(false);
         RequestBuilder requestBuilder = new RequestBuilder(questionList, toolMethodList, options) {
             @Override
             public void complete() {
-                complete.run();
+                if (completed.compareAndSet(false, true)) {
+                    complete.run();
+                }
             }
         };
         // 构建请求前，回调函数

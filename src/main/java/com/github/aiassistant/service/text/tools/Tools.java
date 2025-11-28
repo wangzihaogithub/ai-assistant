@@ -2,27 +2,53 @@ package com.github.aiassistant.service.text.tools;
 
 import com.github.aiassistant.entity.model.chat.AiVariablesVO;
 import com.github.aiassistant.entity.model.user.AiAccessUserVO;
+import com.github.aiassistant.platform.JsonUtil;
 import com.github.aiassistant.service.text.ChatStreamingResponseHandler;
+import com.github.aiassistant.util.ThrowableUtil;
+import dev.langchain4j.agent.tool.ToolExecutionRequest;
 import dev.langchain4j.agent.tool.ToolSpecification;
 import dev.langchain4j.data.message.AiMessage;
+import dev.langchain4j.data.message.ChatMessage;
+import dev.langchain4j.data.message.ToolExecutionResultMessage;
 
+import java.io.IOException;
 import java.lang.reflect.Method;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 
 /**
  * 工具库接口
  */
 public abstract class Tools {
 
+    public static final String MOCK_FUNCTION_CALL_ID_PREFIX = "mock_";
     private AiAccessUserVO aiAccessUserVO;
-
     private AiVariablesVO variables;
-
     private ChatStreamingResponseHandler streamingResponseHandler;
-
     private String beanName;
+
+    public static String newMockFunctionCallId() {
+        return MOCK_FUNCTION_CALL_ID_PREFIX + UUID.randomUUID().toString().replaceAll("-", "");
+    }
+
+    public static List<ChatMessage> buildFunctionCallMessage(String functionName, Map<String, Object> arguments, String result) {
+        return buildFunctionCallMessage(newMockFunctionCallId(), functionName, arguments, result);
+    }
+
+    public static List<ChatMessage> buildFunctionCallMessage(String id, String functionName, Map<String, Object> arguments, String result) {
+        try {
+            ToolExecutionRequest toolExecutionRequest = ToolExecutionRequest.builder()
+                    .id(id)
+                    .name(functionName)
+                    .arguments(JsonUtil.objectWriter().writeValueAsString(arguments))
+                    .build();
+            AiMessage aiMessage = new AiMessage(Collections.singletonList(toolExecutionRequest));
+            ToolExecutionResultMessage toolExecutionResultMessage = ToolExecutionResultMessage.from(toolExecutionRequest, result);
+            return Arrays.asList(aiMessage, toolExecutionResultMessage);
+        } catch (IOException e) {
+            ThrowableUtil.sneakyThrows(e);
+            return Collections.emptyList();
+        }
+    }
 
     @Override
     public String toString() {
