@@ -27,7 +27,7 @@ public class ReasoningService {
         if (schema == null) {
             return CompletableFuture.completedFuture(null);
         }
-        return schema.future(question);
+        return schema.parse(question).toJsonFuture(ReasoningJsonSchema.Result.class);
     }
 
 }

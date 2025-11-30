@@ -1,14 +1,9 @@
 package com.github.aiassistant.service.jsonschema;
 
-import com.github.aiassistant.util.AiUtil;
+import dev.langchain4j.service.JsonSchemaTokenStream;
 import dev.langchain4j.service.SystemMessage;
-import dev.langchain4j.service.TokenStream;
 import dev.langchain4j.service.UserMessage;
 import dev.langchain4j.service.V;
-
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 
 /**
  * 记忆状态
@@ -28,11 +23,6 @@ public interface MStateKnownJsonSchema {
             "<userquery>{{chat.query}}</userquery>" +
             "<mstate>{{mstate}}</mstate>" +
             "<mprompt>{{mstateJsonPrompt}}</mprompt>")
-    TokenStream parse(@V("mstateJsonPrompt") String mstateJsonPrompt, @V("mstate") String mstate);
+    JsonSchemaTokenStream parse(@V("mstateJsonPrompt") String mstateJsonPrompt, @V("mstate") String mstate);
 
-    default CompletableFuture<Map<String, Object>> future(String mstateJsonPrompt, String mstate) {
-        TokenStream stream = parse(mstateJsonPrompt, mstate);
-        CompletableFuture future = AiUtil.toFutureJson(stream, LinkedHashMap.class, getClass());
-        return future;
-    }
 }

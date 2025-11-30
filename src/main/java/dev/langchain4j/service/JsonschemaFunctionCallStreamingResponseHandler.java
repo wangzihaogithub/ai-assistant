@@ -4,6 +4,7 @@ import com.github.aiassistant.entity.model.chat.QuestionClassifyListVO;
 import com.github.aiassistant.service.jsonschema.LlmJsonSchemaApiService;
 import com.github.aiassistant.service.text.ChatStreamingResponseHandler;
 import com.github.aiassistant.service.text.FunctionCallStreamingResponseHandler;
+import com.github.aiassistant.service.text.GenerateRequest;
 import com.github.aiassistant.service.text.sseemitter.SseHttpResponse;
 import com.github.aiassistant.service.text.tools.Tools;
 import dev.langchain4j.agent.tool.ToolExecutionRequest;
@@ -33,9 +34,10 @@ class JsonschemaFunctionCallStreamingResponseHandler extends FunctionCallStreami
                                                    Boolean websearch,
                                                    Boolean reasoning,
                                                    Executor executor,
-                                                   Class<?> jsonschemaClass) {
+                                                   Class<?> jsonschemaClass,
+                                                   GenerateRequest.Options options) {
         super(modelName, chatModel, chatMemory, handler, llmJsonSchemaApiService,
-                toolMethodList, isSupportChineseToolName, baseMessageIndex, addMessageCount, readTimeoutMs, classifyListVO, websearch, reasoning, executor, null);
+                toolMethodList, isSupportChineseToolName, baseMessageIndex, addMessageCount, readTimeoutMs, classifyListVO, websearch, reasoning, executor, options);
         this.jsonschemaClass = jsonschemaClass;
     }
 

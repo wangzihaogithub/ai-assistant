@@ -98,7 +98,7 @@ public class AiQuestionClassifyService {
         } else {
             String defineClassifyNames = AiUtil.toArrayJson(classifyList, AiQuestionClassify::getClassifyName);
             String xml = toXml(classifyList);
-            return schema.future(question, defineClassifyNames, xml).thenApply(e -> {
+            return schema.parse(question, defineClassifyNames, xml).toJsonFuture(QuestionClassifySchema.Result.class).thenApply(e -> {
                 result.setClassifyResult(e);
                 // 这个集合的长度一般为1，基本都是只归到一个类型上
                 Collection<QuestionClassifyListVO.ClassifyVO> classifyResultList = result.getClassifyResultList();

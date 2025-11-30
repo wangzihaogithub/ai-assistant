@@ -34,7 +34,7 @@ public class ActingService {
                                                 ChatStreamingResponseHandler responseHandler,
                                                 boolean websearchOnFail) {
         CompletableFuture<Void> f = new CompletableFuture<>();
-        schema.future(curr.task, question, root.toAiTaskListString(), root.toAiString()).thenAccept(result -> {
+        schema.parse(curr.task, question, root.toAiTaskListString(), root.toAiString()).toJsonFuture(ActingJsonSchema.Result.class).thenAccept(result -> {
             curr.result = result;
             CompletableFuture<WebSearchResultVO> webSearchFuture;
             if (result.resolved) {

@@ -6,30 +6,33 @@ import com.github.aiassistant.enums.AiWebSearchSourceEnum;
 import com.github.aiassistant.exception.JsonschemaConfigException;
 import com.github.aiassistant.service.jsonschema.JsonSchemaApi;
 import com.github.aiassistant.service.text.ChatStreamingResponseHandler;
+import com.github.aiassistant.service.text.GenerateRequest;
 import com.github.aiassistant.service.text.sseemitter.AiMessageString;
 import com.github.aiassistant.service.text.tools.Tools;
 import com.github.aiassistant.service.text.tools.functioncall.UrlReadTools;
+import com.github.aiassistant.util.MergeChatStreamingResponseHandler;
 import com.github.aiassistant.util.ReflectUtil;
+import com.github.aiassistant.util.ThrowableUtil;
 import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.UserMessage;
-import dev.langchain4j.exception.IllegalConfigurationException;
 import dev.langchain4j.memory.ChatMemory;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.model.StreamingResponseHandler;
 import dev.langchain4j.model.chat.StreamingChatLanguageModel;
+import dev.langchain4j.model.chat.request.json.JsonSchema;
 import dev.langchain4j.model.input.Prompt;
 import dev.langchain4j.model.input.PromptTemplate;
 import dev.langchain4j.model.input.structured.StructuredPrompt;
 import dev.langchain4j.model.input.structured.StructuredPromptProcessor;
+import dev.langchain4j.model.openai.JsonSchemasString;
 import dev.langchain4j.model.openai.OpenAiChatClient;
 import dev.langchain4j.model.output.Response;
 import dev.langchain4j.rag.AugmentationRequest;
 import dev.langchain4j.rag.AugmentationResult;
 import dev.langchain4j.rag.content.Content;
 import dev.langchain4j.rag.query.Metadata;
-import dev.langchain4j.service.output.ServiceOutputParser;
 import dev.langchain4j.spi.services.TokenStreamAdapter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,13 +46,11 @@ import java.util.function.Consumer;
 
 import static dev.langchain4j.exception.IllegalConfigurationException.illegalConfiguration;
 import static dev.langchain4j.internal.Exceptions.illegalArgument;
-import static dev.langchain4j.internal.ValidationUtils.ensureNotEmpty;
 import static dev.langchain4j.internal.ValidationUtils.ensureNotNull;
 import static dev.langchain4j.spi.ServiceHelper.loadFactories;
 
 public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
     private final Logger log;
-    private final ServiceOutputParser serviceOutputParser = new ServiceOutputParser();
     private final Collection<TokenStreamAdapter> tokenStreamAdapters = loadFactories(TokenStreamAdapter.class);
     private final String systemMessage;
     private final String userMessage;
@@ -300,94 +301,6 @@ public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
         return (T) proxyInstance;
     }
 
-    private Optional<SystemMessage> prepareSystemMessage(Object memoryId, Method method, Object[] args) throws JsonschemaConfigException {
-        Optional<String> template = findSystemMessageTemplate(memoryId, method);
-        try {
-            return template.map(systemMessageTemplate -> PromptTemplate.from(systemMessageTemplate)
-                    .apply(findTemplateVariables(systemMessageTemplate, method, args))
-                    .toSystemMessage());
-        } catch (Exception e) {
-            throw new JsonschemaConfigException(String.format("Jsonschema FunctionalInterfaceAiServices ai_jsonschema[system_prompt_text] config error! ai_jsonschema_id=%s, ai_jsonschema_enum=%s, JavaClass=%s, detail:%s", jsonschemaId, jsonSchemaEnum, context.aiServiceClass.getSimpleName(), e.toString()), e, context.aiServiceClass);
-        }
-    }
-
-    private Optional<String> findSystemMessageTemplate(Object memoryId, Method method) {
-        // wangzihao 12-09 增加支持systemMessage从数据库读取 systemMessage != null && !systemMessage.isEmpty()
-        if (systemMessage != null && !systemMessage.isEmpty()) {
-            return Optional.of(systemMessage);
-        }
-        dev.langchain4j.service.SystemMessage annotation = method.getAnnotation(dev.langchain4j.service.SystemMessage.class);
-        if (annotation != null) {
-            return Optional.of(getTemplate(method, "System", annotation.fromResource(), annotation.value(), annotation.delimiter()));
-        }
-
-        return context.systemMessageProvider.apply(memoryId);
-    }
-
-    private Map<String, Object> findTemplateVariables(String template, Method method, Object[] args) {
-        Parameter[] parameters = method.getParameters();
-
-        // wangzihao 12-09 增加支持内置变量 new HashMap<>(this.variables);
-        Map<String, Object> variables = new HashMap<>(this.variables);
-        for (int i = 0; i < parameters.length; i++) {
-            String variableName = getVariableName(parameters[i]);
-            Object variableValue = args[i];
-            variables.put(variableName, variableValue);
-        }
-
-        if (template.contains("{{it}}") && !variables.containsKey("it")) {
-            String itValue = getValueOfVariableIt(parameters, args);
-            variables.put("it", itValue);
-        }
-
-        return variables;
-    }
-
-    private UserMessage prepareUserMessage(Method method, Object[] args) throws JsonschemaConfigException {
-        String template = getUserMessageTemplate(method, args);
-        Map<String, Object> variables = findTemplateVariables(template, method, args);
-        Prompt prompt;
-        try {
-            prompt = PromptTemplate.from(template).apply(variables);
-        } catch (IllegalArgumentException e) {
-            throw new JsonschemaConfigException(String.format("Jsonschema FunctionalInterfaceAiServices ai_jsonschema[user_prompt_text] config error! ai_jsonschema_id=%s, ai_jsonschema_enum=%s, JavaClass=%s, detail:%s", jsonschemaId, jsonSchemaEnum, context.aiServiceClass.getSimpleName(), e.toString()), e, context.aiServiceClass);
-        }
-
-        Optional<String> maybeUserName = findUserName(method.getParameters(), args);
-        return maybeUserName.map(userName -> UserMessage.from(userName, prompt.text()))
-                .orElseGet(prompt::toUserMessage);
-    }
-
-    private String getUserMessageTemplate(Method method, Object[] args) {
-        // wangzihao 12-09 增加支持userMessage从数据库读取 userMessage != null && !userMessage.isEmpty()
-        if (userMessage != null && !userMessage.isEmpty()) {
-            return userMessage;
-        }
-        Optional<String> templateFromMethodAnnotation = findUserMessageTemplateFromMethodAnnotation(method);
-        Optional<String> templateFromParameterAnnotation = findUserMessageTemplateFromAnnotatedParameter(method.getParameters(), args);
-
-        if (templateFromMethodAnnotation.isPresent() && templateFromParameterAnnotation.isPresent()) {
-            throw illegalConfiguration(
-                    "Error: The method '%s' has multiple @UserMessage annotations. Please use only one.",
-                    method.getName()
-            );
-        }
-
-        if (templateFromMethodAnnotation.isPresent()) {
-            return templateFromMethodAnnotation.get();
-        }
-        if (templateFromParameterAnnotation.isPresent()) {
-            return templateFromParameterAnnotation.get();
-        }
-
-        Optional<String> templateFromTheOnlyArgument = findUserMessageTemplateFromTheOnlyArgument(method.getParameters(), args);
-        if (templateFromTheOnlyArgument.isPresent()) {
-            return templateFromTheOnlyArgument.get();
-        }
-
-        throw illegalConfiguration("Error: The method '%s' does not have a user message defined.", method.getName());
-    }
-
     private static class OpenAiStreamingChatLanguageModel implements StreamingChatLanguageModel {
 
         private final OpenAiChatClient client;
@@ -402,16 +315,91 @@ public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
         }
     }
 
-    public static class AiServiceTokenStream implements TokenStream {
+    static class FunctionalInterfaceChatStreamingResponseHandler implements ChatStreamingResponseHandler {
+        private final AiServiceTokenStream source;
 
-        private final List<ChatMessage> messages;
-        private final List<Content> retrievedContents;
+        FunctionalInterfaceChatStreamingResponseHandler(AiServiceTokenStream source) {
+            this.source = source;
+        }
+
+        @Override
+        public void onError(Throwable error, int baseMessageIndex, int addMessageCount, int generateCount) {
+            if (source.errorHandler != null) {
+                source.errorHandler.accept(error);
+            }
+        }
+
+        @Override
+        public void onToolCalls(Response<AiMessage> response) {
+            try {
+                source.parentResponseHandler.onJsonSchemaToolCalls(response);
+            } catch (Exception e) {
+                source.log.warn("JsonSchema onJsonSchemaToolCalls error {}", e.toString(), e);
+            }
+        }
+
+        @Override
+        public void beforeUrlRead(AiWebSearchSourceEnum sourceEnum, String providerName, String question, UrlReadTools urlReadTools, WebSearchResultVO.Row row) {
+            try {
+                source.parentResponseHandler.beforeUrlRead(sourceEnum, providerName, question, urlReadTools, row);
+            } catch (Exception e) {
+                source.log.warn("JsonSchema beforeUrlRead error {}", e.toString(), e);
+            }
+        }
+
+        @Override
+        public void beforeWebSearch(AiWebSearchSourceEnum sourceEnum, String providerName, String question) {
+            try {
+                source.parentResponseHandler.beforeWebSearch(sourceEnum, providerName, question);
+            } catch (Exception e) {
+                source.log.warn("JsonSchema beforeWebSearch error {}", e.toString(), e);
+            }
+        }
+
+        @Override
+        public void afterUrlRead(AiWebSearchSourceEnum sourceEnum, String providerName, String question, UrlReadTools urlReadTools, WebSearchResultVO.Row row, String content, String merge, long cost) {
+            try {
+                source.parentResponseHandler.afterUrlRead(sourceEnum, providerName, question, urlReadTools, row, content, merge, cost);
+            } catch (Exception e) {
+                source.log.warn("JsonSchema afterUrlRead error {}", e.toString(), e);
+            }
+        }
+
+        @Override
+        public void afterWebSearch(AiWebSearchSourceEnum sourceEnum, String providerName, String question, WebSearchResultVO resultVO, long cost) {
+            try {
+                source.parentResponseHandler.afterWebSearch(sourceEnum, providerName, question, resultVO, cost);
+            } catch (Exception e) {
+                source.log.warn("JsonSchema afterWebSearch error {}", e.toString(), e);
+            }
+        }
+
+        @Override
+        public void onComplete(Response<AiMessage> response, int baseMessageIndex, int addMessageCount, int generateCount) {
+            try {
+                source.parentResponseHandler.onJsonSchema(source.context.aiServiceClass, source.systemMessage, source.userMessage, response.content());
+            } catch (Exception e) {
+                source.log.warn("JsonSchema onJsonSchema error {}", e.toString(), e);
+            }
+            if (source.completionHandler != null) {
+                source.completionHandler.accept(response);
+            }
+        }
+
+        @Override
+        public void onToken(AiMessageString token, int baseMessageIndex, int addMessageCount) {
+            if (source.tokenHandler != null) {
+                source.tokenHandler.accept(token);
+            }
+        }
+    }
+
+    public static class AiServiceTokenStream implements TokenStream, JsonSchemaTokenStream {
+
+        //        private final List<Content> retrievedContents;
         private final AiServiceContext context;
         private final List<Tools.ToolMethod> toolMethodList;
-
-        private final ChatStreamingResponseHandler responseHandler;
-        private final UserMessage userMessage;
-        private final SystemMessage systemMessage;
+        private final ChatStreamingResponseHandler parentResponseHandler;
         private final boolean isSupportChineseToolName;
         private final Object memoryId;
         private final String modelName;
@@ -421,24 +409,35 @@ public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
         private final Object proxy;
         private final Logger log;
         private final Executor executor;
+        private final FunctionalInterfaceChatStreamingResponseHandler functionalInterfaceResponseHandler;
+        private final String systemMessageString;
+        private final String userMessageString;
+        private final Map<String, Object> variablesMap;
+        private final Integer jsonschemaId;
+        private final String jsonSchemaEnum;
+        private final Method method;
+        private final Object[] args;
+        List<ChatMessage> messages;
+        private UserMessage userMessage;
+        private SystemMessage systemMessage;
         private Consumer<AiMessageString> tokenHandler;
         private Consumer<List<Content>> contentsHandler;
         private Consumer<Throwable> errorHandler;
         private Consumer<Response<AiMessage>> completionHandler;
-        private int onNextInvoked;
-        private int onCompleteInvoked;
-        private int onRetrievedInvoked;
-        private int onErrorInvoked;
-        private int ignoreErrorsInvoked;
+        private ChatStreamingResponseHandler responseHandler;
+        private JsonSchema jsonSchema;
 
-        public AiServiceTokenStream(String modelName, List<ChatMessage> messages,
-                                    List<Content> retrievedContents,
+        public AiServiceTokenStream(Method method, Object[] args,
+                                    String modelName,
+                                    Integer jsonschemaId,
+                                    String jsonSchemaEnum,
+                                    String systemMessageString,
+                                    String userMessageString,
+                                    Map<String, Object> variablesMap,
                                     AiServiceContext context,
                                     List<Tools.ToolMethod> toolMethodList,
                                     boolean isSupportChineseToolName,
                                     Object memoryId,
-                                    UserMessage userMessage,
-                                    SystemMessage systemMessage,
                                     QuestionClassifyListVO classifyListVO,
                                     Boolean websearch,
                                     Boolean reasoning,
@@ -446,6 +445,13 @@ public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
                                     Object proxy,
                                     Logger log,
                                     Executor executor) {
+            this.method = method;
+            this.args = args;
+            this.jsonschemaId = jsonschemaId;
+            this.jsonSchemaEnum = jsonSchemaEnum;
+            this.userMessageString = userMessageString;
+            this.systemMessageString = systemMessageString;
+            this.variablesMap = variablesMap;
             this.executor = executor;
             this.classifyListVO = classifyListVO;
             this.websearch = websearch;
@@ -455,201 +461,115 @@ public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
             this.log = log;
             this.isSupportChineseToolName = isSupportChineseToolName;
             this.toolMethodList = toolMethodList;
-            this.messages = ensureNotEmpty(messages, "messages");
-            this.retrievedContents = retrievedContents;
+//            this.messages = ensureNotEmpty(messages, "messages");
             this.context = ensureNotNull(context, "context");
             ensureNotNull(context.streamingChatModel, "streamingChatModel");
-            this.responseHandler = responseHandler;
-            this.userMessage = userMessage;
-            this.systemMessage = systemMessage;
+            this.parentResponseHandler = responseHandler;
+//            this.userMessage = userMessage;
+//            this.systemMessage = systemMessage;
             this.proxy = proxy;
+            this.responseHandler = this.functionalInterfaceResponseHandler = new FunctionalInterfaceChatStreamingResponseHandler(this);
         }
 
-        @Override
-        public TokenStream onNext(Consumer<String> tokenHandler) {
-            this.tokenHandler = aiMessageString -> tokenHandler.accept(aiMessageString.getChatString());
-            this.onNextInvoked++;
-            return this;
-        }
+        private static Map<String, Object> findTemplateVariables(Map<String, Object> variablesMap, String template, Method method, Object[] args) {
+            Parameter[] parameters = method.getParameters();
 
-        public TokenStream onNext0(Consumer<AiMessageString> tokenHandler) {
-            this.tokenHandler = tokenHandler;
-            this.onNextInvoked++;
-            return this;
-        }
-
-        @Override
-        public TokenStream onRetrieved(Consumer<List<Content>> contentsHandler) {
-            this.contentsHandler = contentsHandler;
-            this.onRetrievedInvoked++;
-            return this;
-        }
-
-        @Override
-        public TokenStream onComplete(Consumer<Response<AiMessage>> completionHandler) {
-            this.completionHandler = completionHandler;
-            this.onCompleteInvoked++;
-            return this;
-        }
-
-        @Override
-        public TokenStream onError(Consumer<Throwable> errorHandler) {
-            this.errorHandler = errorHandler;
-            this.onErrorInvoked++;
-            return this;
-        }
-
-        @Override
-        public TokenStream ignoreErrors() {
-            this.errorHandler = null;
-            this.ignoreErrorsInvoked++;
-            return this;
-        }
-
-        @Override
-        public void start() {
-            validateConfiguration();
-
-            ChatStreamingResponseHandler csrh = new ChatStreamingResponseHandler() {
-                @Override
-                public void onError(Throwable error, int baseMessageIndex, int addMessageCount, int generateCount) {
-                    if (errorHandler != null) {
-                        errorHandler.accept(error);
-                    }
-                }
-
-                @Override
-                public void onToolCalls(Response<AiMessage> response) {
-                    try {
-                        responseHandler.onJsonSchemaToolCalls(response);
-                    } catch (Exception e) {
-                        log.warn("JsonSchema onJsonSchemaToolCalls error {}", e.toString(), e);
-                    }
-                }
-
-                @Override
-                public void beforeUrlRead(AiWebSearchSourceEnum sourceEnum, String providerName, String question, UrlReadTools urlReadTools, WebSearchResultVO.Row row) {
-                    try {
-                        responseHandler.beforeUrlRead(sourceEnum, providerName, question, urlReadTools, row);
-                    } catch (Exception e) {
-                        log.warn("JsonSchema beforeUrlRead error {}", e.toString(), e);
-                    }
-                }
-
-                @Override
-                public void beforeWebSearch(AiWebSearchSourceEnum sourceEnum, String providerName, String question) {
-                    try {
-                        responseHandler.beforeWebSearch(sourceEnum, providerName, question);
-                    } catch (Exception e) {
-                        log.warn("JsonSchema beforeWebSearch error {}", e.toString(), e);
-                    }
-                }
-
-                @Override
-                public void afterUrlRead(AiWebSearchSourceEnum sourceEnum, String providerName, String question, UrlReadTools urlReadTools, WebSearchResultVO.Row row, String content, String merge, long cost) {
-                    try {
-                        responseHandler.afterUrlRead(sourceEnum, providerName, question, urlReadTools, row, content, merge, cost);
-                    } catch (Exception e) {
-                        log.warn("JsonSchema afterUrlRead error {}", e.toString(), e);
-                    }
-                }
-
-                @Override
-                public void afterWebSearch(AiWebSearchSourceEnum sourceEnum, String providerName, String question, WebSearchResultVO resultVO, long cost) {
-                    try {
-                        responseHandler.afterWebSearch(sourceEnum, providerName, question, resultVO, cost);
-                    } catch (Exception e) {
-                        log.warn("JsonSchema afterWebSearch error {}", e.toString(), e);
-                    }
-                }
-
-                @Override
-                public void onComplete(Response<AiMessage> response, int baseMessageIndex, int addMessageCount, int generateCount) {
-                    try {
-                        responseHandler.onJsonSchema(context.aiServiceClass, systemMessage, userMessage, response.content());
-                    } catch (Exception e) {
-                        log.warn("JsonSchema onJsonSchema error {}", e.toString(), e);
-                    }
-                    if (completionHandler != null) {
-                        completionHandler.accept(response);
-                    }
-                }
-
-                @Override
-                public void onToken(AiMessageString token, int baseMessageIndex, int addMessageCount) {
-                    if (tokenHandler != null) {
-                        tokenHandler.accept(token);
-                    }
-                }
-            };
-            ChatMemory chatMemory = MessageWindowChatMemory.builder().id(memoryId).maxMessages(Integer.MAX_VALUE).build();
-            messages.forEach(chatMemory::add);
-            JsonschemaFunctionCallStreamingResponseHandler handler = new JsonschemaFunctionCallStreamingResponseHandler(
-                    modelName,
-                    unAdapter(context.streamingChatModel),
-                    chatMemory,
-                    csrh,
-                    null,
-                    toolMethodList,
-                    isSupportChineseToolName,
-                    0, new AtomicInteger(), null,
-                    classifyListVO, websearch, reasoning, executor, context.aiServiceClass);
-
-            if (contentsHandler != null && retrievedContents != null) {
-                contentsHandler.accept(retrievedContents);
-            }
-            handler.generate((handler1, request) -> {
-                // JsonSchema默认不开启思考
-                request.clone().getOptions().setEnableThinking(Boolean.FALSE);
-                if (proxy instanceof JsonSchemaApi) {
-                    JsonSchemaApi api = (JsonSchemaApi) proxy;
-                    request.getOptions().setJsonSchema(api.getJsonSchema());
-                    api.config(handler1, request);
-                }
-            });
-        }
-
-        private void validateConfiguration() {
-            if (onNextInvoked > 1) {
-                throw new IllegalConfigurationException("onNext must be invoked exactly 1 time");
+            // wangzihao 12-09 增加支持内置变量 new HashMap<>(this.variables);
+            Map<String, Object> variables = new HashMap<>(variablesMap);
+            for (int i = 0; i < parameters.length; i++) {
+                String variableName = getVariableName(parameters[i]);
+                Object variableValue = args[i];
+                variables.put(variableName, variableValue);
             }
 
-            if (onCompleteInvoked > 1) {
-                throw new IllegalConfigurationException("onComplete must be invoked at most 1 time");
+            if (template.contains("{{it}}") && !variables.containsKey("it")) {
+                String itValue = getValueOfVariableIt(parameters, args);
+                variables.put("it", itValue);
             }
 
-            if (onRetrievedInvoked > 1) {
-                throw new IllegalConfigurationException("onRetrieved must be invoked at most 1 time");
-            }
+            return variables;
+        }
 
-            if (onErrorInvoked + ignoreErrorsInvoked != 1) {
-                throw new IllegalConfigurationException("One of onError or ignoreErrors must be invoked exactly 1 time");
+        private static Optional<SystemMessage> prepareSystemMessage(Integer jsonschemaId,
+                                                                    String jsonSchemaEnum, AiServiceContext context, Map<String, Object> variablesMap, String systemMessageString, Object memoryId, Method method, Object[] args) throws JsonschemaConfigException {
+            Optional<String> template = findSystemMessageTemplate(context, systemMessageString, memoryId, method);
+            try {
+                return template.map(systemMessageTemplate -> PromptTemplate.from(systemMessageTemplate)
+                        .apply(findTemplateVariables(variablesMap, systemMessageTemplate, method, args))
+                        .toSystemMessage());
+            } catch (Exception e) {
+                throw new JsonschemaConfigException(String.format("Jsonschema FunctionalInterfaceAiServices ai_jsonschema[system_prompt_text] config error! ai_jsonschema_id=%s, ai_jsonschema_enum=%s, JavaClass=%s, detail:%s", jsonschemaId, jsonSchemaEnum, context.aiServiceClass.getSimpleName(), e.toString()), e, context.aiServiceClass);
             }
         }
-    }
 
-    class StreamInvocationHandler implements InvocationHandler {
+        private static Optional<String> findSystemMessageTemplate(AiServiceContext context, String systemMessage, Object memoryId, Method method) {
+            // wangzihao 12-09 增加支持systemMessage从数据库读取 systemMessage != null && !systemMessage.isEmpty()
+            if (systemMessage != null && !systemMessage.isEmpty()) {
+                return Optional.of(systemMessage);
+            }
+            dev.langchain4j.service.SystemMessage annotation = method.getAnnotation(dev.langchain4j.service.SystemMessage.class);
+            if (annotation != null) {
+                return Optional.of(getTemplate(method, "System", annotation.fromResource(), annotation.value(), annotation.delimiter()));
+            }
+            return context.systemMessageProvider.apply(memoryId);
+        }
 
-        @Override
-        public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+        private static String getUserMessageTemplate(String userMessage, Method method, Object[] args) {
+            // wangzihao 12-09 增加支持userMessage从数据库读取 userMessage != null && !userMessage.isEmpty()
+            if (userMessage != null && !userMessage.isEmpty()) {
+                return userMessage;
+            }
+            Optional<String> templateFromMethodAnnotation = findUserMessageTemplateFromMethodAnnotation(method);
+            Optional<String> templateFromParameterAnnotation = findUserMessageTemplateFromAnnotatedParameter(method.getParameters(), args);
 
-            if (method.getDeclaringClass() == Object.class) {
-                // methods like equals(), hashCode() and toString() should not be handled by this proxy
-                return method.invoke(this, args);
+            if (templateFromMethodAnnotation.isPresent() && templateFromParameterAnnotation.isPresent()) {
+                throw illegalConfiguration(
+                        "Error: The method '%s' has multiple @UserMessage annotations. Please use only one.",
+                        method.getName()
+                );
             }
 
-            // wangzihao 12-11， 支持默认方法
-            if (method.isDefault()) {
-                return ReflectUtil.invokeMethodHandle(true, proxy, method, args);
+            if (templateFromMethodAnnotation.isPresent()) {
+                return templateFromMethodAnnotation.get();
+            }
+            if (templateFromParameterAnnotation.isPresent()) {
+                return templateFromParameterAnnotation.get();
             }
 
-            validateParameters(method);
+            Optional<String> templateFromTheOnlyArgument = findUserMessageTemplateFromTheOnlyArgument(method.getParameters(), args);
+            if (templateFromTheOnlyArgument.isPresent()) {
+                return templateFromTheOnlyArgument.get();
+            }
 
-            Object memoryId = findMemoryId(method, args).orElse(FunctionalInterfaceAiServices.this.memoryId);
+            throw illegalConfiguration("Error: The method '%s' does not have a user message defined.", method.getName());
+        }
 
-            Optional<SystemMessage> systemMessage = prepareSystemMessage(memoryId, method, args);
-            UserMessage userMessage = prepareUserMessage(method, args);
-            AugmentationResult augmentationResult = null;
+        private static UserMessage prepareUserMessage(Class<?> aiServiceClass, Integer jsonschemaId,
+                                                      String jsonSchemaEnum, Map<String, Object> variablesMap, String userMessageString, Method method, Object[] args) throws JsonschemaConfigException {
+            String template = getUserMessageTemplate(userMessageString, method, args);
+            Map<String, Object> variables = findTemplateVariables(variablesMap, template, method, args);
+            Prompt prompt;
+            try {
+                prompt = PromptTemplate.from(template).apply(variables);
+            } catch (IllegalArgumentException e) {
+                throw new JsonschemaConfigException(String.format("Jsonschema FunctionalInterfaceAiServices ai_jsonschema[user_prompt_text] config error! ai_jsonschema_id=%s, ai_jsonschema_enum=%s, JavaClass=%s, detail:%s", jsonschemaId, jsonSchemaEnum, aiServiceClass.getSimpleName(), e.toString()), e, aiServiceClass);
+            }
+
+            Optional<String> maybeUserName = findUserName(method.getParameters(), args);
+            return maybeUserName.map(userName -> UserMessage.from(userName, prompt.text()))
+                    .orElseGet(prompt::toUserMessage);
+        }
+
+        private void prepareMessages(JsonSchema jsonSchema, AiServiceContext context,
+                                     Integer jsonschemaId,
+                                     String jsonSchemaEnum,
+                                     Map<String, Object> variablesMap, String userMessageString, String systemMessageString, Object memoryId, Method method, Object[] args) throws JsonschemaConfigException {
+            Map<String, Object> variablesMapCopy = new HashMap<>(variablesMap);
+            variablesMapCopy.putIfAbsent(VAR_JSON_SCHEMA, JsonSchemasString.toJsonString(jsonSchema));
+
+            Optional<SystemMessage> systemMessage = prepareSystemMessage(jsonschemaId, jsonSchemaEnum, context, variablesMapCopy, systemMessageString, memoryId, method, args);
+            UserMessage userMessage = prepareUserMessage(context.aiServiceClass, jsonschemaId, jsonSchemaEnum, variablesMapCopy, userMessageString, method, args);
+            AugmentationResult augmentationResult;
             if (context.retrievalAugmentor != null) {
                 List<ChatMessage> chatMemory = context.hasChatMemory()
                         ? context.chatMemory(memoryId).messages()
@@ -674,16 +594,135 @@ public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
                 systemMessage.ifPresent(messages::add);
                 messages.add(userMessage);
             }
-            TokenStream tokenStream = new AiServiceTokenStream(
+            this.userMessage = userMessage;
+            systemMessage.ifPresent(message -> this.systemMessage = message);
+            this.messages = messages;
+        }
+
+        @Override
+        public JsonSchemaTokenStream onNext(Consumer<String> tokenHandler) {
+            this.tokenHandler = aiMessageString -> tokenHandler.accept(aiMessageString.getChatString());
+            return this;
+        }
+
+        @Override
+        public JsonSchemaTokenStream onRetrieved(Consumer<List<Content>> contentsHandler) {
+            this.contentsHandler = contentsHandler;
+            return this;
+        }
+
+        @Override
+        public JsonSchemaTokenStream onComplete(Consumer<Response<AiMessage>> completionHandler) {
+            this.completionHandler = completionHandler;
+            return this;
+        }
+
+        @Override
+        public JsonSchemaTokenStream onError(Consumer<Throwable> errorHandler) {
+            this.errorHandler = errorHandler;
+            return this;
+        }
+
+        @Override
+        public JsonSchemaTokenStream ignoreErrors() {
+            this.errorHandler = null;
+            return this;
+        }
+
+        @Override
+        public JsonSchemaTokenStream responseHandler(ChatStreamingResponseHandler handler) {
+            if (handler == null) {
+                this.responseHandler = functionalInterfaceResponseHandler;
+            } else {
+                this.responseHandler = new MergeChatStreamingResponseHandler(Arrays.asList(handler, functionalInterfaceResponseHandler), handler);
+            }
+            return this;
+        }
+
+        @Override
+        public JsonSchemaTokenStream jsonSchema(JsonSchema jsonSchema) {
+            this.jsonSchema = jsonSchema;
+            return this;
+        }
+
+        @Override
+        public Class<?> getInterfaceClass() {
+            return context.aiServiceClass;
+        }
+
+        @Override
+        public void start() {
+            JsonSchema jsonSchema = this.jsonSchema;
+            if (jsonSchema == null && proxy instanceof JsonSchemaApi) {
+                jsonSchema = ((JsonSchemaApi) proxy).getJsonSchema();
+            }
+            try {
+                prepareMessages(jsonSchema, context, jsonschemaId, jsonSchemaEnum, variablesMap, userMessageString, systemMessageString, memoryId, method, args);
+            } catch (JsonschemaConfigException e) {
+                ThrowableUtil.sneakyThrows(e);
+                return;
+            }
+            // JsonSchema默认不开启思考
+            GenerateRequest.Options options = new GenerateRequest.Options();
+            options.setEnableThinking(Boolean.FALSE);
+            options.setJsonSchema(jsonSchema);
+
+            ChatMemory chatMemory = MessageWindowChatMemory.builder().id(memoryId).maxMessages(Integer.MAX_VALUE).build();
+            messages.forEach(chatMemory::add);
+            JsonschemaFunctionCallStreamingResponseHandler handler = new JsonschemaFunctionCallStreamingResponseHandler(
                     modelName,
-                    messages,
-                    augmentationResult != null ? augmentationResult.contents() : null,
+                    unAdapter(context.streamingChatModel),
+                    chatMemory,
+                    responseHandler,
+                    null,
+                    toolMethodList,
+                    isSupportChineseToolName,
+                    0, new AtomicInteger(), null,
+                    classifyListVO, websearch, reasoning, executor, context.aiServiceClass, options);
+
+//            if (contentsHandler != null && retrievedContents != null) {
+//                contentsHandler.accept(retrievedContents);
+//            }
+            handler.generate((handler1, request) -> {
+                if (proxy instanceof JsonSchemaApi) {
+                    JsonSchemaApi api = (JsonSchemaApi) proxy;
+                    api.config(handler1, request);
+                }
+            });
+        }
+    }
+
+    class StreamInvocationHandler implements InvocationHandler {
+
+        @Override
+        public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+
+            if (method.getDeclaringClass() == Object.class) {
+                // methods like equals(), hashCode() and toString() should not be handled by this proxy
+                return method.invoke(this, args);
+            }
+
+            // wangzihao 12-11， 支持默认方法
+            if (method.isDefault()) {
+                return ReflectUtil.invokeMethodHandle(true, proxy, method, args);
+            }
+
+            validateParameters(method);
+
+            Object memoryId = findMemoryId(method, args).orElse(FunctionalInterfaceAiServices.this.memoryId);
+
+            TokenStream tokenStream = new AiServiceTokenStream(
+                    method, args,
+                    modelName,
+                    jsonschemaId,
+                    jsonSchemaEnum,
+                    userMessage,
+                    systemMessage,
+                    variables,
                     context,
                     toolMethodList,
                     isSupportChineseToolName,
                     memoryId,
-                    userMessage,
-                    systemMessage.orElse(null),
                     classifyListVO,
                     websearch, reasoning,
                     responseHandler,

@@ -523,7 +523,7 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
             if (schema == null) {
                 return CompletableFuture.completedFuture(false);
             }
-            return schema.future(aiText);
+            return schema.isWaitingForAi(aiText).toBooleanFuture();
         } else {
             return CompletableFuture.completedFuture(false);
         }

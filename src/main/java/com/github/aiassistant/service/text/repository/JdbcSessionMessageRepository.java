@@ -271,7 +271,7 @@ public class JdbcSessionMessageRepository extends AbstractSessionMessageReposito
         } else {
             String mstateJsonPrompt = getMstateJsonPrompt(mstateList);
             mStateVO = aiMemoryMstateService.selectMstate(memoryId.getMemoryId());
-            known = knownJsonSchema.future(mstateJsonPrompt, AiUtil.toJsonString(mStateVO.getKnownState()));
+            known = knownJsonSchema.parse(mstateJsonPrompt, AiUtil.toJsonString(mStateVO.getKnownState())).toMapFuture();
         }
         CompletableFuture<Map<String, Object>> unknown;
         if (unknownJsonSchema != null) {
@@ -281,7 +281,7 @@ public class JdbcSessionMessageRepository extends AbstractSessionMessageReposito
             if (mStateVO.isEmpty()) {
                 unknown = CompletableFuture.completedFuture(null);
             } else {
-                unknown = unknownJsonSchema.future(AiUtil.toJsonString(mStateVO.getUnknownState()));
+                unknown = unknownJsonSchema.parse(AiUtil.toJsonString(mStateVO.getUnknownState())).toMapFuture();
             }
         } else {
             unknown = CompletableFuture.completedFuture(null);
