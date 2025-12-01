@@ -46,7 +46,6 @@ import java.util.function.Consumer;
 
 import static dev.langchain4j.exception.IllegalConfigurationException.illegalConfiguration;
 import static dev.langchain4j.internal.Exceptions.illegalArgument;
-import static dev.langchain4j.internal.ValidationUtils.ensureNotNull;
 import static dev.langchain4j.spi.ServiceHelper.loadFactories;
 
 public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
@@ -99,7 +98,7 @@ public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
         Method method = Arrays.stream(aiServiceClass.getMethods()).filter(e -> !e.isDefault()).findFirst().orElse(null);
         if (method != null) {
             Class<?> returnType = method.getReturnType();
-            boolean streaming = returnType == TokenStream.class || canAdaptTokenStreamTo(returnType);
+            boolean streaming = isReturnTypeTokenStream(method) || canAdaptTokenStreamTo(returnType);
             if (!streaming) {
                 throw new UnsupportedOperationException(String.format("JsonSchema aiServiceClass must streaming! %s %s", aiServiceClass, method));
             }
@@ -109,6 +108,11 @@ public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
         this.systemMessage = systemMessage;
         this.userMessage = userMessage;
         this.variables = variables;
+    }
+
+    private static boolean isReturnTypeTokenStream(Method method) {
+        Class<?> returnType = method.getReturnType();
+        return TokenStream.class.isAssignableFrom(returnType);
     }
 
     static void validateParameters(Method method) {
@@ -315,7 +319,7 @@ public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
         }
     }
 
-    static class FunctionalInterfaceChatStreamingResponseHandler implements ChatStreamingResponseHandler {
+    private static class FunctionalInterfaceChatStreamingResponseHandler implements ChatStreamingResponseHandler {
         private final AiServiceTokenStream source;
 
         FunctionalInterfaceChatStreamingResponseHandler(AiServiceTokenStream source) {
@@ -396,7 +400,6 @@ public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
 
     public static class AiServiceTokenStream implements TokenStream, JsonSchemaTokenStream {
 
-        //        private final List<Content> retrievedContents;
         private final AiServiceContext context;
         private final List<Tools.ToolMethod> toolMethodList;
         private final ChatStreamingResponseHandler parentResponseHandler;
@@ -417,7 +420,7 @@ public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
         private final String jsonSchemaEnum;
         private final Method method;
         private final Object[] args;
-        List<ChatMessage> messages;
+        private List<ChatMessage> messages;
         private UserMessage userMessage;
         private SystemMessage systemMessage;
         private Consumer<AiMessageString> tokenHandler;
@@ -431,8 +434,8 @@ public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
                                     String modelName,
                                     Integer jsonschemaId,
                                     String jsonSchemaEnum,
-                                    String systemMessageString,
                                     String userMessageString,
+                                    String systemMessageString,
                                     Map<String, Object> variablesMap,
                                     AiServiceContext context,
                                     List<Tools.ToolMethod> toolMethodList,
@@ -461,12 +464,8 @@ public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
             this.log = log;
             this.isSupportChineseToolName = isSupportChineseToolName;
             this.toolMethodList = toolMethodList;
-//            this.messages = ensureNotEmpty(messages, "messages");
-            this.context = ensureNotNull(context, "context");
-            ensureNotNull(context.streamingChatModel, "streamingChatModel");
+            this.context = context;
             this.parentResponseHandler = responseHandler;
-//            this.userMessage = userMessage;
-//            this.systemMessage = systemMessage;
             this.proxy = proxy;
             this.responseHandler = this.functionalInterfaceResponseHandler = new FunctionalInterfaceChatStreamingResponseHandler(this);
         }
@@ -491,7 +490,8 @@ public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
         }
 
         private static Optional<SystemMessage> prepareSystemMessage(Integer jsonschemaId,
-                                                                    String jsonSchemaEnum, AiServiceContext context, Map<String, Object> variablesMap, String systemMessageString, Object memoryId, Method method, Object[] args) throws JsonschemaConfigException {
+                                                                    String jsonSchemaEnum, AiServiceContext context, Map<String, Object> variablesMap,
+                                                                    String systemMessageString, Object memoryId, Method method, Object[] args) throws JsonschemaConfigException {
             Optional<String> template = findSystemMessageTemplate(context, systemMessageString, memoryId, method);
             try {
                 return template.map(systemMessageTemplate -> PromptTemplate.from(systemMessageTemplate)
@@ -704,7 +704,7 @@ public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
 
             // wangzihao 12-11， 支持默认方法
             if (method.isDefault()) {
-                return ReflectUtil.invokeMethodHandle(true, proxy, method, args);
+                return ReflectUtil.invokeMethodHandle(true, proxy, ReflectUtil.overrideMethod(context.aiServiceClass, method).orElse(method), args);
             }
 
             validateParameters(method);
@@ -730,11 +730,10 @@ public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
                     log,
                     executor
             );
-            Type returnType = method.getReturnType();
-            if (returnType == TokenStream.class) {
+            if (isReturnTypeTokenStream(method)) {
                 return tokenStream;
             } else {
-                return adapt(tokenStream, returnType);
+                return adapt(tokenStream, method.getReturnType());
             }
         }
 
@@ -744,7 +743,7 @@ public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
                     return tokenStreamAdapter.adapt(tokenStream);
                 }
             }
-            throw new IllegalStateException("Can't find suitable TokenStreamAdapter");
+            throw new IllegalStateException("Can't find suitable TokenStreamAdapter to adapt TokenStream to returnType " + returnType);
         }
 
     }

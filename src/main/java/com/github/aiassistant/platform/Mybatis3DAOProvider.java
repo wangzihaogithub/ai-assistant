@@ -128,7 +128,7 @@ public class Mybatis3DAOProvider extends DAOProvider {
                 return method.invoke(this, args);
             }
             if (method.isDefault()) {
-                return ReflectUtil.invokeMethodHandle(true, proxy, method, args);
+                return ReflectUtil.invokeMethodHandle(true, proxy, ReflectUtil.overrideMethod(type, method).orElse(method), args);
             }
             try (SqlSession session = sqlSessionFactory.openSession(true)) {
                 Object mapper = session.getMapper(type);

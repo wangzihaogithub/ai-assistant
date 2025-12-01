@@ -6,6 +6,7 @@ import com.github.aiassistant.service.jsonschema.ReasoningJsonSchema;
 import com.github.aiassistant.service.text.tools.Tools;
 
 import javax.sql.DataSource;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
@@ -27,8 +28,8 @@ public class JsonSchemaClientTest {
 
         ReasoningJsonSchema reasoningJsonSchema = jsonSchemaApiService.getSchemaByIdNoMemory(3, ReasoningJsonSchema.class);
 
-        CompletableFuture<ReasoningJsonSchema.Result> future = reasoningJsonSchema.future("帮我做一份旅游计划");
-        ReasoningJsonSchema.Result join = future.join();
+        CompletableFuture<Map<String, Object>> future = reasoningJsonSchema.parse("帮我做一份旅游计划").toMapFuture();
+        Map<String, Object> join = future.join();
         System.out.println(join);
     }
 }

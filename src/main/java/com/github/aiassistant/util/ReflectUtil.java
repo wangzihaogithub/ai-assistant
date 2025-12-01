@@ -5,6 +5,8 @@ import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.Arrays;
+import java.util.Optional;
 
 public class ReflectUtil {
     private static final int ALLOWED_MODES = MethodHandles.Lookup.PRIVATE | MethodHandles.Lookup.PROTECTED
@@ -36,10 +38,28 @@ public class ReflectUtil {
         }
     }
 
-    public static <T> T invokeMethodHandle(boolean special,Object obj, Method method, Object[] args) throws Throwable {
+    public static Optional<Method> overrideMethod(Class<?> overrideClass, Method method) {
+        if (method.getDeclaringClass() == overrideClass) {
+            return Optional.empty();
+        }
+        Class<?>[] parameterTypes = method.getParameterTypes();
+        String name = method.getName();
+        for (Method candidate : overrideClass.getDeclaredMethods()) {
+            if (candidate.getName().equals(name) &&
+                    Arrays.equals(candidate.getParameterTypes(), parameterTypes)) {
+                if (!method.getReturnType().isAssignableFrom(candidate.getReturnType())) {
+                    continue;
+                }
+                return Optional.of(candidate);
+            }
+        }
+        return Optional.empty();
+    }
+
+    public static <T> T invokeMethodHandle(boolean special, Object obj, Method method, Object[] args) throws Throwable {
         final Class<?> declaringClass = method.getDeclaringClass();
         final MethodHandles.Lookup lookup = lookup(declaringClass);
-        MethodHandle handle = special? lookup.unreflectSpecial(method, declaringClass)
+        MethodHandle handle = special ? lookup.unreflectSpecial(method, declaringClass)
                 : lookup.unreflect(method);
         if (null != obj) {
             handle = handle.bindTo(obj);
