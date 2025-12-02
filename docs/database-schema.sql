@@ -91,7 +91,7 @@ DROP TABLE IF EXISTS `ai_assistant_mstate`;
 CREATE TABLE `ai_assistant_mstate` (
                                        `id` int NOT NULL AUTO_INCREMENT COMMENT '主键',
                                        `assistant_id` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '智能体ID，不可变。保证唯一',
-                                       `state_key` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '系统提示词',
+                                       `state_key` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '状态的key',
                                        `prompt_text` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '字段提示词',
                                        `create_time` datetime NOT NULL COMMENT '创建时间',
                                        `update_time` datetime NOT NULL,
