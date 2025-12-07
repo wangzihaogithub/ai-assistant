@@ -139,6 +139,10 @@ public class ConsumerTokenWindowChatMemory implements ChatMemory {
         return messages;
     }
 
+    public List<ChatMessage> getMessagesUnmodifiable() {
+        return Collections.unmodifiableList(messages);
+    }
+
     /**
      * 清空记忆
      */

@@ -14,11 +14,14 @@ import com.github.aiassistant.service.text.tools.functioncall.UrlReadTools;
 import com.github.aiassistant.util.ResponseHandlerWebSearchEventListener;
 import dev.langchain4j.agent.tool.ToolExecutionRequest;
 import dev.langchain4j.data.message.*;
+import dev.langchain4j.memory.ChatMemory;
 import dev.langchain4j.model.openai.AudioChunk;
 import dev.langchain4j.model.output.Response;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * 聊天流定义的事件接口
@@ -46,6 +49,17 @@ public interface ChatStreamingResponseHandler {
      */
     default void onBeforeBuildRequest(RequestBuilder requestBuilder, List<ChatMessage> historyList, AiAccessUserVO user, AiVariablesVO variables, MemoryIdVO memoryId, Boolean websearch, Boolean reasoning, String question) {
         requestBuilder.complete();
+    }
+
+    /**
+     * 对大模型的返回结果进行追问,如果需要追问,则返回追问的问题列表,否则返回空列表
+     *
+     * @param chatMemory 记忆
+     * @param response   大模型返回结果
+     * @return 追问的问题列表，如果需要追问,则返回追问的问题列表,否则返回空列表
+     */
+    default CompletableFuture<List<ChatMessage>> onBeforeCompleteFurtherQuestioning(ChatMemory chatMemory, Response<AiMessage> response) {
+        return CompletableFuture.completedFuture(Collections.emptyList());
     }
 
     default AiVariablesVO onAfterSelectVariables(AiVariablesVO variables,

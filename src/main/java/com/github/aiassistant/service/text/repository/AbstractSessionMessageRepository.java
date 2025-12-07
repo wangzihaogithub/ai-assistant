@@ -4,7 +4,10 @@ import com.github.aiassistant.entity.model.chat.MessageVO;
 import com.github.aiassistant.entity.model.chat.RequestTraceVO;
 import com.github.aiassistant.entity.model.chat.ToolRequestVO;
 import com.github.aiassistant.entity.model.chat.ToolResponseVO;
-import com.github.aiassistant.entity.model.langchain4j.*;
+import com.github.aiassistant.entity.model.langchain4j.KnowledgeAiMessage;
+import com.github.aiassistant.entity.model.langchain4j.MetadataAiMessage;
+import com.github.aiassistant.entity.model.langchain4j.MstateAiMessage;
+import com.github.aiassistant.entity.model.langchain4j.ThinkingAiMessage;
 import com.github.aiassistant.enums.MessageTypeEnum;
 import com.github.aiassistant.service.text.sseemitter.AiMessageString;
 import com.github.aiassistant.util.AiUtil;
@@ -47,14 +50,14 @@ public abstract class AbstractSessionMessageRepository<MEMORY_ID, U> implements 
         } else {
             source = chatMessage;
         }
-        if (source instanceof LangChainUserMessage) {
-            LangChainUserMessage cast = ((LangChainUserMessage) source);
-            message.setType(MessageTypeEnum.LangChainUser);
-            message.setText(AiUtil.userMessageToString(cast));
-        } else if (source instanceof UserMessage) {
+        if (source instanceof UserMessage) {
             UserMessage cast = ((UserMessage) source);
-            message.setType(MessageTypeEnum.User);
             message.setText(AiUtil.userMessageToString(cast));
+            if (AiUtil.isTypeUser(source)) {
+                message.setType(MessageTypeEnum.User);
+            } else {
+                message.setType(MessageTypeEnum.LangChainUser);
+            }
         } else if (source instanceof SystemMessage) {
             SystemMessage cast = ((SystemMessage) source);
             message.setType(MessageTypeEnum.System);

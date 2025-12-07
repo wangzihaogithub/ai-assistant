@@ -1,24 +1,24 @@
 package com.github.aiassistant.service.text;
 
-import com.github.aiassistant.entity.model.chat.MemoryIdVO;
 import com.github.aiassistant.entity.model.chat.QuestionClassifyListVO;
 import com.github.aiassistant.entity.model.langchain4j.LangChainUserMessage;
 import com.github.aiassistant.entity.model.langchain4j.MetadataAiMessage;
-import com.github.aiassistant.exception.*;
-import com.github.aiassistant.service.jsonschema.LlmJsonSchemaApiService;
-import com.github.aiassistant.service.jsonschema.WhetherWaitingForAiJsonSchema;
+import com.github.aiassistant.exception.AiAssistantException;
+import com.github.aiassistant.exception.ModelApiGenerateException;
+import com.github.aiassistant.exception.TokenReadTimeoutException;
+import com.github.aiassistant.exception.ToolExecuteException;
 import com.github.aiassistant.service.text.sseemitter.AiMessageString;
 import com.github.aiassistant.service.text.sseemitter.SseHttpResponse;
 import com.github.aiassistant.service.text.tools.ResultToolExecutor;
 import com.github.aiassistant.service.text.tools.Tools;
 import com.github.aiassistant.util.AiUtil;
 import com.github.aiassistant.util.FutureUtil;
-import com.github.aiassistant.util.StringUtils;
 import com.github.aiassistant.util.ThrowableUtil;
 import dev.langchain4j.agent.tool.ToolExecutionRequest;
 import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.data.message.ToolExecutionResultMessage;
+import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.memory.ChatMemory;
 import dev.langchain4j.model.StreamingResponseHandler;
 import dev.langchain4j.model.openai.AudioChunk;
@@ -42,7 +42,7 @@ import java.util.stream.Collectors;
 /**
  * 流式处理AI结果（同时调用工具库）
  */
-public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void> implements ThinkingStreamingResponseHandler, AudioStreamingResponseHandler, StreamingResponseHandler<AiMessage> {
+public class FunctionCallStreamingResponseHandler implements ThinkingStreamingResponseHandler, AudioStreamingResponseHandler, StreamingResponseHandler<AiMessage> {
     public static final long READ_DONE = -1L;
     private static final ScheduledThreadPoolExecutor READ_TIMEOUT_SCHEDULED = new ScheduledThreadPoolExecutor(1, new ThreadFactory() {
 
@@ -55,7 +55,6 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
         }
     });
     private static final Logger log = LoggerFactory.getLogger(FunctionCallStreamingResponseHandler.class);
-    public static int MAX_GENERATE_COUNT = 10;
     private final Object memoryId;
     private final ChatMemory chatMemory;
     private final String modelName;
@@ -65,12 +64,9 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
     private final ChatStreamingResponseHandler bizHandler;
     private final int baseMessageIndex;
     private final AtomicInteger addMessageCount;
-    /**
-     * JsonSchema类型的模型
-     */
-    private final LlmJsonSchemaApiService llmJsonSchemaApiService;
     private final Executor executor;
     private final int generateRemaining;
+    private final int maxGenerateCount;
     private final List<SseHttpResponseImpl> aiEmitterList = new ArrayList<>();
     private final boolean isSupportChineseToolName;
     private final Long readTimeoutMs;
@@ -79,6 +75,7 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
     private final Boolean reasoning;
     private final AtomicBoolean generate = new AtomicBoolean(false);
     private final GenerateRequest.Options options;
+    private final CompletableFuture<Void> future = new CompletableFuture<>();
     /**
      * 供应商支持的接口参数
      */
@@ -88,10 +85,6 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
     private volatile long lastReadTimestamp;
     private volatile ScheduledFuture<?> readTimeoutFuture;
     /**
-     * 自动确认的内容
-     */
-    private String confirmToolCall = "ok";
-    /**
      * 向供应商发起请求前的回调钩子，可用于请求前填充参数
      */
     private BiConsumer<FunctionCallStreamingResponseHandler, GenerateRequest> beforeRequestConsumer;
@@ -99,7 +92,7 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
     public FunctionCallStreamingResponseHandler(String modelName, OpenAiChatClient chatModel,
                                                 ChatMemory chatMemory,
                                                 ChatStreamingResponseHandler handler,
-                                                LlmJsonSchemaApiService llmJsonSchemaApiService,
+                                                int maxGenerateCount,
                                                 List<Tools.ToolMethod> toolMethodList,
                                                 boolean isSupportChineseToolName,
                                                 int baseMessageIndex,
@@ -119,7 +112,6 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
         this.toolMethodList = toolMethodList;
         this.executor = executor == null ? Runnable::run : executor;
         this.memoryId = chatMemory.id();
-        this.llmJsonSchemaApiService = llmJsonSchemaApiService;
         this.chatModel = chatModel;
         this.chatMemory = chatMemory;
         this.parent = null;
@@ -129,7 +121,8 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
         this.websearch = websearch;
         this.reasoning = reasoning;
         this.addMessageCount = addMessageCount;
-        this.generateRemaining = MAX_GENERATE_COUNT;
+        this.generateRemaining = maxGenerateCount;
+        this.maxGenerateCount = maxGenerateCount;
         this.options = options;
     }
 
@@ -146,15 +139,23 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
         this.bizHandler = parent.bizHandler;
         this.baseMessageIndex = parent.baseMessageIndex;
         this.addMessageCount = parent.addMessageCount;
-        this.llmJsonSchemaApiService = parent.llmJsonSchemaApiService;
         this.classifyListVO = parent.classifyListVO;
         this.websearch = parent.websearch;
         this.reasoning = parent.reasoning;
         this.generateRemaining = parent.generateRemaining - 1;
+        this.maxGenerateCount = parent.maxGenerateCount;
         this.validationResult = parent.validationResult;
         this.lastResponse = parent.lastResponse;
         this.beforeRequestConsumer = parent.beforeRequestConsumer;
         this.options = parent.request.getOptions();
+    }
+
+    private static ChatMessage convertIfNeed(ChatMessage message) {
+        if (AiUtil.isTypeUser(message)) {
+            return LangChainUserMessage.convert((UserMessage) message);
+        } else {
+            return message;
+        }
     }
 
     /**
@@ -176,7 +177,7 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
     @Override
     public void onError(Throwable error) {
         // 如果已完成
-        if (isDone()) {
+        if (future.isDone()) {
             // 完成后重复触发了异常，这种情况理论上不存在，除非吐字超时 和 吐字异常 和 吐字完成 任其二同时刻触发了
             log.error("done after onError={}", error.toString(), error);
             return;
@@ -204,7 +205,7 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
         // 触发异步完成
         FunctionCallStreamingResponseHandler handler = this;
         while (handler != null) {
-            handler.completeExceptionally(assistantException);
+            handler.future.completeExceptionally(assistantException);
             handler = handler.parent;
         }
     }
@@ -357,7 +358,6 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
 
     private void functionCallIfNeed(Response<AiMessage> response) {
         AiMessage aiMessage = response.content();
-        boolean typeThinkingAiMessage = AiUtil.isTypeThinkingAiMessage(aiMessage);
         // 如果AI返回了工具调用清单
         if (aiMessage.hasToolExecutionRequests()) {
             // 构造出：多个工具执行器
@@ -393,24 +393,22 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
                 }
             });
         } else {
+            // 事件Hook通知 onTokenEnd
+            hookOnTokenEnd(response);
             // 是否需要自动帮用户进行信息确认
-            isNeedConfirmToolCall(response).whenComplete((b, throwable) -> {
+            furtherQuestioning(response).whenComplete((furtherQuestioningList, throwable) -> {
                 // 需要帮用户进行信息确认
-                if (Boolean.TRUE.equals(b)) {
-                    // 事件Hook通知 onTokenEnd
-                    hookOnTokenEnd(response);
-                    // 事件Hook通知 onTokenBegin
-                    hookOnTokenBegin();
-                    // 添加一条自动帮用户确认的消息
-                    addMessage(new LangChainUserMessage(confirmToolCall));
-                    // 再次向AI生成一次。注：会附带上自动帮用户确认的消息
-                    generate();
-                } else {
+                if (furtherQuestioningList == null || furtherQuestioningList.isEmpty()) {
                     // 不帮用户进行信息确认
-                    // 事件Hook通知 onTokenEnd
-                    hookOnTokenEnd(response);
                     // 事件Hook通知 onComplete
                     hookOnComplete(response);
+                } else {
+                    // 事件Hook通知 onTokenBegin
+                    hookOnTokenBegin();
+                    // 添加追问的消息
+                    furtherQuestioningList.forEach(e -> addMessage(convertIfNeed(e)));
+                    // 再次向AI生成一次。注：会附带上追问的消息
+                    generate();
                 }
             });
         }
@@ -482,58 +480,34 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
     private void executeToolsCall(List<ResultToolExecutor> toolExecutors) {
         // 执行
         for (ResultToolExecutor executor : toolExecutors) {
-            executor.execute().whenComplete(new BiConsumer<ToolExecutionResultMessage, Throwable>() {
-                @Override
-                public void accept(ToolExecutionResultMessage toolExecutionResultMessage, Throwable throwable) {
-                    bizHandler.onAfterToolCalls(executor.getRequest(), toolExecutionResultMessage, throwable);
-                }
-            });
+            executor.execute().whenComplete((toolExecutionResultMessage, throwable) -> bizHandler.onAfterToolCalls(executor.getRequest(), toolExecutionResultMessage, throwable));
         }
     }
 
     /**
-     * 是否需要自动帮用户进行信息确认
+     * 对大模型的返回结果进行追问
      * 例：AI回复：接下来我将自动帮您进行查询。 自动回复：好
      *
      * @param response AI返回的内容
-     * @return true=需要自动帮用户进行信息确认
+     * @return 追问的问题列表，如果需要追问,则返回追问的问题列表,否则返回空列表
      * @see AiUtil#isNeedConfirmToolCall(Response, Collection) 可以看下这个案例
      */
-    private CompletableFuture<Boolean> isNeedConfirmToolCall(Response<AiMessage> response) {
+    private CompletableFuture<List<ChatMessage>> furtherQuestioning(Response<AiMessage> response) {
         if (generateRemaining <= 0) {
-            return CompletableFuture.completedFuture(false);
+            return CompletableFuture.completedFuture(null);
         }
-//        if (tools.isEmpty()) {
-//            return CompletableFuture.completedFuture(false);
-//        }
-        String aiText = response.content().text();
-        if (!StringUtils.hasText(aiText)) {
-            return CompletableFuture.completedFuture(false);
+        CompletableFuture<List<ChatMessage>> f = bizHandler.onBeforeCompleteFurtherQuestioning(chatMemory, response);
+        if (f == null) {
+            f = CompletableFuture.completedFuture(null);
         }
-//        if (AiUtil.isNeedConfirmToolCall(response, toolMethodList)) {
-//            return CompletableFuture.completedFuture(true);
-//        }
-        if (memoryId instanceof MemoryIdVO && llmJsonSchemaApiService != null) {
-            WhetherWaitingForAiJsonSchema schema;
-            try {
-                schema = llmJsonSchemaApiService.getWhetherWaitingForAiJsonSchema((MemoryIdVO) memoryId);
-            } catch (JsonSchemaCreateException e) {
-                return FutureUtil.completeExceptionally(e);
-            }
-            if (schema == null) {
-                return CompletableFuture.completedFuture(false);
-            }
-            return schema.isWaitingForAi(aiText).toBooleanFuture();
-        } else {
-            return CompletableFuture.completedFuture(false);
-        }
+        return f;
     }
 
     private void hookOnComplete(Response<AiMessage> response) {
         bizHandler.onComplete(response, baseMessageIndex, addMessageCount.get(), generateCount());
         FunctionCallStreamingResponseHandler handler = this;
         while (handler != null) {
-            handler.complete(null);
+            handler.future.complete(null);
             handler = handler.parent;
         }
     }
@@ -547,7 +521,8 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
         bizHandler.onTokenBegin(baseMessageIndex, addMessageCount.get(), generateCount());
     }
 
-    public void addMessage(ChatMessage message) {
+
+    private void addMessage(ChatMessage message) {
         chatMemory.add(message);
         addMessageCount.incrementAndGet();
     }
@@ -569,7 +544,7 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
      */
     public CompletableFuture<Void> generate(BiConsumer<FunctionCallStreamingResponseHandler, GenerateRequest> beforeRequestConsumer) {
         // 如果没完成，且没请求过
-        if (!isDone() && generate.compareAndSet(false, true)) {
+        if (!future.isDone() && generate.compareAndSet(false, true)) {
             try {
                 request = new GenerateRequest(
                         // 过滤重复消息
@@ -600,7 +575,7 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
                 onError(e);
             }
         }
-        return this;
+        return future;
     }
 
     /**
@@ -691,15 +666,11 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
     }
 
     private int generateCount() {
-        return MAX_GENERATE_COUNT - generateRemaining;
+        return maxGenerateCount - generateRemaining;
     }
 
-    public String getConfirmToolCall() {
-        return confirmToolCall;
-    }
-
-    public void setConfirmToolCall(String confirmToolCall) {
-        this.confirmToolCall = confirmToolCall;
+    public int getMaxGenerateCount() {
+        return maxGenerateCount;
     }
 
     public GenerateRequest getRequest() {
@@ -720,6 +691,10 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
 
     public Boolean getReasoning() {
         return reasoning;
+    }
+
+    public CompletableFuture<Void> future() {
+        return future;
     }
 
     @Override
@@ -797,7 +772,7 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
         }
 
         private void write0(AiMessageString messageString) {
-            if (handler.isDone()) {
+            if (handler.future.isDone()) {
                 if (log.isWarnEnabled()) {
                     log.warn("FunctionCallStreamingResponseHandler has been closed, write: {}", messageString);
                 }
@@ -843,7 +818,7 @@ public class FunctionCallStreamingResponseHandler extends CompletableFuture<Void
                 throw new IllegalStateException("close() has already been called");
             }
             flush();
-            if (handler.isDone()) {
+            if (handler.future.isDone()) {
                 if (log.isWarnEnabled()) {
                     log.warn("FunctionCallStreamingResponseHandler has been closed");
                 }

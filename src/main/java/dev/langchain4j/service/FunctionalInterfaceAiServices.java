@@ -674,7 +674,7 @@ public class FunctionalInterfaceAiServices<T> extends AiServices<T> {
                     unAdapter(context.streamingChatModel),
                     chatMemory,
                     responseHandler,
-                    null,
+                    Integer.MAX_VALUE,
                     toolMethodList,
                     isSupportChineseToolName,
                     0, new AtomicInteger(), null,

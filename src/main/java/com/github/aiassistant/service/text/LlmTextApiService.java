@@ -126,6 +126,11 @@ public class LlmTextApiService {
      */
     private Duration connectTimeout = Duration.ofSeconds(3);
 
+    /**
+     * 在一个问题内，大模型最大生成次数
+     */
+    private int questionMaxGenerateCount = 100;
+
     public LlmTextApiService(EmbeddingModelPool embeddingModelPool, LlmJsonSchemaApiService llmJsonSchemaApiService,
                              AiQuestionClassifyService aiQuestionClassifyService,
                              AiJsonschemaMapper aiJsonschemaMapper,
@@ -205,6 +210,14 @@ public class LlmTextApiService {
         responseHandler.onError(error, 0, 0, 0);
         log.error("llm questionError chatId {}, error {}", memoryId.getChatId(), error.toString(), error);
         return handlerFuture;
+    }
+
+    public int getQuestionMaxGenerateCount() {
+        return questionMaxGenerateCount;
+    }
+
+    public void setQuestionMaxGenerateCount(int questionMaxGenerateCount) {
+        this.questionMaxGenerateCount = questionMaxGenerateCount;
     }
 
     public WebSearchService getWebSearchService() {
@@ -336,7 +349,7 @@ public class LlmTextApiService {
         if (handler == null || throwable != null) {
             llmJsonSchemaApiService.removeSession(memoryId);
         } else {
-            handler.whenComplete((unused, throwable1) -> llmJsonSchemaApiService.removeSession(memoryId));
+            handler.future().whenComplete((unused, throwable1) -> llmJsonSchemaApiService.removeSession(memoryId));
         }
     }
 
@@ -680,7 +693,7 @@ public class LlmTextApiService {
         FunctionCallStreamingResponseHandler handler = new FunctionCallStreamingResponseHandler(
                 // 模型名称，流模型，聊天记忆，业务回调钩子
                 model.modelName, model.streaming, chatMemory, responseHandler,
-                llmJsonSchemaApiService,
+                questionMaxGenerateCount,
                 // 工具集合，
                 toolMethodList,
                 // 是否支持中文工具名称（因为deepseek仅支持英文名称）

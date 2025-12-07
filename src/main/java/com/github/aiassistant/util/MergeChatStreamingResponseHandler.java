@@ -14,11 +14,13 @@ import com.github.aiassistant.service.text.sseemitter.SseHttpResponse;
 import com.github.aiassistant.service.text.tools.functioncall.UrlReadTools;
 import dev.langchain4j.agent.tool.ToolExecutionRequest;
 import dev.langchain4j.data.message.*;
+import dev.langchain4j.memory.ChatMemory;
 import dev.langchain4j.model.openai.AudioChunk;
 import dev.langchain4j.model.output.Response;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 public class MergeChatStreamingResponseHandler implements ChatStreamingResponseHandler {
     private final List<ChatStreamingResponseHandler> list;
@@ -37,6 +39,11 @@ public class MergeChatStreamingResponseHandler implements ChatStreamingResponseH
     @Override
     public AiVariablesVO onAfterSelectVariables(AiVariablesVO variables, AiAccessUserVO currentUser, List<ChatMessage> historyList, String lastQuestion, MemoryIdVO memoryId, Boolean websearch) {
         return getUserHandler().onAfterSelectVariables(variables, currentUser, historyList, lastQuestion, memoryId, websearch);
+    }
+
+    @Override
+    public CompletableFuture<List<ChatMessage>> onBeforeCompleteFurtherQuestioning(ChatMemory chatMemory, Response<AiMessage> response) {
+        return getUserHandler().onBeforeCompleteFurtherQuestioning(chatMemory, response);
     }
 
     @Override

@@ -1,7 +1,6 @@
 package dev.langchain4j.service;
 
 import com.github.aiassistant.entity.model.chat.QuestionClassifyListVO;
-import com.github.aiassistant.service.jsonschema.LlmJsonSchemaApiService;
 import com.github.aiassistant.service.text.ChatStreamingResponseHandler;
 import com.github.aiassistant.service.text.FunctionCallStreamingResponseHandler;
 import com.github.aiassistant.service.text.GenerateRequest;
@@ -26,7 +25,7 @@ class JsonschemaFunctionCallStreamingResponseHandler extends FunctionCallStreami
     JsonschemaFunctionCallStreamingResponseHandler(String modelName,
                                                    OpenAiChatClient chatModel, ChatMemory chatMemory,
                                                    ChatStreamingResponseHandler handler,
-                                                   LlmJsonSchemaApiService llmJsonSchemaApiService,
+                                                   int maxGenerateCount,
                                                    List<Tools.ToolMethod> toolMethodList,
                                                    boolean isSupportChineseToolName,
                                                    int baseMessageIndex, AtomicInteger addMessageCount, Long readTimeoutMs,
@@ -36,7 +35,7 @@ class JsonschemaFunctionCallStreamingResponseHandler extends FunctionCallStreami
                                                    Executor executor,
                                                    Class<?> jsonschemaClass,
                                                    GenerateRequest.Options options) {
-        super(modelName, chatModel, chatMemory, handler, llmJsonSchemaApiService,
+        super(modelName, chatModel, chatMemory, handler, maxGenerateCount,
                 toolMethodList, isSupportChineseToolName, baseMessageIndex, addMessageCount, readTimeoutMs, classifyListVO, websearch, reasoning, executor, options);
         this.jsonschemaClass = jsonschemaClass;
     }
