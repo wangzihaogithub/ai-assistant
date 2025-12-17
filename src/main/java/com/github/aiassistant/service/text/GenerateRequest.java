@@ -919,5 +919,30 @@ public class GenerateRequest implements Cloneable {
                 throw new IllegalStateException(e.toString(), e);
             }
         }
+
+        @Override
+        public String toString() {
+            return "Options{" +
+                    "toolChoiceRequired=" + toolChoiceRequired +
+                    ", enableSearch=" + enableSearch +
+                    ", searchOptions=" + searchOptions +
+                    ", enableThinking=" + enableThinking +
+                    ", thinkingBudget=" + thinkingBudget +
+                    ", modalities=" + modalities +
+                    ", audio=" + audio +
+                    ", jsonSchema=" + jsonSchema +
+                    ", parallelToolCalls=" + parallelToolCalls +
+                    ", enableCodeInterpreter=" + enableCodeInterpreter +
+                    ", seed=" + seed +
+                    ", dashScopeDataInspection='" + dashScopeDataInspection + '\'' +
+                    ", temperature=" + temperature +
+                    ", topP=" + topP +
+                    ", topK=" + topK +
+                    ", presencePenalty=" + presencePenalty +
+                    ", vlHighResolutionImages=" + vlHighResolutionImages +
+                    ", n=" + n +
+                    ", partialMode=" + partialMode +
+                    '}';
+        }
     }
 }

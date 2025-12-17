@@ -1,5 +1,7 @@
 package com.github.aiassistant.service.text.sseemitter;
 
+import com.github.aiassistant.enums.UserTriggerEventEnum;
+
 /**
  * 给前端推送
  */
@@ -15,6 +17,26 @@ public interface SseHttpResponse {
      * 立刻发送所有写入的内容
      */
     void flush();
+
+    /**
+     * 给前端推送用户触发事件
+     *
+     * @param triggerEventEnum 事件类型
+     * @param payload          事件数据
+     * @param timestamp        事件时间
+     */
+    <T> void userTrigger(UserTriggerEventEnum<T> triggerEventEnum, T payload, long timestamp);
+
+    /**
+     * 给前端推送用户触发事件（默认事件时间为当前时间）
+     *
+     * @param triggerEventEnum 事件类型
+     * @param payload          事件数据
+     * @param <T> 事件数据类型
+     */
+    default <T> void userTrigger(UserTriggerEventEnum<T> triggerEventEnum, T payload) {
+        userTrigger(triggerEventEnum, payload, System.currentTimeMillis());
+    }
 
     /**
      * 给前端推送内容

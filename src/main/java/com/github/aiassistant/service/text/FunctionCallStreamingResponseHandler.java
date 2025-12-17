@@ -1,8 +1,9 @@
 package com.github.aiassistant.service.text;
 
 import com.github.aiassistant.entity.model.chat.QuestionClassifyListVO;
-import com.github.aiassistant.entity.model.langchain4j.LangChainUserMessage;
+import com.github.aiassistant.entity.model.langchain4j.LangChain;
 import com.github.aiassistant.entity.model.langchain4j.MetadataAiMessage;
+import com.github.aiassistant.enums.UserTriggerEventEnum;
 import com.github.aiassistant.exception.AiAssistantException;
 import com.github.aiassistant.exception.ModelApiGenerateException;
 import com.github.aiassistant.exception.TokenReadTimeoutException;
@@ -18,7 +19,6 @@ import dev.langchain4j.agent.tool.ToolExecutionRequest;
 import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.data.message.ToolExecutionResultMessage;
-import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.memory.ChatMemory;
 import dev.langchain4j.model.StreamingResponseHandler;
 import dev.langchain4j.model.openai.AudioChunk;
@@ -76,6 +76,7 @@ public class FunctionCallStreamingResponseHandler implements ThinkingStreamingRe
     private final AtomicBoolean generate = new AtomicBoolean(false);
     private final GenerateRequest.Options options;
     private final CompletableFuture<Void> future = new CompletableFuture<>();
+    private final List<Response<AiMessage>> textResponseList;
     /**
      * 供应商支持的接口参数
      */
@@ -88,6 +89,7 @@ public class FunctionCallStreamingResponseHandler implements ThinkingStreamingRe
      * 向供应商发起请求前的回调钩子，可用于请求前填充参数
      */
     private BiConsumer<FunctionCallStreamingResponseHandler, GenerateRequest> beforeRequestConsumer;
+    private volatile boolean tokenBegin = false;
 
     public FunctionCallStreamingResponseHandler(String modelName, OpenAiChatClient chatModel,
                                                 ChatMemory chatMemory,
@@ -124,6 +126,7 @@ public class FunctionCallStreamingResponseHandler implements ThinkingStreamingRe
         this.generateRemaining = maxGenerateCount;
         this.maxGenerateCount = maxGenerateCount;
         this.options = options;
+        this.textResponseList = new LinkedList<>();
     }
 
     protected FunctionCallStreamingResponseHandler(FunctionCallStreamingResponseHandler parent) {
@@ -148,14 +151,7 @@ public class FunctionCallStreamingResponseHandler implements ThinkingStreamingRe
         this.lastResponse = parent.lastResponse;
         this.beforeRequestConsumer = parent.beforeRequestConsumer;
         this.options = parent.request.getOptions();
-    }
-
-    private static ChatMessage convertIfNeed(ChatMessage message) {
-        if (AiUtil.isTypeUser(message)) {
-            return LangChainUserMessage.convert((UserMessage) message);
-        } else {
-            return message;
-        }
+        this.textResponseList = parent.textResponseList;
     }
 
     /**
@@ -356,7 +352,7 @@ public class FunctionCallStreamingResponseHandler implements ThinkingStreamingRe
         hookOnTokenBegin();
     }
 
-    private void functionCallIfNeed(Response<AiMessage> response) {
+    private void functionCallIfNeed(Response<AiMessage> response) throws AiAssistantException {
         AiMessage aiMessage = response.content();
         // 如果AI返回了工具调用清单
         if (aiMessage.hasToolExecutionRequests()) {
@@ -393,10 +389,11 @@ public class FunctionCallStreamingResponseHandler implements ThinkingStreamingRe
                 }
             });
         } else {
+            textResponseList.add(response);
             // 事件Hook通知 onTokenEnd
             hookOnTokenEnd(response);
             // 是否需要自动帮用户进行信息确认
-            furtherQuestioning(response).whenComplete((furtherQuestioningList, throwable) -> {
+            furtherQuestioning(textResponseList).thenAccept(furtherQuestioningList -> {
                 // 需要帮用户进行信息确认
                 if (furtherQuestioningList == null || furtherQuestioningList.isEmpty()) {
                     // 不帮用户进行信息确认
@@ -406,10 +403,14 @@ public class FunctionCallStreamingResponseHandler implements ThinkingStreamingRe
                     // 事件Hook通知 onTokenBegin
                     hookOnTokenBegin();
                     // 添加追问的消息
-                    furtherQuestioningList.forEach(e -> addMessage(convertIfNeed(e)));
+                    furtherQuestioningList.forEach(this::addMessage);
                     // 再次向AI生成一次。注：会附带上追问的消息
                     generate();
                 }
+            }).exceptionally(throwable -> {
+                // 工具调用报错
+                onError(throwable);
+                return null;
             });
         }
     }
@@ -488,15 +489,16 @@ public class FunctionCallStreamingResponseHandler implements ThinkingStreamingRe
      * 对大模型的返回结果进行追问
      * 例：AI回复：接下来我将自动帮您进行查询。 自动回复：好
      *
-     * @param response AI返回的内容
+     * @param textResponseList AI返回的内容
      * @return 追问的问题列表，如果需要追问,则返回追问的问题列表,否则返回空列表
+     * @throws AiAssistantException AI异常
      * @see AiUtil#isNeedConfirmToolCall(Response, Collection) 可以看下这个案例
      */
-    private CompletableFuture<List<ChatMessage>> furtherQuestioning(Response<AiMessage> response) {
+    private CompletableFuture<List<? extends LangChain>> furtherQuestioning(List<Response<AiMessage>> textResponseList) throws AiAssistantException {
         if (generateRemaining <= 0) {
             return CompletableFuture.completedFuture(null);
         }
-        CompletableFuture<List<ChatMessage>> f = bizHandler.onBeforeCompleteFurtherQuestioning(chatMemory, response);
+        CompletableFuture<List<? extends LangChain>> f = bizHandler.onBeforeCompleteFurtherQuestioning(chatMemory, options, toolMethodList, toResponse(), textResponseList);
         if (f == null) {
             f = CompletableFuture.completedFuture(null);
         }
@@ -515,12 +517,13 @@ public class FunctionCallStreamingResponseHandler implements ThinkingStreamingRe
     private void hookOnTokenEnd(Response<AiMessage> response) {
         addMessage(MetadataAiMessage.convert(response));
         bizHandler.onTokenEnd(response, baseMessageIndex, addMessageCount.get(), generateCount());
+        tokenBegin = false;
     }
 
     private void hookOnTokenBegin() {
         bizHandler.onTokenBegin(baseMessageIndex, addMessageCount.get(), generateCount());
+        tokenBegin = true;
     }
-
 
     private void addMessage(ChatMessage message) {
         chatMemory.add(message);
@@ -754,6 +757,10 @@ public class FunctionCallStreamingResponseHandler implements ThinkingStreamingRe
                     runnable.run();
                 }
             }
+            if (handler.future.isDone()) {
+                return;
+            }
+            tokenEnd();
         }
 
         /**
@@ -794,6 +801,9 @@ public class FunctionCallStreamingResponseHandler implements ThinkingStreamingRe
             if (memoryString != null && !memoryString.isEmpty()) {
                 memoryStringBuilder.append(memoryString);
             }
+            if (!handler.tokenBegin) {
+                handler.hookOnTokenBegin();
+            }
             handler.onNext(messageString);
         }
 
@@ -813,40 +823,53 @@ public class FunctionCallStreamingResponseHandler implements ThinkingStreamingRe
             close0();
         }
 
+        private void tokenEnd() {
+            if (chatStringBuilder.length() == 0) {
+                return;
+            }
+            AiMessage aiMessage = new AiMessage(chatStringBuilder.toString());
+            TokenUsage tokenUsage;
+            FinishReason finishReason;
+            Map<String, Object> metadata = new HashMap<>();
+            if (lastResponse != null) {
+                tokenUsage = lastResponse.tokenUsage();
+                finishReason = lastResponse.finishReason();
+                Map<String, Object> lastMetadata = lastResponse.metadata();
+                if (lastMetadata != null) {
+                    metadata.putAll(lastMetadata);
+                }
+            } else {
+                tokenUsage = new TokenUsage(0, 0, 0);
+                finishReason = FinishReason.STOP;
+            }
+            String memoryString = memoryStringBuilder.toString();
+            metadata.put(MetadataAiMessage.METADATA_KEY_MEMORY_STRING, memoryString);
+            metadata.put(MetadataAiMessage.METADATA_KEY_STRING_META_MAP_LIST, new ArrayList<>(stringMetaMapList));
+            tokenEnd = new Response<>(aiMessage, tokenUsage, finishReason, metadata);
+            handler.hookOnTokenEnd(tokenEnd);
+
+            chatStringBuilder.setLength(0);
+            memoryStringBuilder.setLength(0);
+            stringMetaMapList.clear();
+        }
+
         private void close0() {
             if (!closeFlag.compareAndSet(false, true)) {
                 throw new IllegalStateException("close() has already been called");
             }
-            flush();
             if (handler.future.isDone()) {
                 if (log.isWarnEnabled()) {
                     log.warn("FunctionCallStreamingResponseHandler has been closed");
                 }
                 return;
             }
-            if (tokenEnd == null && chatStringBuilder.length() > 0) {
-                AiMessage aiMessage = new AiMessage(chatStringBuilder.toString());
-                TokenUsage tokenUsage;
-                FinishReason finishReason;
-                Map<String, Object> metadata = new HashMap<>();
-                if (lastResponse != null) {
-                    tokenUsage = lastResponse.tokenUsage();
-                    finishReason = lastResponse.finishReason();
-                    Map<String, Object> lastMetadata = lastResponse.metadata();
-                    if (lastMetadata != null) {
-                        metadata.putAll(lastMetadata);
-                    }
-                } else {
-                    tokenUsage = new TokenUsage(0, 0, 0);
-                    finishReason = FinishReason.STOP;
-                }
-                String memoryString = memoryStringBuilder.toString();
-                metadata.put(MetadataAiMessage.METADATA_KEY_MEMORY_STRING, memoryString);
-                metadata.put(MetadataAiMessage.METADATA_KEY_STRING_META_MAP_LIST, new ArrayList<>(stringMetaMapList));
-                tokenEnd = new Response<>(aiMessage, tokenUsage, finishReason, metadata);
-                handler.hookOnTokenEnd(tokenEnd);
-            }
+            flush();
             handler.hookOnComplete(tokenEnd);
+        }
+
+        @Override
+        public <T> void userTrigger(UserTriggerEventEnum<T> triggerEventEnum, T payload, long timestamp) {
+            handler.bizHandler.onUserTrigger(triggerEventEnum, payload, timestamp);
         }
 
         @Override
@@ -867,6 +890,13 @@ public class FunctionCallStreamingResponseHandler implements ThinkingStreamingRe
             }
             flush();
             handler.onError(error);
+        }
+
+        @Override
+        public String toString() {
+            return "SseHttpResponseImpl{" +
+                    "memoryId=" + handler.memoryId +
+                    '}';
         }
     }
 

@@ -6,6 +6,7 @@ import com.github.aiassistant.entity.AiMemoryMessageTool;
 import com.github.aiassistant.entity.model.chat.AiVariablesVO;
 import com.github.aiassistant.entity.model.langchain4j.Fewshot;
 import com.github.aiassistant.entity.model.langchain4j.KnowledgeAiMessage;
+import com.github.aiassistant.entity.model.langchain4j.LangChain;
 import com.github.aiassistant.entity.model.langchain4j.ThinkingAiMessage;
 import com.github.aiassistant.entity.model.user.AiAccessUserVO;
 import com.github.aiassistant.enums.MessageTypeEnum;
@@ -418,8 +419,16 @@ public class AiUtil {
         return message instanceof Fewshot;
     }
 
+    public static boolean isTypeLangChain(ChatMessage message) {
+        return message instanceof LangChain;
+    }
+
     public static boolean isTypeUser(ChatMessage message) {
         return message != null && message.getClass() == UserMessage.class;
+    }
+
+    public static boolean isTypeAi(ChatMessage message) {
+        return message != null && message.getClass() == AiMessage.class;
     }
 
     public static List<ChatMessage> deserializeFewshot(List<AiAssistantFewshot> dbList, AiVariablesVO variables) throws FewshotConfigException {
@@ -547,14 +556,18 @@ public class AiUtil {
 
     public static List<ChatMessage> beforeGenerate(List<ChatMessage> messages) {
         List<ChatMessage> list = messages.stream().filter(e -> e != NULL).collect(Collectors.toList());
+        return distinctMessage(list);
         // 解决模型认为之前AI已经回复过，不返回结果
-        return distinctMessage(removeLastAiMessage(list));
+//        return distinctMessage(removeLastAiMessage(list));
     }
 
     /**
      * 去掉重复消息
+     *
+     * @param list 消息列表
+     * @return 去重后的消息列表
      */
-    private static List<ChatMessage> distinctMessage(List<ChatMessage> list) {
+    public static List<ChatMessage> distinctMessage(List<ChatMessage> list) {
         List<ChatMessage> result = new ArrayList<>(list.size());
         String lastMessage = null;
         Class lastType = null;
@@ -580,7 +593,7 @@ public class AiUtil {
         return result;
     }
 
-    private static List<ChatMessage> removeLastAiMessage(List<ChatMessage> list) {
+    public static List<ChatMessage> removeLastAiMessage(List<ChatMessage> list) {
         for (int i = list.size() - 1; i > 0; i--) {
             ChatMessage message = list.get(i);
             if (message.getClass() != AiMessage.class) {

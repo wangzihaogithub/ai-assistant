@@ -95,7 +95,11 @@ public abstract class AbstractSessionMessageRepository<MEMORY_ID, U> implements 
             }
         } else if (source instanceof AiMessage) {
             AiMessage cast = ((AiMessage) source);
-            message.setType(MessageTypeEnum.Ai);
+            if (AiUtil.isTypeAi(source)) {
+                message.setType(MessageTypeEnum.Ai);
+            } else {
+                message.setType(MessageTypeEnum.LangChainAi);
+            }
             message.setText(cast.text());
             if (cast.hasToolExecutionRequests()) {
                 message.setToolRequests(cast.toolExecutionRequests().stream()

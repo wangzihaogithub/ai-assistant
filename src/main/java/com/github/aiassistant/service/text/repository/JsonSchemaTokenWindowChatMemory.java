@@ -1,7 +1,7 @@
 package com.github.aiassistant.service.text.repository;
 
+import com.github.aiassistant.entity.model.langchain4j.Feature;
 import com.github.aiassistant.entity.model.langchain4j.KnowledgeAiMessage;
-import com.github.aiassistant.entity.model.langchain4j.LangChainUserMessage;
 import com.github.aiassistant.entity.model.langchain4j.ThinkingAiMessage;
 import com.github.aiassistant.util.AiUtil;
 import com.github.aiassistant.util.StringUtils;
@@ -18,7 +18,7 @@ import java.util.stream.Collectors;
 public class JsonSchemaTokenWindowChatMemory extends ConsumerTokenWindowChatMemory {
 
     public JsonSchemaTokenWindowChatMemory(ConsumerTokenWindowChatMemory parent, SystemMessage systemMessage, List<ChatMessage> fewshotMessageList) {
-        super(parent.id, parent.maxTokens, null, parent.tokenizer, merge(parent.messages, systemMessage, fewshotMessageList), null);
+        super(parent.id, parent.maxTokens, null, merge(parent.messages, systemMessage, fewshotMessageList), null);
     }
 
     private static List<ChatMessage> merge(List<ChatMessage> messages, SystemMessage systemMessage, List<ChatMessage> fewshotMessageList) {
@@ -56,7 +56,10 @@ public class JsonSchemaTokenWindowChatMemory extends ConsumerTokenWindowChatMemo
         if (AiUtil.isNull(message)) {
             return true;
         }
-        return message instanceof LangChainUserMessage
+        if (message instanceof Feature.Ignore && ((Feature.Ignore) message).isIgnoreAddRepository()) {
+            return true;
+        }
+        return AiUtil.isTypeLangChain(message)
                 || message instanceof KnowledgeAiMessage
                 || message instanceof ThinkingAiMessage;
     }

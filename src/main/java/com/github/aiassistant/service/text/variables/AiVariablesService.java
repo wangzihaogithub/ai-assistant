@@ -175,6 +175,11 @@ public class AiVariablesService {
         target.setQuestion(query);
     }
 
+    public void setterSystemMessage(AiVariablesVO.Chat target, String systemMessage) {
+        target.setSystemMessage(systemMessage);
+    }
+
+
     /**
      * 知识库
      *

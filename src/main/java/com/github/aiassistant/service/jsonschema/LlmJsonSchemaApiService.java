@@ -130,7 +130,7 @@ public class LlmJsonSchemaApiService {
         }
     }
 
-    public boolean isEnableJsonschema(MemoryIdVO memoryIdVO, String jsonSchemaEnum) {
+    public boolean isEnableJsonschema(Object memoryIdVO, String jsonSchemaEnum) {
         Session session = getSession(memoryIdVO, false);
         if (session == null) {
             return false;
@@ -140,7 +140,7 @@ public class LlmJsonSchemaApiService {
                 .anyMatch(e -> Objects.equals(jsonSchemaEnum, e.getJsonSchemaEnum()) && Boolean.TRUE.equals(e.getEnableFlag()));
     }
 
-    public AiJsonschema getSessionJsonschema(MemoryIdVO memoryIdVO, String jsonSchemaEnum) {
+    public AiJsonschema getSessionJsonschema(Object memoryIdVO, String jsonSchemaEnum) {
         Session session = getSession(memoryIdVO, false);
         if (session == null) {
             return null;
@@ -163,7 +163,7 @@ public class LlmJsonSchemaApiService {
      * @param varKeys        varKeys
      * @return 使用了变量
      */
-    public boolean existPromptVariableKey(MemoryIdVO memoryIdVO, String jsonSchemaEnum, String... varKeys) {
+    public boolean existPromptVariableKey(Object memoryIdVO, String jsonSchemaEnum, String... varKeys) {
         AiJsonschema jsonschema = getSessionJsonschema(memoryIdVO, jsonSchemaEnum);
         if (jsonschema == null) {
             return false;
@@ -214,7 +214,7 @@ public class LlmJsonSchemaApiService {
      * @return JsonSchema类型的模型
      * @throws JsonSchemaCreateException JsonSchema创建失败
      */
-    public <T> T getSchema(MemoryIdVO memoryIdVO, Class<T> type, boolean useChatMemoryProvider) throws JsonSchemaCreateException {
+    public <T> T getSchema(Object memoryIdVO, Class<T> type, boolean useChatMemoryProvider) throws JsonSchemaCreateException {
         return getSchema(memoryIdVO, toJsonSchemaEnum(type), type, useChatMemoryProvider);
     }
 
@@ -227,7 +227,7 @@ public class LlmJsonSchemaApiService {
      * @return JsonSchema类型的模型
      * @throws JsonSchemaCreateException JsonSchema创建失败
      */
-    public <T> T getSchema(MemoryIdVO memoryIdVO, Class<T> type) throws JsonSchemaCreateException {
+    public <T> T getSchema(Object memoryIdVO, Class<T> type) throws JsonSchemaCreateException {
         return getSchema(memoryIdVO, toJsonSchemaEnum(type), type, false);
     }
 
@@ -242,7 +242,7 @@ public class LlmJsonSchemaApiService {
      * @return JsonSchema类型的模型
      * @throws JsonSchemaCreateException JsonSchema创建失败
      */
-    public <T> T getSchema(MemoryIdVO memoryIdVO, String jsonSchemaEnum, Class<T> type, boolean useChatMemoryProvider) throws JsonSchemaCreateException {
+    public <T> T getSchema(Object memoryIdVO, String jsonSchemaEnum, Class<T> type, boolean useChatMemoryProvider) throws JsonSchemaCreateException {
         AiJsonschema jsonschema = getSessionJsonschema(memoryIdVO, jsonSchemaEnum);
         if (jsonschema == null) {
             return null;

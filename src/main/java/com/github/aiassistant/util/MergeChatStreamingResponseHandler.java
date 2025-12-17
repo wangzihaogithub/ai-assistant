@@ -1,16 +1,20 @@
 package com.github.aiassistant.util;
 
 import com.github.aiassistant.entity.model.chat.*;
+import com.github.aiassistant.entity.model.langchain4j.LangChain;
 import com.github.aiassistant.entity.model.user.AiAccessUserVO;
 import com.github.aiassistant.enums.AiWebSearchSourceEnum;
 import com.github.aiassistant.enums.UserTriggerEventEnum;
+import com.github.aiassistant.exception.AiAssistantException;
 import com.github.aiassistant.service.jsonschema.ReasoningJsonSchema;
 import com.github.aiassistant.service.text.ChatStreamingResponseHandler;
+import com.github.aiassistant.service.text.GenerateRequest;
 import com.github.aiassistant.service.text.RequestBuilder;
 import com.github.aiassistant.service.text.acting.ActingService;
 import com.github.aiassistant.service.text.embedding.KnnResponseListenerFuture;
 import com.github.aiassistant.service.text.sseemitter.AiMessageString;
 import com.github.aiassistant.service.text.sseemitter.SseHttpResponse;
+import com.github.aiassistant.service.text.tools.Tools;
 import com.github.aiassistant.service.text.tools.functioncall.UrlReadTools;
 import dev.langchain4j.agent.tool.ToolExecutionRequest;
 import dev.langchain4j.data.message.*;
@@ -42,12 +46,12 @@ public class MergeChatStreamingResponseHandler implements ChatStreamingResponseH
     }
 
     @Override
-    public CompletableFuture<List<ChatMessage>> onBeforeCompleteFurtherQuestioning(ChatMemory chatMemory, Response<AiMessage> response) {
-        return getUserHandler().onBeforeCompleteFurtherQuestioning(chatMemory, response);
+    public CompletableFuture<List<? extends LangChain>> onBeforeCompleteFurtherQuestioning(ChatMemory chatMemory, GenerateRequest.Options options, List<Tools.ToolMethod> toolMethodList, SseHttpResponse sseHttpResponse, List<Response<AiMessage>> textResponseList) throws AiAssistantException {
+        return getUserHandler().onBeforeCompleteFurtherQuestioning(chatMemory, options, toolMethodList, sseHttpResponse, textResponseList);
     }
 
     @Override
-    public List<ChatMessage> onAfterSelectHistoryList(List<ChatMessage> repositoryHistoryList, AiAccessUserVO user, MemoryIdVO memoryId, Boolean websearch, Boolean reasoning, String question) {
+    public CompletableFuture<List<ChatMessage>> onAfterSelectHistoryList(List<ChatMessage> repositoryHistoryList, AiAccessUserVO user, MemoryIdVO memoryId, Boolean websearch, Boolean reasoning, String question) {
         return getUserHandler().onAfterSelectHistoryList(repositoryHistoryList, user, memoryId, websearch, reasoning, question);
     }
 

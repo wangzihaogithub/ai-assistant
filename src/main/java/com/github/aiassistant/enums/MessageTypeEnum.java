@@ -1,5 +1,7 @@
 package com.github.aiassistant.enums;
 
+import com.github.aiassistant.entity.model.langchain4j.LangChain;
+
 import java.util.Arrays;
 
 public enum MessageTypeEnum {
@@ -21,9 +23,13 @@ public enum MessageTypeEnum {
     Ai("Ai"),
 
     /**
-     * @see com.github.aiassistant.entity.model.langchain4j.LangChainUserMessage
+     * @see LangChain.UserMessage
      */
     LangChainUser("LangChainUser"),
+    /**
+     * @see LangChain.AiMessage
+     */
+    LangChainAi("LangChainAi"),
     /**
      * @see com.github.aiassistant.entity.model.langchain4j.MstateAiMessage
      */

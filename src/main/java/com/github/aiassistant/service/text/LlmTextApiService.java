@@ -4,6 +4,7 @@ import com.github.aiassistant.dao.AiAssistantFewshotMapper;
 import com.github.aiassistant.dao.AiJsonschemaMapper;
 import com.github.aiassistant.entity.AiAssistantKn;
 import com.github.aiassistant.entity.model.chat.*;
+import com.github.aiassistant.entity.model.langchain4j.Feature;
 import com.github.aiassistant.entity.model.langchain4j.KnowledgeAiMessage;
 import com.github.aiassistant.entity.model.langchain4j.MetadataAiMessage;
 import com.github.aiassistant.entity.model.langchain4j.MstateAiMessage;
@@ -35,10 +36,8 @@ import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.UserMessage;
-import dev.langchain4j.model.Tokenizer;
 import dev.langchain4j.model.input.Prompt;
 import dev.langchain4j.model.openai.OpenAiChatClient;
-import dev.langchain4j.model.openai.OpenAiTokenizer;
 import dev.langchain4j.model.output.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,10 +58,6 @@ import java.util.stream.Collectors;
  */
 public class LlmTextApiService {
     private static final Logger log = LoggerFactory.getLogger(LlmTextApiService.class);
-    /**
-     * 预测各种文本类型（如文本、提示、文本段等）中的标记计数的接口
-     */
-    private final Tokenizer tokenizer = new OpenAiTokenizer();
     /**
      * Text类型的聊天模型
      */
@@ -204,8 +199,7 @@ public class LlmTextApiService {
      * @param responseHandler 事件回调函数
      * @return 持久化异常
      */
-    private static CompletableFuture<FunctionCallStreamingResponseHandler> questionError(Throwable error, MemoryIdVO memoryId, ChatStreamingResponseHandler responseHandler) {
-        CompletableFuture<FunctionCallStreamingResponseHandler> handlerFuture = new CompletableFuture<>();
+    private static <T> CompletableFuture<T> questionError(CompletableFuture<T> handlerFuture, Throwable error, MemoryIdVO memoryId, ChatStreamingResponseHandler responseHandler) {
         handlerFuture.completeExceptionally(error);
         responseHandler.onError(error, 0, 0, 0);
         log.error("llm questionError chatId {}, error {}", memoryId.getChatId(), error.toString(), error);
@@ -301,40 +295,52 @@ public class LlmTextApiService {
             // 历史记录
             List<ChatMessage> repositoryHistoryList = interceptHistoryList(repository.getHistoryList(),
                     user, memoryId, websearch, reasoning, responseHandler, question, intercepts);
-            List<ChatMessage> historyList = responseHandler.onAfterSelectHistoryList(repositoryHistoryList, user, memoryId, websearch, reasoning, question);
-
-            int baseMessageIndex = historyList.size();//起始消息下标
-            int addMessageCount = 1;// 为什么是1？因为第0个是内置的SystemMessage，所以至少要有一个。
-            // 当前问题，如果是重新回答需要获取最后一次问题getLastUserQuestion
-            String lastQuestion = StringUtils.hasText(question) ? question : AiUtil.getLastUserQuestion(historyList);
-            if (!StringUtils.hasText(lastQuestion)) {
-                throw new QuestionEmptyException("user question is empty!", historyList);
+            CompletableFuture<List<ChatMessage>> historyListFuture = responseHandler.onAfterSelectHistoryList(repositoryHistoryList, user, memoryId, websearch, reasoning, question);
+            if (historyListFuture == null) {
+                historyListFuture = CompletableFuture.completedFuture(repositoryHistoryList);
             }
-            // 初始化
-            mergeResponseHandler.onTokenBegin(baseMessageIndex, addMessageCount, 0);
-            // 查询变量
-            AiVariablesVO variables = aiVariablesService.selectVariables(user, historyList, lastQuestion, memoryId, websearch, mergeResponseHandler);
-            // 绑定会话钩子
-            llmJsonSchemaApiService.putSessionVariables(memoryId, variables);
-            // 进行问题分类
-            CompletableFuture<QuestionClassifyListVO> classifyFuture = aiQuestionClassifyService.classify(lastQuestion, memoryId);
-            // 问题分类报错
-            classifyFuture.exceptionally(throwable -> {
-                mergeResponseHandler.onError(throwable, baseMessageIndex, addMessageCount, 0);
+
+            // 构建回调函数
+            CompletableFuture<CompletableFuture<CompletableFuture<FunctionCallStreamingResponseHandler>>> buildHandlerFuture = new CompletableFuture<>();
+            historyListFuture.thenAccept(historyList -> {
+                int baseMessageIndex = historyList.size();//起始消息下标
+                int addMessageCount = 1;// 为什么是1？因为第0个是内置的SystemMessage，所以至少要有一个。
+                // 当前问题，如果是重新回答需要获取最后一次问题getLastUserQuestion
+                String lastQuestion = StringUtils.hasText(question) ? question : AiUtil.getLastUserQuestion(historyList);
+                if (!StringUtils.hasText(lastQuestion)) {
+                    questionError(buildHandlerFuture, new QuestionEmptyException("user question is empty!", historyList), memoryId, responseHandler);
+                    return;
+                }
+                // 初始化
+                mergeResponseHandler.onTokenBegin(baseMessageIndex, addMessageCount, 0);
+                // 查询变量
+                AiVariablesVO variables = aiVariablesService.selectVariables(user, historyList, lastQuestion, memoryId, websearch, mergeResponseHandler);
+                // 绑定会话钩子
+                llmJsonSchemaApiService.putSessionVariables(memoryId, variables);
+                // 进行问题分类
+                CompletableFuture<QuestionClassifyListVO> classifyFuture = aiQuestionClassifyService.classify(lastQuestion, memoryId);
+                // 问题分类报错
+                classifyFuture.exceptionally(throwable -> {
+                    mergeResponseHandler.onError(throwable, baseMessageIndex, addMessageCount, 0);
+                    return null;
+                });
+                // buildHandler 构造出支持工具调用的回调函数(对接底层模型)
+                CompletableFuture<CompletableFuture<FunctionCallStreamingResponseHandler>> f = classifyFuture
+                        .thenApply(c -> buildHandler(c, user, repository, question, websearch,
+                                reasoning, memoryId, mergeResponseHandler, historyList, baseMessageIndex, addMessageCount, lastQuestion, variables, intercepts));
+                buildHandlerFuture.complete(f);
+            }).exceptionally(throwable -> {
+                questionError(buildHandlerFuture, throwable, memoryId, responseHandler);
                 return null;
             });
-            // buildHandler 构造出支持工具调用的回调函数(对接底层模型)
-            CompletableFuture<CompletableFuture<FunctionCallStreamingResponseHandler>> f = classifyFuture
-                    .thenApply(c -> buildHandler(c, user, repository, question, websearch,
-                            reasoning, memoryId, mergeResponseHandler, historyList, baseMessageIndex, addMessageCount, lastQuestion, variables, intercepts));
             // 等待完毕
-            return FutureUtil.allOf(f)
+            return FutureUtil.allOf(FutureUtil.allOf(buildHandlerFuture))
                     // 完毕后删除JsonSchema的本地记忆
                     .whenComplete((handler, throwable) -> removeJsonSchemaSession(handler, throwable, memoryId));
         } catch (Throwable e) {
             // 提问报错了，删除JsonSchema的本地记忆
             removeJsonSchemaSession(null, e, memoryId);
-            return questionError(e, memoryId, responseHandler);
+            return questionError(new CompletableFuture<>(), e, memoryId, responseHandler);
         }
     }
 
@@ -656,13 +662,16 @@ public class LlmTextApiService {
 
         // 系统消息
         SystemMessage systemMessage = buildSystemMessage(assistantConfig.getSystemPromptText(), responseHandler, variables, assistantConfig);
+        if (systemMessage != null) {
+            aiVariablesService.setterSystemMessage(variables.getChat(), systemMessage.text());
+        }
         // 少样本学习
         List<ChatMessage> fewshotMessageList = AiUtil.deserializeFewshot(aiAssistantFewshotMapper.selectListByAssistantId(memoryId.getAiAssistantId()), variables);
         AiUtil.addToHistoryList(historyList, systemMessage, fewshotMessageList);
 
         // 记忆
         ConsumerTokenWindowChatMemory chatMemory = new ConsumerTokenWindowChatMemory(memoryId, assistantConfig.getMaxMemoryTokens(), assistantConfig.getMaxMemoryRounds(),
-                tokenizer, historyList, e -> RepositoryChatStreamingResponseHandler.add(e, repository));
+                historyList, e -> RepositoryChatStreamingResponseHandler.add(e, repository));
         // JsonSchema
         llmJsonSchemaApiService.putSessionMemory(memoryId, new JsonSchemaTokenWindowChatMemory(chatMemory, systemMessage, fewshotMessageList));
         if (repository != null) {
@@ -683,7 +692,6 @@ public class LlmTextApiService {
         List<Tools.ToolMethod> toolMethodList = AiUtil.initTool(aiToolService.selectToolMethodList(StringUtils.split(assistantConfig.getAiToolIds(), ","), variablesMap), variables, user);
 
         AtomicInteger addMessageCount = new AtomicInteger();
-
         // 获取模型
         AiModelVO[] models = getModels(assistantConfig);
         AiModelVO model = models[modelIndex.getAndIncrement() % models.length];
@@ -1079,6 +1087,10 @@ public class LlmTextApiService {
              * @see #onAfterModelThinking(Response)
              */
             if (chatMessage instanceof MetadataAiMessage && ((MetadataAiMessage) chatMessage).isTypeThinkingAiMessage()) {
+                return;
+            }
+            // 忽略添加到仓库的消息
+            if (chatMessage instanceof Feature.Ignore && ((Feature.Ignore) chatMessage).isIgnoreAddRepository()) {
                 return;
             }
             repository.add(chatMessage);

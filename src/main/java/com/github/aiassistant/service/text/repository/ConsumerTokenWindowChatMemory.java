@@ -2,12 +2,8 @@ package com.github.aiassistant.service.text.repository;
 
 import com.github.aiassistant.entity.model.chat.MemoryIdVO;
 import com.github.aiassistant.util.AiUtil;
-import dev.langchain4j.data.message.AiMessage;
-import dev.langchain4j.data.message.ChatMessage;
-import dev.langchain4j.data.message.SystemMessage;
-import dev.langchain4j.data.message.ToolExecutionResultMessage;
+import dev.langchain4j.data.message.*;
 import dev.langchain4j.memory.ChatMemory;
-import dev.langchain4j.model.Tokenizer;
 
 import java.util.*;
 import java.util.function.Consumer;
@@ -20,18 +16,16 @@ public class ConsumerTokenWindowChatMemory implements ChatMemory {
     protected final MemoryIdVO id;
     protected final Integer maxTokens;
     protected final Integer maxMemoryRounds;
-    protected final Tokenizer tokenizer;
     protected final LinkedList<ChatMessage> messages = new LinkedList<>();
     protected final Consumer<ChatMessage> addMessages;
 
     public ConsumerTokenWindowChatMemory(MemoryIdVO id,
                                          Integer maxTokens,
                                          Integer maxMemoryRounds,
-                                         Tokenizer tokenizer, List<ChatMessage> historyList,
+                                         List<ChatMessage> historyList,
                                          Consumer<ChatMessage> addMessages) {
         this.id = id;
         this.maxTokens = maxTokens;
-        this.tokenizer = tokenizer;
         this.addMessages = addMessages;
         if (historyList != null) {
             messages.addAll(historyList);
@@ -84,8 +78,8 @@ public class ConsumerTokenWindowChatMemory implements ChatMemory {
     /**
      * 确保容量不超限，超限就删除消息
      */
-    private static void ensureCapacity(List<ChatMessage> messages, int maxTokens, Tokenizer tokenizer) {
-        int currentTokenCount = tokenizer.estimateTokenCountInMessages(messages);
+    private static void ensureCapacity(List<ChatMessage> messages, int maxTokens) {
+        int currentTokenCount = estimateTokenCountInMessages(messages);
         while (currentTokenCount > maxTokens) {
             int messageToEvictIndex = 0;
             if (messages.get(0) instanceof SystemMessage) {
@@ -93,7 +87,7 @@ public class ConsumerTokenWindowChatMemory implements ChatMemory {
             }
 
             ChatMessage evictedMessage = messages.remove(messageToEvictIndex);
-            int tokenCountOfEvictedMessage = tokenizer.estimateTokenCountInMessage(evictedMessage);
+            int tokenCountOfEvictedMessage = estimateTokenCountInMessage(evictedMessage);
             currentTokenCount -= tokenCountOfEvictedMessage;
 
             if (evictedMessage instanceof AiMessage && ((AiMessage) evictedMessage).hasToolExecutionRequests()) {
@@ -102,10 +96,42 @@ public class ConsumerTokenWindowChatMemory implements ChatMemory {
                     // Some LLMs (e.g. OpenAI) prohibit ToolExecutionResultMessage(s) without corresponding AiMessage,
                     // so we have to automatically evict orphan ToolExecutionResultMessage(s) if AiMessage was evicted
                     ChatMessage orphanToolExecutionResultMessage = messages.remove(messageToEvictIndex);
-                    currentTokenCount -= tokenizer.estimateTokenCountInMessage(orphanToolExecutionResultMessage);
+                    currentTokenCount -= estimateTokenCountInMessage(orphanToolExecutionResultMessage);
                 }
             }
         }
+    }
+
+    public static int estimateTokenCountInMessages(Iterable<ChatMessage> messages) {
+        int tokenCount = 3;
+        for (ChatMessage message : messages) {
+            tokenCount += estimateTokenCountInMessage(message);
+        }
+        return tokenCount;
+    }
+
+    public static int estimateTokenCountInMessage(ChatMessage message) {
+        int tokenCount = 1;
+        if (message instanceof SystemMessage) {
+            tokenCount += ((SystemMessage) message).text().length();
+        } else if (message instanceof UserMessage) {
+            for (Content content : ((UserMessage) message).contents()) {
+                if (content instanceof TextContent) {
+                    tokenCount += ((TextContent) content).text().length();
+                }
+            }
+        } else if (message instanceof AiMessage) {
+            tokenCount += ((AiMessage) message).text().length();
+        } else if (message instanceof ToolExecutionResultMessage) {
+            ToolExecutionResultMessage t = (ToolExecutionResultMessage) message;
+            tokenCount += t.text().length();
+            String tooledName = t.toolName();
+            if (tooledName != null) {
+                tokenCount += tooledName.length();
+            }
+            tokenCount += t.id().length();
+        }
+        return tokenCount;
     }
 
     /**
@@ -135,7 +161,9 @@ public class ConsumerTokenWindowChatMemory implements ChatMemory {
     public List<ChatMessage> messages() {
         LinkedList<ChatMessage> messages = new LinkedList<>(this.messages);
         ensureCapacityRounds(messages, maxMemoryRounds);
-        ensureCapacity(messages, maxTokens, tokenizer);
+        if (maxTokens > 0) {
+            ensureCapacity(messages, maxTokens);
+        }
         return messages;
     }
 
@@ -149,5 +177,14 @@ public class ConsumerTokenWindowChatMemory implements ChatMemory {
     @Override
     public void clear() {
         messages.clear();
+    }
+
+    @Override
+    public String toString() {
+        return "ConsumerTokenWindowChatMemory{" +
+                "id=" + id +
+                ", maxTokens=" + maxTokens +
+                ", maxMemoryRounds=" + maxMemoryRounds +
+                '}';
     }
 }

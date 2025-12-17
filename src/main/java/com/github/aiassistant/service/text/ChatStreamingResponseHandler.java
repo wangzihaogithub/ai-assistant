@@ -1,14 +1,17 @@
 package com.github.aiassistant.service.text;
 
 import com.github.aiassistant.entity.model.chat.*;
+import com.github.aiassistant.entity.model.langchain4j.LangChain;
 import com.github.aiassistant.entity.model.user.AiAccessUserVO;
 import com.github.aiassistant.enums.AiWebSearchSourceEnum;
 import com.github.aiassistant.enums.UserTriggerEventEnum;
+import com.github.aiassistant.exception.AiAssistantException;
 import com.github.aiassistant.service.jsonschema.ReasoningJsonSchema;
 import com.github.aiassistant.service.text.acting.ActingService;
 import com.github.aiassistant.service.text.embedding.KnnResponseListenerFuture;
 import com.github.aiassistant.service.text.sseemitter.AiMessageString;
 import com.github.aiassistant.service.text.sseemitter.SseHttpResponse;
+import com.github.aiassistant.service.text.tools.Tools;
 import com.github.aiassistant.service.text.tools.WebSearchService;
 import com.github.aiassistant.service.text.tools.functioncall.UrlReadTools;
 import com.github.aiassistant.util.ResponseHandlerWebSearchEventListener;
@@ -54,11 +57,15 @@ public interface ChatStreamingResponseHandler {
     /**
      * 对大模型的返回结果进行追问,如果需要追问,则返回追问的问题列表,否则返回空列表
      *
-     * @param chatMemory 记忆
-     * @param response   大模型返回结果
+     * @param chatMemory       记忆
+     * @param options          生成选项
+     * @param toolMethodList   工具方法列表
+     * @param sseHttpResponse  SSE响应
+     * @param textResponseList 大模型返回结果
      * @return 追问的问题列表，如果需要追问,则返回追问的问题列表,否则返回空列表
+     * @throws AiAssistantException AI异常
      */
-    default CompletableFuture<List<ChatMessage>> onBeforeCompleteFurtherQuestioning(ChatMemory chatMemory, Response<AiMessage> response) {
+    default CompletableFuture<List<? extends LangChain>> onBeforeCompleteFurtherQuestioning(ChatMemory chatMemory, GenerateRequest.Options options, List<Tools.ToolMethod> toolMethodList, SseHttpResponse sseHttpResponse, List<Response<AiMessage>> textResponseList) throws AiAssistantException {
         return CompletableFuture.completedFuture(Collections.emptyList());
     }
 
@@ -204,7 +211,7 @@ public interface ChatStreamingResponseHandler {
         return new ResponseHandlerWebSearchEventListener(this, sourceEnum);
     }
 
-    default List<ChatMessage> onAfterSelectHistoryList(List<ChatMessage> repositoryHistoryList, AiAccessUserVO user, MemoryIdVO memoryId, Boolean websearch, Boolean reasoning, String question) {
-        return repositoryHistoryList;
+    default CompletableFuture<List<ChatMessage>> onAfterSelectHistoryList(List<ChatMessage> repositoryHistoryList, AiAccessUserVO user, MemoryIdVO memoryId, Boolean websearch, Boolean reasoning, String question) {
+        return CompletableFuture.completedFuture(repositoryHistoryList);
     }
 }
