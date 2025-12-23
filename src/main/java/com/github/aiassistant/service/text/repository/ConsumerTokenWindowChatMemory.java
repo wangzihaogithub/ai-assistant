@@ -2,6 +2,7 @@ package com.github.aiassistant.service.text.repository;
 
 import com.github.aiassistant.entity.model.chat.MemoryIdVO;
 import com.github.aiassistant.util.AiUtil;
+import dev.langchain4j.agent.tool.ToolExecutionRequest;
 import dev.langchain4j.data.message.*;
 import dev.langchain4j.memory.ChatMemory;
 
@@ -121,7 +122,28 @@ public class ConsumerTokenWindowChatMemory implements ChatMemory {
                 }
             }
         } else if (message instanceof AiMessage) {
-            tokenCount += ((AiMessage) message).text().length();
+            AiMessage aiMessage = ((AiMessage) message);
+            String text = aiMessage.text();
+            if (text != null) {
+                tokenCount += text.length();
+            }
+            List<ToolExecutionRequest> executionRequestList = aiMessage.toolExecutionRequests();
+            if (executionRequestList != null) {
+                for (ToolExecutionRequest executionRequest : executionRequestList) {
+                    String id = executionRequest.id();
+                    if (id != null) {
+                        tokenCount += id.length();
+                    }
+                    String arguments = executionRequest.arguments();
+                    if (arguments != null) {
+                        tokenCount += arguments.length();
+                    }
+                    String name = executionRequest.name();
+                    if (name != null) {
+                        tokenCount += name.length();
+                    }
+                }
+            }
         } else if (message instanceof ToolExecutionResultMessage) {
             ToolExecutionResultMessage t = (ToolExecutionResultMessage) message;
             tokenCount += t.text().length();
@@ -129,7 +151,10 @@ public class ConsumerTokenWindowChatMemory implements ChatMemory {
             if (tooledName != null) {
                 tokenCount += tooledName.length();
             }
-            tokenCount += t.id().length();
+            String id = t.id();
+            if (id != null) {
+                tokenCount += id.length();
+            }
         }
         return tokenCount;
     }
