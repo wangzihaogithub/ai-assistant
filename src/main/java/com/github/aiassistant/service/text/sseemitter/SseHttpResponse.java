@@ -24,6 +24,7 @@ public interface SseHttpResponse {
      * @param triggerEventEnum 事件类型
      * @param payload          事件数据
      * @param timestamp        事件时间
+     * @param <T>              事件数据类型
      */
     <T> void userTrigger(UserTriggerEventEnum<T> triggerEventEnum, T payload, long timestamp);
 
@@ -32,7 +33,7 @@ public interface SseHttpResponse {
      *
      * @param triggerEventEnum 事件类型
      * @param payload          事件数据
-     * @param <T> 事件数据类型
+     * @param <T>              事件数据类型
      */
     default <T> void userTrigger(UserTriggerEventEnum<T> triggerEventEnum, T payload) {
         userTrigger(triggerEventEnum, payload, System.currentTimeMillis());
